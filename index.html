@@ -1,0 +1,1323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>AMAR.IO — 3D Cell Arena</title>
+<meta name="description" content="Agar-style cell arena in full 3D. Fly any direction, split, devour, and grow into a colossal sphere. Free, instant, multiplayer in the browser.">
+<meta property="og:title" content="AMAR.IO — 3D Cell Arena">
+<meta property="og:url" content="https://brianm3050.github.io/amar.io/">
+<meta property="og:description" content="Fly any direction. Split. Devour. Become colossal. Instant browser multiplayer.">
+<meta property="og:image" content="https://brianm3050.github.io/amar.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AMAR.IO — 3D Cell Arena">
+<meta name="twitter:description" content="Fly any direction. Split. Devour. Become colossal.">
+<meta name="twitter:image" content="https://brianm3050.github.io/amar.io/og.png">
+<meta name="theme-color" content="#05060f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05060f; --glass:rgba(14,18,40,.55); --glass-strong:rgba(12,16,36,.78);
+  --line:rgba(140,170,255,.18); --text:#eef2ff; --muted:#9aa6d1;
+  --a:#39f3ff; --b:#b45cff; --c:#ff4fa3; --good:#4dffa6; --bad:#ff5470;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow:hidden;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+#game{position:fixed;inset:0}
+#game canvas{display:block;width:100%;height:100%}
+.glass{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px) saturate(140%);
+  -webkit-backdrop-filter:blur(14px) saturate(140%);border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.hidden{display:none!important}
+
+/* ---------- HOME ---------- */
+#home{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:22px;padding:16px;
+  background:radial-gradient(ellipse at center,rgba(5,6,15,0) 0%,rgba(5,6,15,.55) 75%);z-index:10;flex-wrap:wrap;overflow-y:auto}
+.card{width:min(440px,100%);padding:28px 26px 22px;text-align:center}
+.logo{font-family:Outfit,sans-serif;font-weight:900;font-size:clamp(44px,9vw,68px);letter-spacing:.02em;line-height:.95;
+  background:linear-gradient(100deg,var(--a) 0%,var(--b) 50%,var(--c) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(120,120,255,.45))}
+.tag{margin:10px 0 20px;color:var(--muted);font-size:14px;letter-spacing:.04em}
+.tag b{color:var(--text);font-weight:600}
+.row{display:flex;gap:10px;align-items:center;justify-content:center;margin:12px 0}
+input[type=text]{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.35);
+  color:var(--text);font:600 16px Inter,sans-serif;outline:none;text-align:center;-webkit-user-select:text;user-select:text}
+input[type=text]:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(57,243,255,.15)}
+.swatches{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.sw{width:28px;height:28px;border-radius:50%;border:2px solid transparent;box-shadow:inset 0 0 10px rgba(255,255,255,.35)}
+.sw.on{border-color:#fff;transform:scale(1.12)}
+.seg{display:inline-flex;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{padding:9px 14px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button.on{background:linear-gradient(100deg,rgba(57,243,255,.22),rgba(180,92,255,.22));color:var(--text)}
+#play{width:100%;margin-top:14px;padding:16px;border-radius:14px;font:800 20px Outfit,sans-serif;letter-spacing:.12em;color:#061018;
+  background:linear-gradient(100deg,var(--a),#8f8bff 55%,var(--c));box-shadow:0 8px 30px rgba(120,120,255,.45),inset 0 1px 0 rgba(255,255,255,.5);
+  transition:transform .12s, box-shadow .12s}
+#play:hover{transform:translateY(-1px) scale(1.01);box-shadow:0 12px 40px rgba(120,120,255,.6)}
+.status{margin-top:12px;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#f5b942;box-shadow:0 0 10px currentColor}
+.dot.ok{background:var(--good)} .dot.off{background:#777}
+.keys{margin-top:14px;font-size:12px;color:var(--muted);line-height:1.8}
+kbd{font:600 11px Inter,sans-serif;padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--text)}
+.opts{display:flex;gap:14px;justify-content:center;font-size:12px;color:var(--muted);margin-top:6px}
+.opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.side{width:min(300px,100%);display:flex;flex-direction:column;gap:14px}
+.donate{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:14px;font-weight:700;
+  background:linear-gradient(100deg,rgba(255,79,163,.25),rgba(255,160,80,.25));border:1px solid rgba(255,120,160,.4);text-decoration:none;color:var(--text)}
+.donate:hover{background:linear-gradient(100deg,rgba(255,79,163,.4),rgba(255,160,80,.4))}
+.sponsor{padding:14px 16px;text-align:left;text-decoration:none;color:var(--text);display:block}
+.sponsor small{display:block;font-size:10px;letter-spacing:.18em;color:var(--muted);margin-bottom:6px}
+.sponsor .t{font-weight:700;font-size:15px}
+.sponsor .s{font-size:12px;color:var(--muted);margin-top:4px}
+.credit{font-size:11px;color:var(--muted);text-align:center;letter-spacing:.04em}
+.credit b{color:var(--text)}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+#stats{position:absolute;left:16px;top:16px;padding:12px 16px;min-width:170px}
+#mass{font:800 30px Outfit,sans-serif;line-height:1}
+#tier{font-size:11px;letter-spacing:.2em;color:var(--a);margin-top:4px;font-weight:700}
+#sub{font-size:12px;color:var(--muted);margin-top:6px}
+#lb{position:absolute;right:16px;top:16px;padding:12px 14px;width:220px;font-size:13px}
+#lb h4{font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:var(--muted);margin-bottom:8px}
+#lb ol{list-style:none}
+#lb li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;white-space:nowrap}
+#lb li span:first-child{overflow:hidden;text-overflow:ellipsis}
+#lb li.me{color:var(--a);font-weight:700}
+#lb li .m{color:var(--muted);font-variant-numeric:tabular-nums}
+#radarWrap{position:absolute;left:16px;bottom:16px;padding:8px;border-radius:50%}
+#radar{display:block;width:150px;height:150px}
+#feed{position:absolute;top:18px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center}
+.fi{padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;background:var(--glass-strong);border:1px solid var(--line);
+  animation:fi 3.2s forwards}
+@keyframes fi{0%{opacity:0;transform:translateY(-6px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+#marks{position:absolute;inset:0;width:100%;height:100%}
+#cross{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.55);box-shadow:0 0 8px rgba(57,243,255,.6)}
+#cross::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px;border-radius:50%;background:#fff}
+#hint{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--muted);padding:8px 14px;white-space:nowrap;transition:opacity 1s}
+#toast{position:absolute;top:34%;left:50%;transform:translate(-50%,-50%);font:900 clamp(28px,6vw,56px) Outfit,sans-serif;letter-spacing:.14em;
+  background:linear-gradient(100deg,var(--a),var(--b),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;
+  filter:drop-shadow(0 0 24px rgba(160,120,255,.7));text-align:center}
+#toast.show{animation:toast 2.6s ease-out}
+#toast small{display:block;font:600 14px Inter,sans-serif;letter-spacing:.3em;color:var(--text);-webkit-text-fill-color:var(--text)}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+#hud.clean > *:not(#toast):not(#combo){display:none}
+#combo{position:absolute;left:50%;top:21%;transform:translate(-50%,-50%);font:900 44px Outfit,sans-serif;letter-spacing:.04em;opacity:0;
+  color:hsl(var(--h,190),100%,70%);text-shadow:0 0 18px hsl(var(--h,190),100%,60%),0 0 40px hsl(var(--h,190),100%,50%);transition:opacity .35s}
+#combo.on{opacity:1} #combo.pop{animation:cpop .22s ease-out}
+@keyframes cpop{0%{transform:translate(-50%,-50%) scale(1.35)}100%{transform:translate(-50%,-50%) scale(1)}}
+#mass.pop{animation:mpop .18s ease-out;display:inline-block}
+@keyframes mpop{0%{transform:scale(1.18);color:#9ff}100%{transform:scale(1)}}
+
+/* touch controls */
+#touch{position:fixed;inset:0;z-index:6;pointer-events:none}
+#stick{position:absolute;left:28px;bottom:28px;width:130px;height:130px;border-radius:50%;pointer-events:auto;
+  background:radial-gradient(circle,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--line)}
+#knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,rgba(57,243,255,.7),rgba(180,92,255,.5));box-shadow:0 0 20px rgba(57,243,255,.5)}
+.tbtns{position:absolute;right:22px;bottom:26px;display:flex;flex-direction:column;gap:12px;align-items:flex-end;pointer-events:auto}
+.tb{width:74px;height:74px;border-radius:50%;font:800 12px Outfit,sans-serif;letter-spacing:.12em;background:var(--glass-strong);border:1px solid var(--line)}
+.tb.big{width:92px;height:92px;background:linear-gradient(135deg,rgba(57,243,255,.35),rgba(255,79,163,.35));font-size:14px}
+.tb.sm{width:56px;height:56px;font-size:10px}
+body.touch #radarWrap{left:auto;right:12px;bottom:auto;top:12px;padding:5px}
+body.touch #radar{width:92px;height:92px}
+body.touch #stats{left:12px;top:12px;padding:10px 12px}
+body.touch #lb{display:none}
+body.touch #hint{display:none}
+
+/* ---------- DEATH ---------- */
+#death{position:fixed;inset:0;z-index:12;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,6,15,.35)}
+#death .card h2{font:900 40px Outfit,sans-serif;letter-spacing:.06em;color:var(--bad);text-shadow:0 0 24px rgba(255,84,112,.5)}
+#death .by{color:var(--muted);margin:6px 0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.grid div{padding:12px;border-radius:12px;background:rgba(0,0,0,.3);border:1px solid var(--line)}
+.grid b{display:block;font:800 22px Outfit,sans-serif}
+.grid span{font-size:11px;color:var(--muted);letter-spacing:.14em}
+.btnrow{display:flex;gap:10px;margin-top:10px}
+.btnrow a,.btnrow button{flex:1;padding:12px;border-radius:12px;font-weight:700;font-size:14px;background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--text);text-decoration:none;text-align:center}
+@media (max-width:760px){ #home{align-items:flex-start;align-content:flex-start;padding-top:20px} }
+@media (max-width:560px){ .card{padding:22px 18px 18px} #lb{width:170px;font-size:12px} #stats{min-width:0} #mass{font-size:24px} }
+body.og #home .side, body.og #home input, body.og #home .row, body.og #home .opts, body.og #play, body.og .status, body.og .keys{display:none!important}
+body.og #home{align-items:center!important;align-content:center!important} body.og .card{background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;width:auto}
+body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{display:none}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- HOME -->
+<div id="home">
+  <div class="card glass">
+    <div class="logo">AMAR.IO</div>
+    <div class="tag"><b>3D cell arena.</b> Fly any direction. Split. Devour. Become colossal.</div>
+    <input id="name" type="text" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false">
+    <div class="row swatches" id="swatches"></div>
+    <div class="opts">
+      <label><input type="checkbox" id="optInvert"> Invert Y</label>
+      <label><input type="checkbox" id="optSound" checked> Sound</label>
+    </div>
+    <button id="play">PLAY</button>
+    <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
+    <div class="keys" id="keysHelp">
+      <kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject<br>
+      <kbd>S</kbd>/<kbd>Shift</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
+    </div>
+  </div>
+  <div class="side">
+    <a class="donate glass" id="donate" target="_blank" rel="noopener">❤ Support the game</a>
+    <div class="credit">Built entirely by <b>Claude Opus 5.5</b><br><span id="challenge"></span></div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="stats" class="glass"><div id="mass">0</div><div id="tier">MICROBE</div><div id="sub"></div></div>
+  <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
+  <div id="radarWrap" class="glass"><canvas id="radar" width="300" height="300"></canvas></div>
+  <div id="feed"></div>
+  <canvas id="marks"></canvas>
+  <div id="toast"></div>
+  <div id="combo"></div>
+  <div id="hint" class="glass"><kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>S</kbd> brake</div>
+</div>
+
+<div id="touch" class="hidden">
+  <div id="stick"><div id="knob"></div></div>
+  <div class="tbtns">
+    <button class="tb sm" id="tBrake">BRAKE</button>
+    <button class="tb" id="tEject">EJECT</button>
+    <button class="tb big" id="tSplit">SPLIT</button>
+  </div>
+</div>
+
+<!-- DEATH -->
+<div id="death" class="hidden">
+  <div class="card glass">
+    <h2>DEVOURED</h2>
+    <div class="by" id="deathBy"></div>
+    <div class="grid">
+      <div><b id="dPeak">0</b><span>PEAK MASS</span></div>
+      <div><b id="dTier">—</b><span>PEAK FORM</span></div>
+      <div><b id="dEaten">0</b><span>CELLS EATEN</span></div>
+      <div><b id="dTime">0s</b><span>SURVIVED</span></div>
+    </div>
+    <button id="again" style="width:100%;padding:15px;border-radius:14px;font:800 18px Outfit,sans-serif;letter-spacing:.12em;color:#061018;background:linear-gradient(100deg,var(--a),#8f8bff 55%,var(--c))">PLAY AGAIN</button>
+    <div class="btnrow">
+      <a id="shareX" target="_blank" rel="noopener">Share on 𝕏</a>
+      <a id="donate2" target="_blank" rel="noopener">❤ Support</a>
+      <button id="toHome">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ============================== CONFIG ============================== */
+const CFG = {
+  DONATE_URL: 'https://ko-fi.com/',           // ← your Ko-fi / Buy Me a Coffee / Stripe link
+  SPONSOR_URL: '',                             // ← where "sponsor" clicks go (empty = not clickable)
+  ADSENSE_CLIENT: '',                          // ← e.g. 'ca-pub-123…' once AdSense approves your domain
+  ADSENSE_SLOT: '',                            // ← ad unit slot id
+  CHALLENGE: 'An experiment',
+  APP_ID: 'orbivore-3d-opus55-v2',
+  ROOM_CAP: 10,
+};
+const ARENA = 2400;   // agar.io-style proportions: max ball ≈21% of map width
+const MAX_CELL_MASS = 112000, MAX_CELLS = 16;
+const IS_TOUCH = matchMedia('(pointer:coarse)').matches;   // real phones/tablets only
+const params = new URLSearchParams(location.search);
+
+/* ============================== UTILS ============================== */
+const V3 = THREE.Vector3;
+const rad = m => 1.5 * Math.sqrt(m);
+const speedOf = m => 142 * Math.pow(m, -0.1) + rad(m) * 0.11;
+const viewRadius = r => 420 + r * 11;   // fog-of-war: how far you can see, grows with you
+const KILL_BONUS = 2;   // players gain 2× the mass of any ball they eat
+const mergeTime = m => 8 + Math.min(22, Math.sqrt(m) * 0.12);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
+const randUnit = (v = new V3()) => { const u = rnd(-1, 1), t = rnd(Math.PI * 2), s = Math.sqrt(1 - u * u); return v.set(s * Math.cos(t), u, s * Math.sin(t)); };
+const randInSphere = (R, v = new V3()) => randUnit(v).multiplyScalar(R * Math.cbrt(Math.random()));
+const fmt = m => m >= 1e6 ? (m / 1e6).toFixed(2) + 'M' : m >= 1e4 ? (m / 1e3).toFixed(1) + 'k' : Math.round(m).toLocaleString();
+const cleanName = s => String(s ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16);
+const hueColor = (h, s = .9, l = .55) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l);
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const TIERS = [[0, 'MICROBE'], [60, 'CELL'], [300, 'ORGANISM'], [1500, 'BEHEMOTH'], [5000, 'TITAN'], [20000, 'COLOSSUS'], [60000, 'CELESTIAL'], [105000, 'WORLD-EATER']];
+const tierOf = m => { let t = TIERS[0][1]; for (const [k, n] of TIERS) if (m >= k) t = n; return t; };
+const tierIdx = m => { let i = 0; TIERS.forEach(([k], j) => { if (m >= k) i = j; }); return i; };
+
+/* ============================== RENDERER ============================== */
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+const PR = Math.min(devicePixelRatio || 1, IS_TOUCH ? 1 : 1.25);
+renderer.setPixelRatio(PR);
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.getElementById('game').appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.2, 14000);
+const rt = new THREE.WebGLRenderTarget(innerWidth * PR, innerHeight * PR, { type: THREE.HalfFloatType, samples: IS_TOUCH ? 0 : 2 });
+const composer = new EffectComposer(renderer, rt);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.62, 0.5, 0.92);
+bloom.enabled = false;   // matte look: no glow
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+});
+
+/* ============================== SHADERS ============================== */
+const NOISE = /* glsl */`
+float hash(vec3 p){ p = fract(p*0.3183099+.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float noise(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.-2.*f);
+  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); }
+float fbm(vec3 p){ float a=.5,s=0.; for(int i=0;i<5;i++){ s+=a*noise(p); p*=2.03; a*=.5; } return s; }
+vec3 hash33(vec3 p){ p=fract(p*vec3(.1031,.1030,.0973)); p+=dot(p,p.yxz+33.33); return fract((p.xxy+p.yxx)*p.zyx); }
+float voro(vec3 x){ vec3 p=floor(x-.5), f=x-p; float d1=8., d2=8.;
+  for(int k=0;k<=1;k++) for(int j=0;j<=1;j++) for(int i=0;i<=1;i++){
+    vec3 b=vec3(i,j,k); vec3 r=b-f+hash33(p+b); float d=dot(r,r);
+    if(d<d1){ d2=d1; d1=d; } else if(d<d2) d2=d; }
+  return sqrt(d2)-sqrt(d1); }
+`;
+const U = { pp: { value: new V3() }, viewR: { value: 700 }, view: { value: 5 }, time: { value: 0 }, fog: { value: new THREE.Color(0x070a1c) } };
+
+const cellVert = /* glsl */`
+uniform float uTime; uniform float uWobble; uniform float uSeed;
+varying vec3 vN; varying vec3 vW; varying vec3 vO;
+void main(){
+  vec3 p = position; float t = uTime + uSeed*10.;
+  float w = sin(p.x*4.3+t*2.1)*sin(p.y*3.7+t*1.7)*sin(p.z*4.1+t*2.3);
+  w += .6*sin(p.x*7.1+p.y*6.3-p.z*5.2+t*3.1);
+  p *= 1. + uWobble*w;
+  vO = position;
+  vec4 wp = modelMatrix*vec4(p,1.);
+  vW = wp.xyz;
+  vN = normalize(mat3(modelMatrix)*normal);
+  gl_Position = projectionMatrix*viewMatrix*wp;
+}`;
+const cellFrag = /* glsl */`
+uniform vec3 uColor; uniform vec3 uDeep; uniform float uTime; uniform float uR; uniform vec3 uFog; uniform float uPulse; uniform float uSeed; uniform float uVein; uniform float uView; uniform float uViewR; uniform float uAppear; uniform vec3 uPP; uniform float uOwn;
+varying vec3 vN; varying vec3 vW; varying vec3 vO;
+${NOISE}
+void main(){
+  vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW);
+  float ndv = clamp(dot(N,V),0.,1.);
+  // fog of war, measured from YOUR ball: darkens steadily with every step of distance, gone at the view edge
+  float dp = length(vW - uPP);
+  float fow = clamp(1. - exp(-dp / (uViewR*.5)), 0., 1.) * (1. - uOwn);   // your own balls are never fogged
+  float cutoff = mix(1. - smoothstep(uViewR*.75, uViewR, dp), 1., uOwn);
+  float e = voro(vO*uVein + vec3(uSeed*7., uTime*.12, 0.));
+  float vein = (1. - smoothstep(0., .13 + fow*.2, e)) * (1. - fow);
+  vec3 L = normalize(vec3(.5,.9,.35));
+  float diff = .3 + .7*max(dot(N,L),0.);
+  vec3 H = normalize(L+V); float spec = pow(max(dot(N,H),0.), 60.) * .25 * (1. - fow);
+  vec3 col = mix(uDeep, uColor, .35 + .65*ndv) * diff;
+  col += uColor * vein * .35;
+  col += spec;
+  col *= 1. + uPulse*.4;
+  float lum = dot(col, vec3(.3,.55,.15));
+  col = mix(col, vec3(lum)*vec3(.5,.6,.9), fow*.6);
+  col = mix(col, uFog, fow*.9);
+  float edge = smoothstep(0., .04 + fow*.4, ndv);
+  gl_FragColor = vec4(col, (1. - fow*.75) * cutoff * edge * uAppear);
+}`;
+function cellMaterial(color, deep, seed, vein = 5) {
+  return new THREE.ShaderMaterial({
+    vertexShader: cellVert, fragmentShader: cellFrag,
+    transparent: true,
+    uniforms: {
+      uTime: U.time, uFog: U.fog, uView: U.view, uViewR: U.viewR, uPP: U.pp, uOwn: { value: 0 }, uAppear: { value: 1 }, uColor: { value: color }, uDeep: { value: deep },
+      uR: { value: 1 }, uPulse: { value: 0 }, uWobble: { value: .025 }, uSeed: { value: seed }, uVein: { value: vein },
+    },
+  });
+}
+const CELL_GEO = new THREE.SphereGeometry(1, IS_TOUCH ? 40 : 56, IS_TOUCH ? 28 : 40);
+
+/* ---- sky ---- */
+const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, depthTest: false,
+  uniforms: { uTime: U.time, uDim: { value: 1 } },
+  vertexShader: `varying vec3 vD; void main(){ vD = position; vec4 p = projectionMatrix*vec4(mat3(viewMatrix)*position,1.); gl_Position = p.xyww; }`,
+  fragmentShader: `uniform float uTime; uniform float uDim; varying vec3 vD; ${NOISE}
+  void main(){
+    vec3 d = normalize(vD);
+    float n = fbm(d*2.2 + vec3(0.,0.,uTime*.004)); float n2 = fbm(d*4.5 + 11.);
+    vec3 col = mix(vec3(.003,.004,.014), vec3(.02,.008,.045), d.y*.5+.5);
+    col += vec3(.30,.06,.42)*pow(n,3.2)*.9;
+    col += vec3(.02,.22,.34)*pow(n2,3.4)*.8;
+    col += vec3(.5,.12,.3)*pow(max(0.,fbm(d*1.3-4.)-.35),2.)*.9;
+    col *= uDim;
+    gl_FragColor = vec4(col,1.);
+  }`,
+}));
+sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
+
+/* ---- arena shell: glowing lattice that lights up as you approach ---- */
+const shellMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  uniforms: { uP: { value: new V3() }, uR: { value: 5 }, uTime: U.time, uViewR: U.viewR },
+  vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader: `uniform vec3 uP; uniform float uR; uniform float uTime; uniform float uViewR; varying vec3 vW;
+  void main(){
+    vec3 n = normalize(vW);
+    vec2 g = vec2(atan(n.z,n.x)*16./3.14159, asin(n.y)*16./3.14159);
+    vec2 a = abs(fract(g)-.5)/fwidth(g);
+    float line = 1. - min(min(a.x,a.y),1.);
+    float d = length(vW - uP);
+    float near = exp(-d/(160. + uR*4.)) * (1. - smoothstep(uViewR*.35, uViewR*.8, d));
+    float pulse = .5+.5*sin(uTime*1.5 - d*.01);
+    vec3 col = mix(vec3(.1,.8,1.), vec3(.9,.3,1.), .5+.5*n.y);
+    float a2 = line*2.2*near + near*.25*pulse;   // border invisible until you get close
+    gl_FragColor = vec4(col*a2, 1.);
+  }`,
+});
+const shell = new THREE.Mesh(new THREE.SphereGeometry(ARENA, 96, 64), shellMat);
+shell.frustumCulled = false; scene.add(shell);
+
+/* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
+const FOOD_N = IS_TOUCH ? 2600 : 4500;
+const CL_N = 0;   // clusters disabled: classic evenly-spread agar pellets
+const LOOSE_N = FOOD_N;
+const PER_CL = 0;
+const foodGeo = new THREE.IcosahedronGeometry(1, 1);
+const foodMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: U.time, uFar: { value: 200 }, uPP: U.pp, uViewR: U.viewR, uFog: U.fog },
+  vertexShader: `uniform float uTime; uniform float uFar; uniform vec3 uPP; uniform float uViewR; varying vec3 vC; varying vec3 vN; varying vec3 vW; varying float vFade;
+    void main(){
+      vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
+      float dc = length(cameraPosition - c);
+      vFade = exp(-length(c - uPP) / (uViewR*.5));
+      float s = (1. + .25*sin(uTime*3.5 + c.x*.13 + c.y*.07 + c.z*.05)) * (1. - smoothstep(.85, 1., max(max(abs(c.x-uPP.x), abs(c.y-uPP.y)), abs(c.z-uPP.z)) / (uFar*.5)));   // fade at the wrap edge around YOUR ball, not the camera
+      s *= smoothstep(.1, .3, vFade);
+      vec4 w = modelMatrix*instanceMatrix*vec4(position,1.); w.xyz = c + (w.xyz-c)*s;
+      vW = w.xyz; vC = instanceColor; vN = normalize(mat3(modelMatrix*instanceMatrix)*normal);
+      gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader: `uniform vec3 uFog; varying vec3 vC; varying vec3 vN; varying vec3 vW; varying float vFade;
+    void main(){ vec3 V = normalize(cameraPosition-vW); float f = pow(1.-abs(dot(normalize(vN),V)),2.);
+      vec3 col = mix(uFog, vC*(.75 + .25*f), vFade);
+      gl_FragColor = vec4(col,1.); }`,
+});
+const food = new THREE.InstancedMesh(foodGeo, foodMat, FOOD_N);
+food.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+food.frustumCulled = false;
+const foodPos = new Float32Array(FOOD_N * 3), foodSize = new Float32Array(FOOD_N), foodVal = new Float32Array(FOOD_N);
+const foodCl = new Int16Array(FOOD_N).fill(-1), foodOff = new Float32Array(FOOD_N * 3), foodAlive = new Uint8Array(FOOD_N).fill(1), foodHue = new Float32Array(FOOD_N);
+scene.add(food);
+// soft glowing beacon so a cluster is visible from far away
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,255,255,.45)'); gr.addColorStop(.6, 'rgba(255,255,255,.1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); return t; })();
+const clusters = [];
+for (let k = 0; k < CL_N; k++) {
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  scene.add(spr);
+  clusters.push({ c: new V3(), hue: 0, alive: 0, total: PER_CL, spread: 1, spr });
+}
+for (let i = 0; i < FOOD_N; i++) foodCl[i] = i < LOOSE_N ? -1 : Math.min(CL_N - 1, Math.floor((i - LOOSE_N) / PER_CL));
+let foodT = 420, foodInit = false;
+const foodColor = new THREE.Color();
+function setFoodColor(i, h, l = .58) { foodColor.setHSL(((h % 1) + 1) % 1, 1, l); food.setColorAt(i, foodColor); food.instanceColor.needsUpdate = true; }
+function farPoint(cx, cy, cz, T, out) {
+  for (let k = 0; k < 8; k++) {
+    out.set(rnd(-.45, .45) * T, rnd(-.45, .45) * T, rnd(-.45, .45) * T);
+    if (out.lengthSq() > T * T * .09 || k === 7) { out.x += cx; out.y += cy; out.z += cz; if (out.length() < ARENA * .97 || k === 7) return out; }
+  }
+  return out;
+}
+function respawnLoose(i, cx, cy, cz, T, far) {
+  const p = far ? farPoint(cx, cy, cz, T, _fp) : _fp.set(cx + rnd(-.5, .5) * T, cy + rnd(-.5, .5) * T, cz + rnd(-.5, .5) * T);
+  foodPos[i * 3] = p.x; foodPos[i * 3 + 1] = p.y; foodPos[i * 3 + 2] = p.z; foodAlive[i] = 1;
+  const big = Math.random() < .05; foodSize[i] = big ? 4.2 : rnd(2, 2.8); foodVal[i] = big ? 76 : 20; foodHue[i] = Math.random(); setFoodColor(i, foodHue[i]);
+}
+const _fp = new V3();
+function reseedCluster(k, cx, cy, cz, T, far) {
+  const cl = clusters[k];
+  if (far) farPoint(cx, cy, cz, T, cl.c); else cl.c.set(cx + rnd(-.45, .45) * T, cy + rnd(-.45, .45) * T, cz + rnd(-.45, .45) * T);
+  cl.hue = Math.random(); cl.alive = 0; cl.spread = rnd(70, 100);
+  for (let i = LOOSE_N; i < FOOD_N; i++) {
+    if (foodCl[i] !== k) continue;
+    // gaussian-ish blob, denser in the middle
+    const u = randUnit(_t).multiplyScalar(cl.spread * Math.pow(Math.random(), .45));
+    foodOff[i * 3] = u.x; foodOff[i * 3 + 1] = u.y; foodOff[i * 3 + 2] = u.z; foodAlive[i] = 1; cl.alive++;
+    const big = Math.random() < .06; foodSize[i] = big ? 1.5 : rnd(.55, .95); foodVal[i] = big ? 10 : 3;
+    foodHue[i] = cl.hue + rnd(-.06, .06); setFoodColor(i, foodHue[i], big ? .7 : .58);
+  }
+  cl.total = cl.alive;
+}
+
+/* ---- sparks: every bite bursts into light that gets sucked into you ---- */
+const SP_N = IS_TOUCH ? 700 : 1400;
+const spGeo = new THREE.BufferGeometry();
+const spPos = new Float32Array(SP_N * 3), spCol = new Float32Array(SP_N * 3), spLife = new Float32Array(SP_N), spVel = new Float32Array(SP_N * 3), spSize = new Float32Array(SP_N);
+const spTarget = new Array(SP_N).fill(null);
+spGeo.setAttribute('position', new THREE.BufferAttribute(spPos, 3).setUsage(THREE.DynamicDrawUsage));
+spGeo.setAttribute('color', new THREE.BufferAttribute(spCol, 3).setUsage(THREE.DynamicDrawUsage));
+spGeo.setAttribute('life', new THREE.BufferAttribute(spLife, 1).setUsage(THREE.DynamicDrawUsage));
+spGeo.setAttribute('sz', new THREE.BufferAttribute(spSize, 1));
+const spMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  uniforms: { uPx: { value: innerHeight * PR } },
+  vertexShader: `attribute float life; attribute float sz; attribute vec3 color; uniform float uPx; varying vec3 vC; varying float vL;
+    void main(){ vC = color; vL = life; vec4 mv = modelViewMatrix*vec4(position,1.); gl_PointSize = life > 0. ? clamp(sz*uPx/(-mv.z)*(.4+life), 1., 40.) : 0.; gl_Position = projectionMatrix*mv; }`,
+  fragmentShader: `varying vec3 vC; varying float vL; void main(){ if(vL<=0.) discard; float d = length(gl_PointCoord-.5); if(d>.5) discard; gl_FragColor = vec4(vC*.9, smoothstep(.5,.3,d)*min(1.,vL*1.5)); }`,
+});
+const sparks = new THREE.Points(spGeo, spMat); sparks.frustumCulled = false; scene.add(sparks);
+let spHead = 0;
+function burst(x, y, z, color, n, target, speed, size) {
+  for (let k = 0; k < n; k++) {
+    const i = spHead; spHead = (spHead + 1) % SP_N;
+    spPos[i * 3] = x; spPos[i * 3 + 1] = y; spPos[i * 3 + 2] = z;
+    const v = randUnit(_fp).multiplyScalar(speed * rnd(.4, 1));
+    spVel[i * 3] = v.x; spVel[i * 3 + 1] = v.y; spVel[i * 3 + 2] = v.z;
+    spCol[i * 3] = color.r; spCol[i * 3 + 1] = color.g; spCol[i * 3 + 2] = color.b;
+    spLife[i] = rnd(.8, 1); spSize[i] = size * rnd(.6, 1.3); spTarget[i] = target;
+  }
+  spGeo.attributes.color.needsUpdate = true; spGeo.attributes.sz.needsUpdate = true;
+}
+function updateSparks() {
+  for (let i = 0; i < SP_N; i++) {
+    if (spLife[i] <= 0) continue;
+    const t = spTarget[i], j = i * 3;
+    spLife[i] -= DT * 1.6;
+    if (t && !t.dead) {
+      const dx = t.pos.x - spPos[j], dy = t.pos.y - spPos[j + 1], dz = t.pos.z - spPos[j + 2], d = Math.hypot(dx, dy, dz) + .001;
+      const pull = (40 + t.r * 6) * DT * 3; spVel[j] += dx / d * pull; spVel[j + 1] += dy / d * pull; spVel[j + 2] += dz / d * pull;
+      if (d < t.rr * .85) spLife[i] = 0;
+    }
+    const damp = Math.exp(-DT * 2.5); spVel[j] *= damp; spVel[j + 1] *= damp; spVel[j + 2] *= damp;
+    spPos[j] += spVel[j] * DT; spPos[j + 1] += spVel[j + 1] * DT; spPos[j + 2] += spVel[j + 2] * DT;
+  }
+  spGeo.attributes.position.needsUpdate = true; spGeo.attributes.life.needsUpdate = true;
+}
+
+/* ============================== ENTITIES & CELLS ============================== */
+const entities = new Map();          // id -> entity
+const cellById = new Map();          // id -> cell
+let cellCounter = 0;
+const net = { selfId: 'local' + Math.random().toString(36).slice(2, 8), peers: new Set(), room: null, online: false, lobby: 1, status: 'connecting', lastSeen: new Map() };
+let isHost = true;
+const short = () => net.selfId.slice(0, 6);
+
+function labelTexture(text) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d'); g.font = '800 62px Outfit, Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 12; g.strokeStyle = 'rgba(0,0,10,.55)'; g.strokeText(text, 256, 66); g.fillStyle = '#fff'; g.fillText(text, 256, 66);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
+class Entity {
+  constructor(id, kind, name, hue, owner) {
+    this.id = id; this.kind = kind; this.name = cleanName(name) || 'Cell'; this.hue = hue; this.owner = owner;
+    this.local = kind === 'me' || kind === 'bot' || kind === 'snack';
+    this.cells = []; this.dir = randUnit(); this.throttle = 1; this.color = hueColor(hue, .95, .56); this.deep = hueColor(hue + .08, .9, .12);
+    this.labelTex = labelTexture(this.name); this.thinkT = 0; this.wanderDir = randUnit(); this.wanderT = 0; this.lev = false; this.aggr = Math.random() < .6;
+    this.lastPacket = performance.now();
+    entities.set(id, this);
+  }
+  get mass() { let m = 0; for (const c of this.cells) m += c.mass; return m; }
+  main() { let b = null; for (const c of this.cells) if (!b || c.mass > b.mass) b = c; return b; }
+}
+function addCell(ent, pos, mass, id) {
+  id = id || `${short()}-${(cellCounter++).toString(36)}`;
+  const mat = cellMaterial(ent.color, ent.deep, Math.random());
+  if (ent.kind === 'me') mat.uniforms.uOwn.value = 1;
+  const mesh = new THREE.Mesh(CELL_GEO, mat);
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ent.labelTex, transparent: true, depthWrite: false, toneMapped: false }));
+  label.material.color.setScalar(.78);
+  const c = { id, ent, pos: pos.clone(), tpos: pos.clone(), vel: new V3(), mass, r: rad(mass), rr: rad(mass) * .6, appear: 0, mergeAt: 0, noCollide: 0, mesh, label, pulse: 0, born: now };
+  scene.add(mesh); scene.add(label);
+  ent.cells.push(c); cellById.set(id, c);
+  return c;
+}
+function removeCell(c) {
+  c.dead = true; scene.remove(c.mesh); scene.remove(c.label); c.mesh.material.dispose(); c.label.material.dispose();
+  const a = c.ent.cells; const i = a.indexOf(c); if (i >= 0) a.splice(i, 1); cellById.delete(c.id);
+}
+function removeEntity(e) { for (const c of [...e.cells]) removeCell(c); e.labelTex.dispose(); entities.delete(e.id); }
+
+/* ============================== BOTS (simulated by lobby host) ============================== */
+const BOT_NAMES = ['Nucleus', 'Blobfather', 'Mitochondria', 'xX_Orb_Xx', 'Plasma', 'Gloop', 'Photon', 'Axolotl', 'Nebula', 'Bubbles', 'Quasar', 'Jellyfish',
+  'Snacc', 'Void Kid', 'Chonk', 'Zygote', 'Neutrino', 'Glowworm', 'Ooze', 'Pulsar', 'Moonpie', 'Amoeba', 'Sphere Lord', 'Wobble', 'Kraken', 'Protozoa', 'Big Mood', 'Tardigrade'];
+const LEV_NAMES = ['GARGANTUA', 'THE VOID WHALE', 'LEVIATHAN', 'Ω TITAN'];
+let botSeq = 0;
+function spawnBot(lev = false) {
+  const id = `${short()}b${(botSeq++).toString(36)}`;
+  const e = new Entity(id, 'bot', lev ? LEV_NAMES[botSeq % LEV_NAMES.length] : BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)], Math.random(), net.selfId);
+  e.lev = lev;
+  let m;
+  if (lev) m = [MAX_CELL_MASS, 80000, 96000][botSeq % 3];
+  else { const r = Math.random(); m = r < .55 ? rnd(12, 80) : r < .85 ? rnd(80, 900) : rnd(900, 6000); }
+  let pos = randInSphere(ARENA * (lev ? .55 : .85));
+  // agar feel: most bots spawn in view of a real player, some smaller (prey) and many BIGGER (threats)
+  const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length);
+  if (!lev && humans.length && Math.random() < .75) {
+    const h = humans[Math.floor(Math.random() * humans.length)], hm = h.main();
+    const k = Math.random(); m = clamp(h.mass * (k < .4 ? rnd(.25, .7) : k < .8 ? rnd(1.4, 3) : rnd(3, 6)), 10, MAX_CELL_MASS * .8);
+    pos = hm.pos.clone().addScaledVector(randUnit(), viewRadius(hm.r) * 1.15 + rad(m) + rnd(50, 400));
+    if (pos.length() > ARENA * .95) pos.setLength(ARENA * .9);
+    e.anchor = hm;   // drifts toward this player and creeps into view
+  }
+  // never materialise inside anyone's view
+  for (let k = 0; k < 20 && humans.some(h => h.main().pos.distanceTo(pos) < viewRadius(h.main().r) * 1.1 + rad(m)); k++) pos = randInSphere(ARENA * (lev ? .55 : .85));
+  addCell(e, pos, m);
+  return e;
+}
+function botTarget() { const humans = 1 + net.peers.size; return { norm: 60, lev: 2 }; }
+function ensureBots() {
+  if (!isHost) return;
+  let n = 0, l = 0; for (const e of entities.values()) if (e.kind === 'bot') e.lev ? l++ : n++;
+  const t = botTarget();
+  while (l < t.lev) { spawnBot(true); l++; }
+  while (n < t.norm) { spawnBot(false); n++; }
+  // recycle a couple of bots per tick that drifted far from every player, so the action stays around people
+  const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length).map(h => h.main());
+  if (!humans.length) return;
+  let recycled = 0;
+  for (const e of [...entities.values()]) {
+    if (e.kind !== 'bot' || e.lev || recycled >= 3) continue;
+    const m = e.main(); if (!m) continue;
+    if (humans.every(h => h.pos.distanceTo(m.pos) > viewRadius(h.r) * 2.4)) { removeEntity(e); spawnBot(false); recycled++; }
+  }
+}
+// snacks: small local prey that keep spawning around you so split-attacks are always on the menu
+const SNACK_NAMES = ['snack', 'lil orb', 'tiny', 'morsel', 'bite', 'crumb', 'nibble', 'dot', 'pip', 'blip'];
+let snackSeq = 0;
+function ensureSnacks() {
+  if (!playing || !mainCell) return;
+  const r = mainCell.r, near = viewRadius(r) * 2.4;
+  let n = 0;
+  for (const e of [...entities.values()]) {
+    if (e.kind !== 'snack') continue;
+    const m = e.main();
+    if (!m || m.pos.distanceTo(mainCell.pos) > near) { removeEntity(e); continue; }
+    n++;
+  }
+  const want = IS_TOUCH ? 10 : 14, my = me.mass;
+  for (let added = 0; n < want && added < 3; n++, added++) {
+    const e = new Entity(`${short()}s${(snackSeq++).toString(36)}`, 'snack', SNACK_NAMES[snackSeq % SNACK_NAMES.length], Math.random(), net.selfId);
+    e.aggr = false;
+    const p = new V3().copy(mainCell.pos).addScaledVector(randUnit(), viewRadius(r) * 1.1 + rnd(50, 300));
+    e.anchor = mainCell;
+    if (p.length() > ARENA * .95) p.setLength(ARENA * .9);
+    addCell(e, p, clamp(my * rnd(.05, .3), 3, 60 + my * .04));
+  }
+}
+function removeLocalBots() { for (const e of [...entities.values()]) if (e.kind === 'bot') removeEntity(e); }
+
+const _t = new V3(), _t2 = new V3(), _flee = new V3();
+function botThink(E) {
+  const m = E.main(); if (!m) return;
+  E.thinkT -= DT; if (E.thinkT > 0) return; E.thinkT = rnd(.18, .32);
+  if (E.lev) {
+    E.throttle = .35; E.wanderT -= .25;
+    if (E.wanderT <= 0) { E.wanderT = rnd(6, 12); randUnit(E.wanderDir); }
+    if (m.pos.length() > ARENA * .6) E.wanderDir.lerp(_t.copy(m.pos).negate().normalize(), .5).normalize();
+    E.dir.lerp(E.wanderDir, .08).normalize(); return;
+  }
+  const sense = m.r * 8 + 170; let threat = false, best = null, bestS = 0; _flee.set(0, 0, 0);
+  for (const e of entities.values()) {
+    if (e === E) continue;
+    for (const c of e.cells) {
+      const d = c.pos.distanceTo(m.pos) - c.r - m.r; if (d > sense) continue;
+      if (c.mass > m.mass * 1.25) { threat = true; _flee.addScaledVector(_t.subVectors(m.pos, c.pos).normalize(), 1 / Math.max(4, d)); }
+      else if (c.mass * 1.3 < m.mass) { const s = c.mass / (Math.max(1, d) + 30) * (e.kind === 'bot' ? 1 : 1.6); if (s > bestS) { bestS = s; best = c; } }
+    }
+  }
+  E.throttle = 1;
+  if (threat) E.dir.lerp(_flee.normalize(), .7).normalize();
+  else if (best) {
+    E.dir.subVectors(best.pos, m.pos).normalize();
+    const d = best.pos.distanceTo(m.pos);
+    if (E.aggr && best.mass * 2.7 < m.mass && d < m.r * 3.5 + 40 && E.cells.length < 4 && m.mass >= 36 && Math.random() < .3) split(E, E.dir);
+  } else {
+    E.wanderT -= .25; if (E.wanderT <= 0) { E.wanderT = rnd(2, 6); randUnit(E.wanderDir);
+      if (E.anchor && !E.anchor.dead && Math.random() < .7) E.wanderDir.lerp(_t.subVectors(E.anchor.pos, m.pos).normalize(), .75).normalize(); }
+    E.dir.lerp(E.wanderDir, .25).normalize();
+  }
+  if (m.pos.length() > ARENA * .88) E.dir.lerp(_t.copy(m.pos).negate().normalize(), .6).normalize();
+}
+
+/* ============================== MECHANICS ============================== */
+let now = 0, DT = 0.016;
+function split(E, dir) {
+  const list = [...E.cells].sort((a, b) => b.mass - a.mass);
+  let did = false;
+  for (const c of list) {
+    if (E.cells.length >= MAX_CELLS) break;
+    if (c.mass < 36) continue;
+    const half = c.mass / 2; c.mass = half; c.r = rad(half);
+    const n = addCell(E, _t.copy(c.pos).addScaledVector(dir, c.r * .3), half);
+    n.rr = c.rr * .8; n.vel.copy(dir).multiplyScalar(110 + n.r * 16);
+    n.appear = 1; n.mergeAt = c.mergeAt = now + mergeTime(c.mass * 2); n.noCollide = now + .45; n.pulse = c.pulse = 1;
+    did = true;
+  }
+  if (did && E === me) { sfx('split'); fovKick = 8; }
+  return did;
+}
+const blobs = [];   // ejected mass, local only
+const BLOB_MAT = cellMaterial(new THREE.Color(1, 1, 1), new THREE.Color(.1, .1, .2), .3, 3);
+function eject(E, dir) {
+  for (const c of E.cells) {
+    if (c.mass < 35) continue;
+    c.mass -= 16; c.r = rad(c.mass);
+    const m = new THREE.Mesh(CELL_GEO, cellMaterial(E.color, E.deep, Math.random(), 3));
+    const b = { pos: c.pos.clone().addScaledVector(dir, c.r + 3), vel: dir.clone().multiplyScalar(140 + c.r * 3), mass: 13, r: rad(13), mesh: m, born: now, owner: E };
+    m.scale.setScalar(b.r); scene.add(m); blobs.push(b);
+  }
+  if (E === me) sfx('eject');
+}
+function moveEntity(E) {
+  const m = E === me && mainCell && !mainCell.dead ? mainCell : E.main(); if (!m) return;
+  const aim = _t2.copy(m.pos).addScaledVector(E.dir, m.r * 6 + 60);
+  for (const c of E.cells) {
+    const to = _t.subVectors(aim, c.pos); const d = to.length();
+    const sp = speedOf(c.mass) * E.throttle * Math.min(1, d / (c.r + 10) + .35);
+    if (d > .001) c.pos.addScaledVector(to, sp * DT / d);
+    c.pos.addScaledVector(c.vel, DT); c.vel.multiplyScalar(Math.exp(-3 * DT));
+    const L = c.pos.length(), lim = ARENA - c.r * .4;
+    if (L > lim) c.pos.multiplyScalar(lim / L);
+    if (!E.lev && c.mass > 500) c.mass -= c.mass * .0002 * DT;
+    if (c.mass > MAX_CELL_MASS) c.mass = MAX_CELL_MASS;
+    c.r = rad(c.mass);
+  }
+  // own-cell physics: push apart until merge time, then merge
+  const cs = E.cells;
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
+    const a = cs[i], b = cs[j]; if (a.dead || b.dead) continue;
+    const d = a.pos.distanceTo(b.pos), rs = a.r + b.r; if (d >= rs) continue;
+    if (now > a.mergeAt && now > b.mergeAt) {
+      if (d < Math.max(a.r, b.r) * .75) { const [big, small] = b === mainCell ? [b, a] : a === mainCell ? [a, b] : a.mass >= b.mass ? [a, b] : [b, a]; /* your camera ball always survives merges */ big.mass += small.mass; big.r = rad(big.mass); big.pulse = .6; small.dead = true; }
+      else { _t.subVectors(b.pos, a.pos).multiplyScalar(DT * 1.5); a.pos.add(_t); b.pos.sub(_t); }
+    } else if (now > a.noCollide && now > b.noCollide) {
+      const push = (rs - d) * Math.min(1, DT * 12); _t.subVectors(b.pos, a.pos); if (d < .001) randUnit(_t); _t.normalize();
+      const wa = b.mass / (a.mass + b.mass); a.pos.addScaledVector(_t, -push * wa); b.pos.addScaledVector(_t, push * (1 - wa));
+    }
+  }
+  for (const c of [...cs]) if (c.dead) removeCell(c);
+}
+
+/* ============================== LOCAL PLAYER ============================== */
+let me = null, playing = false, mainCell = null, zoom = 1, fovKick = 0;
+const orient = new THREE.Quaternion();
+const stats = { peak: 0, eaten: 0, start: 0, peakTier: 0, killer: '' };
+const opts = { level: true, invert: false, sound: true };
+const AX = { X: new V3(1, 0, 0), Y: new V3(0, 1, 0), Z: new V3(0, 0, -1) };
+const _q = new THREE.Quaternion();
+// Heading = yaw (around world-up) + pitch (clamped just short of straight up/down). No roll ever, so the horizon
+// stays put and nothing gets disorienting — yet you can still fly in any direction in 3D.
+let yaw = 0, pitch = 0, yawVel = 0, pitchVel = 0, camYaw = 0, camPitch = 0, bank = 0;
+const PITCH_LIM = 1.45, _eul = new THREE.Euler();
+const angDiff = (a, b) => ((a - b + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+function setHeading() { orient.setFromEuler(_eul.set(pitch, yaw, 0, 'YXZ')); updateBasis(); }
+function rotLocal(axis, ang) { _q.setFromAxisAngle(axis, ang); orient.multiply(_q).normalize(); }
+const fwd = new V3(0, 0, -1), upv = new V3(0, 1, 0), right = new V3(1, 0, 0);
+function updateBasis() { fwd.set(0, 0, -1).applyQuaternion(orient); upv.set(0, 1, 0).applyQuaternion(orient); right.set(1, 0, 0).applyQuaternion(orient); }
+
+function spawnMe(name, hue) {
+  if (me) removeEntity(me);
+  me = new Entity(net.selfId, 'me', name, hue, net.selfId);
+  const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
+  let p = new V3();
+  if (levs.length && Math.random() < .92) {       // spawn in view of a giant — instant sense of scale
+    const L = levs[Math.floor(Math.random() * levs.length)].main();
+    for (let k = 0; k < 40; k++) { p.copy(L.pos).addScaledVector(randUnit(), L.r * 1.9 + 160); if (p.length() < ARENA * .9) break; }
+    if (p.length() > ARENA * .9) p.setLength(ARENA * .85);
+  } else p = randInSphere(ARENA * .6);
+  const startMass = clamp(Number(params.get('mass')) || 12, 12, MAX_CELL_MASS);
+  mainCell = addCell(me, p, startMass);
+  mainCell.rr = mainCell.r; mainCell.appear = 1;
+  const nearL = levs.map(e => e.main()).sort((a, b) => a.pos.distanceTo(p) - b.pos.distanceTo(p))[0];
+  // look *past* the giant's edge so it looms beside you instead of auto-flying you into it
+  const target = new V3();
+  if (nearL) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
+  const dd = new V3().subVectors(target, p).normalize();
+  yaw = camYaw = Math.atan2(-dd.x, -dd.z); pitch = camPitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading();
+  playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
+  foodInit = false;
+}
+
+/* ============================== INPUT ============================== */
+const keys = {};
+let locked = false, mouseX = innerWidth / 2, mouseY = innerHeight / 2;
+const stick = { x: 0, y: 0, id: null };
+let brakeHeld = false;
+addEventListener('keydown', e => {
+  if (document.activeElement?.tagName === 'INPUT') { if (e.code === 'Enter') startGame(); return; }
+  keys[e.code] = true;
+  if (e.code.startsWith('Arrow') && playing) e.preventDefault();
+  if (e.code === 'KeyH') document.getElementById('hud').classList.toggle('clean');
+  if (e.code === 'KeyM') { opts.sound = !opts.sound; document.getElementById('optSound').checked = opts.sound; }
+  if (!playing) return;
+  if (e.code === 'Space') { split(me, fwd); e.preventDefault(); }
+  if (e.code === 'KeyF' || e.code === 'KeyW') eject(me, fwd);
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+const canvas = renderer.domElement;
+
+// touch joystick + buttons
+const stickEl = document.getElementById('stick'), knob = document.getElementById('knob');
+stickEl.addEventListener('pointerdown', e => { stick.id = e.pointerId; stickEl.setPointerCapture(e.pointerId); moveStick(e); });
+stickEl.addEventListener('pointermove', e => { if (e.pointerId === stick.id) moveStick(e); });
+const endStick = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
+stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
+function moveStick(e) {
+  const r = stickEl.getBoundingClientRect(); let x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2);
+  const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+  stick.x = x; stick.y = y; knob.style.transform = `translate(${x * 38}px,${y * 38}px)`;
+}
+const tap = (id, fn) => document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+tap('tSplit', () => playing && split(me, fwd));
+tap('tEject', () => playing && eject(me, fwd));
+const tBrake = document.getElementById('tBrake');
+tBrake.addEventListener('pointerdown', e => { e.preventDefault(); brakeHeld = true; tBrake.style.background = 'rgba(57,243,255,.35)'; });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tBrake.addEventListener(ev, () => { brakeHeld = false; tBrake.style.background = ''; }));
+
+function handleInput() {
+  const dt = DT;
+  // input -> target turn rate; actual rate eases in/out (no instant snaps = no whiplash)
+  let yIn = 0, pIn = 0;
+  if (IS_TOUCH) { yIn = -stick.x; pIn = -stick.y; }
+  if (keys.ArrowLeft) yIn += 1; if (keys.ArrowRight) yIn -= 1;
+  if (keys.ArrowUp) pIn += 1; if (keys.ArrowDown) pIn -= 1;
+  yIn = clamp(yIn, -1, 1); pIn = clamp(pIn, -1, 1);
+  if (opts.invert) pIn = -pIn;
+  const acc = 1 - Math.exp(-dt * 7);
+  yawVel += (yIn * 2.0 - yawVel) * acc;
+  pitchVel += (pIn * 1.5 - pitchVel) * acc;
+  yaw += yawVel * dt;
+  pitch += pitchVel * dt;
+  if (Math.abs(pitch) > PITCH_LIM) { pitch = Math.sign(pitch) * PITCH_LIM; pitchVel = 0; }
+  setHeading();
+  me.dir.copy(fwd);
+  const sx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  if (sx) me.dir.addScaledVector(right, sx * .8).normalize();
+  me.throttle = (keys.KeyS || keys.ShiftLeft || keys.ShiftRight || brakeHeld) ? .12 : 1;
+}
+
+/* ============================== INTERACTIONS ============================== */
+function interactions() {
+  const all = []; for (const e of entities.values()) for (const c of e.cells) all.push(c);
+  const eaten = [];
+  for (const a of all) {
+    if (!a.ent.local || a.dead) continue;
+    for (const b of all) {
+      if (b === a || b.ent === a.ent || b.dead || b.mass < a.mass * 1.25) continue;
+      const lim = b.r - a.r * .35; if (lim <= 0) continue;
+      const dx = a.pos.x - b.pos.x, dy = a.pos.y - b.pos.y, dz = a.pos.z - b.pos.z;
+      if (dx * dx + dy * dy + dz * dz < lim * lim) { a.dead = true; eaten.push([a, b]); break; }
+    }
+  }
+  for (const [a, b] of eaten) {
+    const victim = a.ent;
+    removeCell(a);
+    if (b.ent.local && !b.dead) { b.mass += a.mass * (b.ent === me ? KILL_BONUS : 1); b.r = rad(b.mass); b.pulse = 1; }
+    if (b.ent === me) { burst(a.pos.x, a.pos.y, a.pos.z, victim.color, clamp(Math.round(20 + a.r * 2), 20, 120), b, 40 + a.r * 4, Math.max(1.2, a.r * .25)); }
+    else if (!b.ent.local) netEat(b.ent.owner, { t: b.id, m: Math.round(a.mass), v: victim.name, k: victim.cells.length === 0 ? 1 : 0 });
+    if (b.ent === me) onMeAte(victim, victim.cells.length === 0);
+    if (victim === me && me.cells.length === 0) stats.killer = b.ent.name;
+    if ((victim.kind === 'bot' || victim.kind === 'snack') && victim.cells.length === 0) setTimeout(() => { if (entities.get(victim.id) === victim && !victim.cells.length) removeEntity(victim); }, 0);
+  }
+  // blobs
+  for (let i = blobs.length - 1; i >= 0; i--) {
+    const b = blobs[i]; b.pos.addScaledVector(b.vel, DT); b.vel.multiplyScalar(Math.exp(-3 * DT));
+    if (b.pos.length() > ARENA) b.pos.setLength(ARENA - 1);
+    b.mesh.position.copy(b.pos);
+    let gone = now - b.born > 40;
+    if (!gone) for (const e of entities.values()) {
+      if (!e.local || (e === b.owner && now - b.born < 1.2)) continue;
+      for (const c of e.cells) if (c.mass > 20 && c.pos.distanceTo(b.pos) < c.r) { c.mass += b.mass; c.pulse = .4; gone = true; break; }
+      if (gone) break;
+    }
+    if (gone) { scene.remove(b.mesh); b.mesh.material.dispose(); blobs.splice(i, 1); }
+  }
+}
+function onMeAte(victim, killed) {
+  stats.eaten++; sfx('gulp');
+  if (killed) { feed(`You devoured <b>${escapeHtml(victim.name)}</b>`); toast('DEVOURED', victim.name); }
+}
+const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+let combo = 0, comboT = -9, comboShown = 0;
+function updateFood() {
+  const on = playing && me && mainCell;
+  food.visible = !!on; for (const cl of clusters) cl.spr.visible = !!on;
+  if (!on) return;
+  const c = mainCell.pos;
+  const want = clamp(viewRadius(mainCell.r) * 2.1, 900, 7000);
+  const oldT = foodT; foodT += (want - foodT) * Math.min(1, DT * .6);
+  if (!foodInit) {
+    foodT = want;
+    for (let i = 0; i < LOOSE_N; i++) respawnLoose(i, c.x, c.y, c.z, foodT, false);
+    for (let k = 0; k < CL_N; k++) reseedCluster(k, c.x, c.y, c.z, foodT, false);
+    foodInit = true;
+  } else if (Math.abs(foodT - oldT) > .01) {
+    const k = foodT / oldT;
+    for (let i = 0; i < LOOSE_N; i++) { foodPos[i * 3] = c.x + (foodPos[i * 3] - c.x) * k; foodPos[i * 3 + 1] = c.y + (foodPos[i * 3 + 1] - c.y) * k; foodPos[i * 3 + 2] = c.z + (foodPos[i * 3 + 2] - c.z) * k; }
+    for (const cl of clusters) cl.c.sub(c).multiplyScalar(k).add(c);
+  }
+  const T = foodT, half = T / 2, sc = Math.sqrt(T / 750), valK = 1 + mainCell.r / 30;
+  foodMat.uniforms.uFar.value = T;
+  // wrap cluster centres around the player, recycle depleted ones far away
+  for (let k = 0; k < CL_N; k++) {
+    const cl = clusters[k], p = cl.c;
+    if (p.x - c.x > half) p.x -= T; else if (p.x - c.x < -half) p.x += T;
+    if (p.y - c.y > half) p.y -= T; else if (p.y - c.y < -half) p.y += T;
+    if (p.z - c.z > half) p.z -= T; else if (p.z - c.z < -half) p.z += T;
+    if (cl.alive < cl.total * .12 || p.length() > ARENA) reseedCluster(k, c.x, c.y, c.z, T, true);
+    const fill = cl.alive / cl.total, dcam = camera.position.distanceTo(p), sp = cl.spread * sc;
+    const edge = Math.max(Math.abs(p.x - c.x), Math.abs(p.y - c.y), Math.abs(p.z - c.z)) / half;   // fade before wrap so nothing pops
+    cl.spr.position.copy(p); cl.spr.scale.setScalar(sp * (1.5 + 1.3 * fill));
+    cl.spr.material.color.copy(hueColor(cl.hue, 1, .5)).multiplyScalar(.9 * (.3 + .7 * fill) * clamp((dcam - sp) / (sp * 1.5), 0, 1) * (1 - clamp((edge - .7) / .28, 0, 1)));
+  }
+  const arr = food.instanceMatrix.array, cells = me.cells, A2 = ARENA * ARENA;
+  let ate = 0, lastCell = null;
+  for (let i = 0; i < FOOD_N; i++) {
+    const j = i * 3, cl = foodCl[i];
+    let x, y, z;
+    if (cl < 0) {
+      x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2];
+      if (x - c.x > half) x -= T; else if (x - c.x < -half) x += T;
+      if (y - c.y > half) y -= T; else if (y - c.y < -half) y += T;
+      if (z - c.z > half) z -= T; else if (z - c.z < -half) z += T;
+    } else { const cc = clusters[cl].c; x = cc.x + foodOff[j] * sc; y = cc.y + foodOff[j + 1] * sc; z = cc.z + foodOff[j + 2] * sc; }
+    let s = foodAlive[i] ? foodSize[i] * sc : 0;
+    if (s && x * x + y * y + z * z > A2) s = 0;
+    else if (s) for (let k = 0; k < cells.length; k++) {
+      const cc = cells[k], dx = cc.pos.x - x, dy = cc.pos.y - y, dz = cc.pos.z - z, d2 = dx * dx + dy * dy + dz * dz, reach = cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10;
+      if (d2 > reach * reach) continue;
+      const d = Math.sqrt(d2);
+      if (d < cc.r + s * .5) {
+        cc.mass += foodVal[i] * valK; cc.pulse = Math.max(cc.pulse, .35); ate++; lastCell = cc;
+        foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
+        burst(x, y, z, foodColor, foodVal[i] > 1 ? 10 : 4, cc, 30 * sc + cc.r * .6, .9 * sc);
+        if (cl < 0) { respawnLoose(i, c.x, c.y, c.z, T, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2]; s = 0; }
+        else { foodAlive[i] = 0; clusters[cl].alive--; s = 0; }
+        break;
+      }
+      // vacuum: pellets accelerate into you the closer they get
+      const pull = Math.min(d, DT * (140 + cc.r * 6) * (1.6 - d / reach) * 1.6) / d;
+      x += dx * pull; y += dy * pull; z += dz * pull;
+      if (cl < 0) { foodPos[j] = x; foodPos[j + 1] = y; foodPos[j + 2] = z; }
+      else { foodOff[j] += dx * pull / sc; foodOff[j + 1] += dy * pull / sc; foodOff[j + 2] += dz * pull / sc; }
+      break;
+    }
+    if (cl < 0) { foodPos[j] = x; foodPos[j + 1] = y; foodPos[j + 2] = z; }
+    const o = i * 16; arr[o] = s; arr[o + 5] = s; arr[o + 10] = s; arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
+  }
+  food.instanceMatrix.needsUpdate = true;
+  if (ate) {
+    combo = now - comboT < .75 ? combo + ate : ate; comboT = now;
+    sfx('eat', combo);
+    
+  }
+  if (now - comboT > .9 && comboShown) { comboShown = 0; $('combo').classList.remove('on'); }
+}
+function showCombo(n) {
+  const el = $('combo'); el.textContent = '×' + n; el.style.setProperty('--h', Math.round((n * 7) % 360));
+  el.classList.add('on'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); comboShown = 1;
+  const m = $('mass'); m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop');
+}
+
+/* ============================== NETWORK (serverless P2P via WebRTC) ============================== */
+let act = null;
+const r1 = v => Math.round(v * 10) / 10;
+function packCells(e) { return e.cells.map(c => [c.id, r1(c.pos.x), r1(c.pos.y), r1(c.pos.z), Math.round(c.mass)]); }
+function sendState() {
+  if (!act || !net.peers.size) return;
+  const d = { n: me && playing ? me.name : '', h: me ? r1(me.hue * 100) / 100 : 0, c: me && playing ? packCells(me) : [] };
+  if (false) d.b = [...entities.values()].filter(e => e.kind === 'bot').map(e => [e.id, e.name, Math.round(e.hue * 1000) / 1000, packCells(e), e.lev ? 1 : 0]);
+  try { act.state.send(d); } catch { }
+}
+function netEat(owner, msg) { try { act?.eat.send(msg, owner); } catch { } }
+const num = v => typeof v === 'number' && isFinite(v);
+function syncCells(ent, arr) {
+  if (!Array.isArray(arr)) return;
+  const seen = new Set();
+  for (const it of arr.slice(0, MAX_CELLS)) {
+    if (!Array.isArray(it) || typeof it[0] !== 'string' || !num(it[1]) || !num(it[2]) || !num(it[3]) || !num(it[4])) continue;
+    const id = it[0].slice(0, 40), m = clamp(it[4], 1, 3e6); seen.add(id);
+    let c = cellById.get(id);
+    if (c && c.ent !== ent) continue;
+    if (!c) { c = addCell(ent, new V3(it[1], it[2], it[3]), m, id); }
+    c.tpos.set(it[1], it[2], it[3]); c.mass = m; c.r = rad(m);
+  }
+  for (const c of [...ent.cells]) if (!seen.has(c.id)) removeCell(c);
+  ent.lastPacket = performance.now();
+}
+function getRemote(id, kind, name, hue, owner) {
+  let e = entities.get(id);
+  if (e && e.local) return null;
+  if (!e || cleanName(name) !== e.name) { if (e) removeEntity(e); e = new Entity(id, kind, name, num(hue) ? hue : 0, owner); }
+  return e;
+}
+function onState(d, pid) {
+  if (!d || typeof d !== 'object' || !net.peers.has(pid)) return;
+  net.lastSeen.set(pid, performance.now());
+  if (d.n && Array.isArray(d.c) && d.c.length) { const e = getRemote('p:' + pid, 'remote', d.n, d.h, pid); if (e) syncCells(e, d.c); }
+  else { const e = entities.get('p:' + pid); if (e) removeEntity(e); }
+  if (false && Array.isArray(d.b)) {
+    const seen = new Set();
+    for (const b of d.b.slice(0, 40)) {
+      if (!Array.isArray(b) || typeof b[0] !== 'string') continue;
+      const id = 'b:' + b[0].slice(0, 40); seen.add(id);
+      const e = getRemote(id, 'rbot', b[1], b[2], pid); if (!e) continue; e.lev = !!b[4]; syncCells(e, b[3]);
+    }
+    for (const e of [...entities.values()]) if (e.kind === 'rbot' && e.owner === pid && !seen.has(e.id)) removeEntity(e);
+  }
+}
+function onEat(d, pid) {
+  if (!d || typeof d.t !== 'string' || !num(d.m)) return;
+  const c = cellById.get(d.t); if (!c || !c.ent.local) return;
+  c.mass += clamp(d.m, 0, 3e6) * (c.ent === me ? KILL_BONUS : 1); c.r = rad(c.mass); c.pulse = 1;
+  if (c.ent === me) { const vr = rad(clamp(d.m, 1, 3e6)); burst(c.pos.x + fwd.x * c.r, c.pos.y + fwd.y * c.r, c.pos.z + fwd.z * c.r, hueColor(Math.random(), 1, .6), clamp(Math.round(20 + vr * 2), 20, 120), c, 40 + vr * 4, Math.max(1.2, vr * .25)); }
+  if (c.ent === me) onMeAte({ name: cleanName(d.v) || 'someone' }, !!d.k);
+}
+function dropPeer(pid) {
+  net.peers.delete(pid); net.lastSeen.delete(pid);
+  for (const e of [...entities.values()]) if (!e.local && e.owner === pid) removeEntity(e);
+  recomputeHost(); updateNetUI();
+}
+function recomputeHost() {
+  // every client simulates its own bots, so a lobby is never empty or frozen by someone's background tab
+  isHost = true;
+}
+function mkAction(room, name) {
+  const a = room.makeAction(name);
+  if (Array.isArray(a)) return { send: (d, t) => a[0](d, t), on: fn => a[1]((d, p) => fn(d, typeof p === 'string' ? p : p?.peerId)) };
+  return { send: (d, t) => a.send(d, t ? { target: t } : undefined), on: fn => { a.onMessage = (d, meta) => fn(d, typeof meta === 'string' ? meta : meta?.peerId); } };
+}
+function hook(room, ev, fn) {
+  if (typeof room[ev] === 'function' && room[ev].length >= 1 && !('__set' + ev in room)) { try { room[ev](fn); return; } catch { } }
+  room[ev] = fn;
+}
+async function initNet() {
+  try {
+    const mod = await import('https://cdn.jsdelivr.net/npm/trystero@0.25.4/+esm');
+    net.mod = mod; net.selfId = mod.selfId || net.selfId;
+    if (me) { /* rare: joined before net resolved */ }
+    joinLobby(1);
+  } catch (e) { console.warn('Multiplayer unavailable, playing with bots', e); net.status = 'offline'; updateNetUI(); }
+}
+function joinLobby(n) {
+  try { net.room?.leave(); } catch { }
+  for (const p of [...net.peers]) dropPeer(p);
+  net.lobby = n; net.status = 'online';
+  const room = net.mod.joinRoom({ appId: CFG.APP_ID }, 'lobby-' + n);
+  net.room = room;
+  act = { state: mkAction(room, 'state'), eat: mkAction(room, 'eat') };
+  act.state.on(onState); act.eat.on(onEat);
+  hook(room, 'onPeerJoin', pid => { if (net.room !== room) return; net.peers.add(pid); net.lastSeen.set(pid, performance.now()); recomputeHost(); updateNetUI(); });
+  hook(room, 'onPeerLeave', pid => { if (net.room !== room) return; dropPeer(pid); });
+  updateNetUI();
+  setTimeout(() => { if (net.room === room && net.peers.size >= CFG.ROOM_CAP && n < 60 && !playing) joinLobby(n + 1); }, 4500);
+}
+setInterval(sendState, 70);
+setInterval(() => {   // prune silent peers, keep bot population healthy
+  const t = performance.now();
+  for (const [pid, s] of net.lastSeen) if (t - s > 8000) dropPeer(pid);
+  ensureBots(); ensureSnacks();
+}, 1500);
+addEventListener('pagehide', () => { try { net.room?.leave(); } catch { } });
+function updateNetUI() {
+  const dot = document.getElementById('netDot'), txt = document.getElementById('netText');
+  if (net.status === 'offline') { dot.className = 'dot off'; txt.textContent = 'Offline mode — playing with bots'; return; }
+  if (net.status === 'connecting') { dot.className = 'dot'; txt.textContent = 'Connecting to lobby…'; return; }
+  const n = net.peers.size + 1; dot.className = 'dot ok';
+  txt.textContent = `${n} player${n > 1 ? 's' : ''} in Lobby ${net.lobby} · live now`;
+}
+
+/* ============================== AUDIO ============================== */
+let actx = null, lastEat = 0;
+function sfx(type, arg) {
+  if (!opts.sound) return;
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(); o.connect(g); g.connect(actx.destination);
+  const env = (a, d, v) => { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + a + d); o.start(t); o.stop(t + a + d + .05); };
+  if (type === 'eat') { if (t - lastEat < .045) { o.disconnect(); return; } lastEat = t; const k = Math.min((arg || 1) - 1, 29), sc = [0, 2, 4, 7, 9], semi = 12 * Math.floor(k / 5) + sc[k % 5];
+    o.type = 'triangle'; const f = 440 * Math.pow(2, semi / 12); o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.5, t + .07); env(.003, .09, .05); }
+  else if (type === 'split') { o.type = 'triangle'; o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(90, t + .22); env(.01, .25, .12); }
+  else if (type === 'eject') { o.type = 'sine'; o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(600, t + .08); env(.005, .1, .06); }
+  else if (type === 'gulp') { o.type = 'sine'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(55, t + .25); env(.01, .3, .25); }
+  else if (type === 'pop') { o.type = 'sawtooth'; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(40, t + .4); env(.005, .45, .12); }
+  else if (type === 'die') { o.type = 'sine'; o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(30, t + .9); env(.01, 1, .3); }
+  else if (type === 'tier') { o.type = 'triangle'; o.frequency.setValueAtTime(330, t); o.frequency.setValueAtTime(440, t + .12); o.frequency.setValueAtTime(660, t + .24); env(.01, .6, .12); }
+}
+
+/* ============================== HUD ============================== */
+const $ = id => document.getElementById(id);
+function feed(html) { const d = document.createElement('div'); d.className = 'fi'; d.innerHTML = html; $('feed').prepend(d); setTimeout(() => d.remove(), 3300); while ($('feed').children.length > 4) $('feed').lastChild.remove(); }
+function toast() { return; }
+function _toastUnused(t, sub = '', short) { const el = $('toast'); el.innerHTML = `${escapeHtml(t)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); }
+let hudT = 0;
+const radarCtx = $('radar').getContext('2d');
+function updateHud() {
+  if (!me || !playing) return;
+  const m = me.mass;
+  $('mass').textContent = fmt(m);
+  $('tier').textContent = tierOf(m);
+  $('sub').textContent = `${me.cells.length}/${MAX_CELLS} cells`;
+  const list = [...entities.values()].filter(e => e.cells.length && e.kind !== 'snack').sort((a, b) => b.mass - a.mass);
+  const rank = list.indexOf(me) + 1;
+  $('lbList').innerHTML = list.slice(0, 10).map((e, i) => `<li class="${e === me ? 'me' : ''}"><span>${i + 1}. ${escapeHtml(e.name)}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
+    + (rank > 10 ? `<li class="me"><span>${rank}. ${escapeHtml(me.name)}</span><span class="m">${fmt(m)}</span></li>` : '');
+}
+// space-sim style target brackets: bracket size + distance readout make range legible at a glance
+const marksEl = $('marks'), marksCtx = marksEl.getContext('2d');
+const _pv = new V3();
+function drawMarks() {
+  const W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
+  if (marksEl.width !== W * dpr) { marksEl.width = W * dpr; marksEl.height = H * dpr; }
+  const g = marksCtx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  if (!mainCell || $('hud').classList.contains('clean')) return;
+  const mm = mainCell.mass, range = 900 + mainCell.r * 14, f = (H / 2) / Math.tan(camera.fov * Math.PI / 360);
+  const list = [];
+  for (const e of entities.values()) {
+    if (e === me) continue;
+    for (const c of e.cells) {
+      const d = c.pos.distanceTo(mainCell.pos) - c.r - mainCell.r;
+      if (d > range || d < 0) continue;
+      const threat = c.mass > mm * 1.25, prey = mm > c.mass * 1.25;
+      list.push({ c, d, threat, prey });
+    }
+  }
+  list.sort((a, b) => a.d - b.d);
+  _pv.copy(mainCell.pos).applyMatrix4(camera.matrixWorldInverse);
+  const mz = -_pv.z, mx = W / 2 + _pv.x / mz * f, my = H / 2 - _pv.y / mz * f, mr = mainCell.rr / mz * f;
+  g.font = '600 11px Inter, system-ui, sans-serif'; g.textAlign = 'center';
+  for (const { c, d, threat, prey } of list.slice(0, 24)) {
+    _pv.copy(c.pos).applyMatrix4(camera.matrixWorldInverse);
+    if (_pv.z > -c.r * .5) continue;                       // behind camera
+    const z = -_pv.z, sx = W / 2 + _pv.x / z * f, sy = H / 2 - _pv.y / z * f, pr = c.rr / z * f;
+    if (pr > Math.min(W, H) * .35) continue;               // already filling the screen
+    if (z > mz && Math.hypot(sx - mx, sy - my) < mr) continue;   // hidden behind your own ball
+    const a = clamp(1 - d / range, .25, 1);
+    const col = threat ? `rgba(255,84,112,${a})` : prey ? `rgba(77,255,166,${a})` : `rgba(220,230,255,${a * .8})`;
+    const b = Math.max(pr + 6, 9), k = Math.max(5, b * .35);
+    g.strokeStyle = col; g.lineWidth = threat ? 2 : 1.5; g.beginPath();
+    for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      const x = sx + dx * b, y = sy + dy * b; g.moveTo(x, y - dy * k); g.lineTo(x, y); g.lineTo(x - dx * k, y);
+    }
+    g.stroke();
+    g.fillStyle = col;
+    g.fillText(`${Math.round(d)}m`, sx, sy + b + 13);
+  }
+}
+function drawRadar() {
+  const g = radarCtx, W = 300, C = W / 2; g.clearRect(0, 0, W, W);
+  if (!mainCell) return;
+  const range = viewRadius(mainCell.r);
+  g.strokeStyle = 'rgba(140,170,255,.25)'; g.lineWidth = 2;
+  for (const f of [1, .66, .33]) { g.beginPath(); g.arc(C, C, C * f - 4, 0, 7); g.stroke(); }
+  g.beginPath(); g.moveTo(C, 8); g.lineTo(C, W - 8); g.moveTo(8, C); g.lineTo(W - 8, C); g.stroke();
+  const edge = ARENA - mainCell.pos.length();
+  if (edge < range) { const d = _t.copy(mainCell.pos).normalize(); const x = d.dot(right), y = -d.dot(fwd); const a = Math.atan2(y, x); g.strokeStyle = 'rgba(57,243,255,.8)'; g.lineWidth = 6; g.beginPath(); g.arc(C, C, C - 6, a - .5, a + .5); g.stroke(); }
+  const k0 = (C - 10) / range;
+  for (const cl of clusters) { if (cl.alive < 3) continue; _t.subVectors(cl.c, mainCell.pos); if (_t.length() > range) continue;
+    g.fillStyle = `hsla(${cl.hue * 360},100%,65%,${.35 + .5 * cl.alive / cl.total})`; g.beginPath(); g.arc(C + _t.dot(right) * k0, C - _t.dot(fwd) * k0, 4 + 5 * cl.alive / cl.total, 0, 7); g.fill(); }
+  const mm = mainCell.mass;
+  for (const e of entities.values()) {
+    for (const c of e.cells) {
+      _t.subVectors(c.pos, mainCell.pos); const dist = _t.length(); if (dist > range + c.r) continue;
+      const x = _t.dot(right), y = -_t.dot(fwd), h = _t.dot(upv);
+      const k = (C - 10) / range; const px = C + x * k, py = C + y * k; const pr = clamp(c.r * k, 2.5, 60);
+      g.fillStyle = e === me ? '#39f3ff' : c.mass > mm * 1.25 ? 'rgba(255,84,112,.9)' : mm > c.mass * 1.25 ? 'rgba(77,255,166,.9)' : 'rgba(255,255,255,.8)';
+      g.globalAlpha = e === me ? 1 : clamp(1 - Math.abs(h) / range * 1.2, .3, 1);
+      g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
+      if (e !== me && Math.abs(h) > c.r) { g.fillRect(px - 1, py - (h > 0 ? 10 : -2), 2, 8); }
+    }
+  }
+  g.globalAlpha = 1;
+}
+
+/* ============================== CAMERA ============================== */
+const camPos = new V3(0, 0, 900), camQ = new THREE.Quaternion(), _m4 = new THREE.Matrix4(), _look = new V3(), _des = new V3(), _dq = new THREE.Quaternion();
+const _grp = new V3(), camLook = new V3(), _cq = new THREE.Quaternion(), _cf = new V3(), _cu = new V3(); let camExtra = 0, camTilt = .18;
+let attractAng = 0, attractTarget = null, deathCam = null;
+function pickMain() {
+  if (!me || !me.cells.length) return;
+  const big = me.main();
+  if (!mainCell || mainCell.dead || !me.cells.includes(mainCell)) mainCell = big;   // camera never leaves the ball you split from unless it dies
+}
+function updateCamera() {
+  const k = 1 - Math.exp(-DT * 8);
+  if (playing && mainCell) {
+    const P = mainCell.pos, r = mainCell.rr;
+    // chase-cam: view trails your heading by a beat, and leans a few degrees into turns
+    const ck = 1 - Math.exp(-DT * 6);
+    camYaw += angDiff(yaw, camYaw) * ck; camPitch += (pitch - camPitch) * ck;
+    bank += (clamp(-yawVel * .03, -.06, .06) - bank) * ck;
+    _cq.setFromEuler(_eul.set(camPitch, camYaw, bank, 'YXZ'));
+    const cf = _cf.set(0, 0, -1).applyQuaternion(_cq), cu = _cu.set(0, 1, 0).applyQuaternion(_cq);
+    // split framing: when your cells spread out, ease the camera back and tilt toward the group so all stay in view
+    _grp.copy(P); let spread = 0;
+    if (me.cells.length > 1) {
+      _grp.set(0, 0, 0); let tm = 0; for (const c of me.cells) { _grp.addScaledVector(c.pos, c.mass); tm += c.mass; } _grp.multiplyScalar(1 / tm);
+      for (const c of me.cells) spread = Math.max(spread, c.pos.distanceTo(_grp) + c.rr);
+    }
+    const tanH = Math.tan(camera.fov * Math.PI / 360) * Math.min(1, camera.aspect);
+    const needDist = spread > 0 ? spread * 1.25 / tanH : 0;
+    const k2 = 1 - Math.exp(-DT * 3);
+    camExtra += (Math.max(0, needDist - (r * 4.6 + 16) * zoom) - camExtra) * k2;
+    camLook.lerp(_t.subVectors(_grp, P).multiplyScalar(.6), k2);
+    const dist = (r * 4.6 + 16) * zoom + camExtra;
+    _look.copy(P).add(camLook);
+    camTilt += ((spread > 0 ? .75 : .18) - camTilt) * k2;   // rise & look down over a split line so no ball hides behind another
+    _des.copy(_look).addScaledVector(cf, -dist).addScaledVector(cu, dist * camTilt);
+    camPos.copy(_des);
+    _m4.lookAt(camPos, _look, cu); _dq.setFromRotationMatrix(_m4);
+    camQ.copy(_dq);
+    camera.near = clamp(r * .04, .15, 6);
+  } else {
+    // attract mode / death cam: slow orbit around the biggest thing in the arena
+    if (!attractTarget || attractTarget.dead || Math.random() < .002) {
+      let best = null; for (const e of entities.values()) for (const c of e.cells) if (!best || c.mass > best.mass) best = c;
+      attractTarget = deathCam || best;
+    }
+    const T = attractTarget; attractAng += DT * .05;
+    const P = T ? T.pos : new V3(), r = T ? T.rr : 100;
+    _des.set(Math.cos(attractAng), .35 + .2 * Math.sin(attractAng * .7), Math.sin(attractAng)).normalize().multiplyScalar(r * 3.2 + 60).add(P);
+    camPos.lerp(_des, 1 - Math.exp(-DT * 1.2));
+    _m4.lookAt(camPos, P, AX.Y); _dq.setFromRotationMatrix(_m4); camQ.slerp(_dq, 1 - Math.exp(-DT * 2));
+    camera.near = 1;
+  }
+  camera.position.copy(camPos); camera.quaternion.copy(camQ);
+  fovKick *= Math.exp(-DT * 3);
+  camera.fov = (IS_TOUCH ? 74 : 66) + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
+  camera.far = ARENA * 3 + 4000;
+  camera.updateProjectionMatrix();
+}
+
+/* ============================== VISUAL SYNC ============================== */
+const _cd = new V3();
+function updateVisuals() {
+  for (const e of entities.values()) {
+    for (const c of e.cells) {
+      if (!e.local) c.pos.lerp(c.tpos, 1 - Math.exp(-DT * 11));
+      c.rr += (c.r - c.rr) * Math.min(1, DT * 7);
+      c.pulse *= Math.exp(-DT * 4);
+      c.mesh.position.copy(c.pos); c.mesh.scale.setScalar(c.rr);
+      c.appear = Math.min(1, c.appear + DT * .8); const u = c.mesh.material.uniforms; u.uAppear.value = c.appear; u.uR.value = c.rr; u.uPulse.value = c.pulse * .5; u.uWobble.value = .022;
+      const hideLabel = c.rr < 2.5;
+      c.label.visible = !hideLabel;
+      if (!hideLabel) {
+        _cd.subVectors(camera.position, c.pos); const dd = _cd.length();
+        if (dd < c.rr * 1.05) c.label.visible = false;
+        else { c.label.material.opacity = e === me ? 1 : Math.exp(-c.pos.distanceTo(U.pp.value) / (U.viewR.value * .4)) * c.appear; c.label.position.copy(c.pos).addScaledVector(_cd, c.rr * 1.02 / dd); const lw = Math.min(c.rr * 1.5, (dd - c.rr) * .45 + 2); c.label.scale.set(lw, lw * .25, 1); }
+      }
+    }
+  }
+  const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(pr) : 1e5; if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
+  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr;
+  sky.position.copy(camera.position);
+  sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
+}
+
+/* ============================== FLOW ============================== */
+const home = $('home'), hud = $('hud'), death = $('death'), touchUI = $('touch');
+let chosenHue = Math.random();
+function startGame() {
+  const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
+  try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); } catch { }
+  opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked;
+  sfx('tier');
+  document.activeElement?.blur?.();   // keys (arrows/space) must reach the game, not the name box
+  spawnMe(name, chosenHue);
+  ensureSnacks();
+  deathCam = null; attractTarget = null;
+  home.classList.add('hidden'); death.classList.add('hidden'); hud.classList.remove('hidden');
+  if (IS_TOUCH) { touchUI.classList.remove('hidden'); document.body.classList.add('touch'); }
+  $('hint').style.opacity = 1; setTimeout(() => $('hint').style.opacity = 0, 9000);
+  toast(tierOf(me.mass), 'grow. split. devour.');
+}
+function onDeath() {
+  playing = false; sfx('die');
+  const secs = Math.round((performance.now() - stats.start) / 1000);
+  const killer = [...entities.values()].find(e => e.name === stats.killer && e.cells.length);
+  deathCam = killer ? killer.main() : null; attractTarget = null;
+  document.exitPointerLock?.(); touchUI.classList.add('hidden');
+  setTimeout(() => {
+    hud.classList.add('hidden');
+    $('deathBy').textContent = stats.killer ? `Swallowed whole by ${stats.killer}` : 'You were absorbed';
+    $('dPeak').textContent = fmt(stats.peak); $('dTier').textContent = TIERS[stats.peakTier][1];
+    $('dEaten').textContent = stats.eaten; $('dTime').textContent = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+    const url = location.href.split(/[?#]/)[0];
+    const txt = `I grew to ${fmt(stats.peak)} mass (${TIERS[stats.peakTier][1]}) in AMAR.IO — agar.io in full 3D, built entirely by Claude Opus 5.5 🪐\n\nCan you get bigger?`;
+    $('shareX').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}`;
+    death.classList.remove('hidden');
+  }, 1400);
+}
+$('play').addEventListener('click', startGame);
+$('again').addEventListener('click', startGame);
+$('toHome').addEventListener('click', () => { death.classList.add('hidden'); home.classList.remove('hidden'); });
+// swatches
+{ const hues = [.52, .6, .72, .83, .93, .02, .09, .15, .3, .42]; const wrap = $('swatches');
+  try { const h = parseFloat(localStorage.getItem('orb_hue')); if (isFinite(h)) chosenHue = h; $('name').value = localStorage.getItem('orb_name') || ''; } catch { }
+  let best = 0; hues.forEach((h, i) => { if (Math.abs(h - chosenHue) < Math.abs(hues[best] - chosenHue)) best = i; });
+  hues.forEach((h, i) => { const b = document.createElement('button'); b.className = 'sw' + (i === best ? ' on' : ''); b.style.background = `hsl(${h * 360},95%,56%)`; b.setAttribute('aria-label', 'color');
+    b.onclick = () => { chosenHue = h; wrap.querySelectorAll('.sw').forEach(x => x.classList.toggle('on', x === b)); }; wrap.appendChild(b); });
+  chosenHue = hues[best];
+}
+// monetization links
+$('donate').href = $('donate2').href = CFG.DONATE_URL;
+if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden'); $('donate2').classList.add('hidden'); }   // no real link yet
+$('challenge').textContent = CFG.CHALLENGE;
+if (params.has('og')) document.body.classList.add('og');
+if (params.has('clean')) document.body.classList.add('clean');
+if (IS_TOUCH) $('keysHelp').innerHTML = 'Left stick steers · <b>SPLIT</b> to attack · <b>EJECT</b> to feed';
+
+/* ============================== MAIN LOOP ============================== */
+let last = performance.now();
+const PROF = { sim: 0, food: 0, vis: 0, render: 0, n: 0 };
+function frame(t) {
+  requestAnimationFrame(frame);
+  DT = Math.min(.05, (t - last) / 1000); last = t; now += DT; U.time.value = now;
+  let p0 = performance.now();
+  if (playing && me) handleInput();
+  for (const e of entities.values()) if (e.local) { if (e.kind === 'snack') { botThink(e); e.throttle *= .85; if (!e.cells.length) continue; } if (e.kind === 'bot') { botThink(e); if (e.cells.length === 0) continue; e.cells.forEach(c => { if (!e.lev && c.mass < 1500) c.mass += DT * 2.5; }); } moveEntity(e); }
+  interactions();
+  let p1 = performance.now(); PROF.sim += p1 - p0;
+  if (playing && me) {
+    pickMain(); updateFood();
+    if (!me.cells.length) onDeath();
+    else {
+      const m = me.mass; if (m > stats.peak) stats.peak = m;
+      const ti = tierIdx(m); if (ti > stats.peakTier) { stats.peakTier = ti; sfx('tier'); }
+    }
+  } else food.visible = false;
+  let p2 = performance.now(); PROF.food += p2 - p1;
+  updateSparks();
+  updateVisuals();
+  updateCamera();
+  hudT -= DT; if (hudT <= 0) { hudT = .25; updateHud(); }
+  if (playing) drawRadar();
+  let p3 = performance.now(); PROF.vis += p3 - p2;
+  composer.render();
+  PROF.render += performance.now() - p3; PROF.n++;
+}
+// warm the world
+isHost = true; ensureBots();
+for (let i = 0; i < 60; i++) { DT = .05; now += DT; for (const e of entities.values()) if (e.local) { botThink(e); moveEntity(e); } interactions(); }
+requestAnimationFrame(frame);
+if (params.has('offline')) { net.status = 'offline'; updateNetUI(); } else initNet();
+window.__orb = { frame: t => frame(t), PROF, dbg: { bloom, composer, renderer, scene, sky, shell, food, U }, entities, net, get me() { return me; }, get mainCell() { return mainCell; }, split: () => split(me, fwd), spawnMe };
+</script>
+</body>
+</html>
