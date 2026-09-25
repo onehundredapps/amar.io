@@ -89,6 +89,10 @@ kbd{font:600 11px Inter,sans-serif;padding:2px 6px;border-radius:5px;background:
 .bar.cage i{background:linear-gradient(90deg,var(--a),var(--b),var(--c));box-shadow:none}
 #puTxt{font-size:12px;margin-top:6px;color:var(--text);min-height:0}
 #puTxt b{color:#ff5c7a} #puTxt em{font-style:normal;color:#4dff9a}
+#boostTip{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);padding:10px 16px;font-weight:700;font-size:15px;color:#ffd23f;
+  border-color:rgba(255,160,40,.5);animation:tipPulse 1.2s ease-in-out infinite}
+@keyframes tipPulse{0%,100%{box-shadow:0 0 0 rgba(255,160,40,0)}50%{box-shadow:0 0 24px rgba(255,160,40,.6)}}
+body.touch #boostTip{bottom:auto;top:120px}
 #win{position:fixed;inset:0;z-index:13;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,6,15,.35)}
 #win .crown{font-size:64px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 0 20px rgba(255,210,63,.7))}
 #win h2{font:900 34px Outfit,sans-serif;letter-spacing:.05em;background:linear-gradient(100deg,#ffd23f,var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -196,7 +200,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 <!-- HUD -->
 <div id="hud" class="hidden">
   <div id="stats" class="glass"><div id="mass">0</div><div id="tier">MICROBE</div><div id="sub"></div>
-    <div class="pu-row"><span class="pu-k">BOOST</span><div class="bar"><i id="boostBar"></i></div></div>
+    <div class="pu-row"><span class="pu-k">NITRO</span><div class="bar"><i id="boostBar"></i></div></div>
     <div class="pu-row"><span class="pu-k">CAGE</span><div class="bar cage"><i id="cageBar"></i></div></div>
     <div id="puTxt"></div>
   </div>
@@ -206,6 +210,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <canvas id="marks"></canvas>
   <div id="toast"></div>
   <div id="combo"></div>
+  <div id="boostTip" class="glass">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
   <div id="hint" class="glass"><kbd>Arrows</kbd> steer · <kbd>Shift</kbd> boost · <kbd>R</kbd> rocket · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>S</kbd> brake</div>
 </div>
 
@@ -266,7 +271,8 @@ const CFG = {
   ROOM_CAP: 10,
 };
 const ARENA = 2400;   // agar.io-style proportions: max ball ≈21% of map width
-const MAX_CELL_MASS = 112000, MAX_CELLS = 16;
+const MAX_CELL_MASS = 2300000, MAX_CELLS = 16;   // a single ball can grow to fill the whole cage
+const BOT_MAX = 90000;
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches;   // real phones/tablets only
 const params = new URLSearchParams(location.search);
 
@@ -285,7 +291,7 @@ const fmt = m => m >= 1e6 ? (m / 1e6).toFixed(2) + 'M' : m >= 1e4 ? (m / 1e3).to
 const cleanName = s => String(s ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16);
 const hueColor = (h, s = .9, l = .55) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l);
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-const TIERS = [[0, 'MICROBE'], [60, 'CELL'], [300, 'ORGANISM'], [1500, 'BEHEMOTH'], [5000, 'TITAN'], [20000, 'COLOSSUS'], [60000, 'CELESTIAL'], [105000, 'WORLD-EATER']];
+const TIERS = [[0, 'MICROBE'], [60, 'CELL'], [300, 'ORGANISM'], [1500, 'BEHEMOTH'], [5000, 'TITAN'], [20000, 'COLOSSUS'], [60000, 'CELESTIAL'], [105000, 'WORLD-EATER'], [300000, 'PLANET'], [900000, 'STAR'], [1600000, 'CAGE-FILLER']];
 const tierOf = m => { let t = TIERS[0][1]; for (const [k, n] of TIERS) if (m >= k) t = n; return t; };
 const tierIdx = m => { let i = 0; TIERS.forEach(([k], j) => { if (m >= k) i = j; }); return i; };
 
@@ -591,14 +597,14 @@ function spawnBot(lev = false) {
   const e = new Entity(id, 'bot', lev ? LEV_NAMES[botSeq % LEV_NAMES.length] : BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)], Math.random(), net.selfId);
   e.lev = lev;
   let m;
-  if (lev) m = [MAX_CELL_MASS, 80000, 96000][botSeq % 3];
+  if (lev) m = [112000, 80000, 96000][botSeq % 3];
   else { const r = Math.random(); m = r < .55 ? rnd(12, 80) : r < .85 ? rnd(80, 900) : rnd(900, 6000); }
   let pos = randInSphere(ARENA * (lev ? .55 : .85));
   // agar feel: most bots spawn in view of a real player, some smaller (prey) and many BIGGER (threats)
   const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length);
   if (!lev && humans.length && Math.random() < .75) {
     const h = humans[Math.floor(Math.random() * humans.length)], hm = h.main();
-    const k = Math.random(); m = clamp(h.mass * (k < .4 ? rnd(.25, .7) : k < .8 ? rnd(1.4, 3) : rnd(3, 6)), 10, MAX_CELL_MASS * .8);
+    const k = Math.random(); m = clamp(h.mass * (k < .4 ? rnd(.25, .7) : k < .8 ? rnd(1.4, 3) : rnd(3, 6)), 10, BOT_MAX);
     pos = hm.pos.clone().addScaledVector(randUnit(), viewRadius(hm.r) * 1.15 + rad(m) + rnd(50, 400));
     if (pos.length() > ARENA * .95) pos.setLength(ARENA * .9);
     e.anchor = hm;   // drifts toward this player and creeps into view
@@ -778,7 +784,7 @@ function spawnMe(name, hue, forceMass) {
   if (nearL) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
   const dd = new V3().subVectors(target, p).normalize();
   yaw = camYaw = Math.atan2(-dd.x, -dd.z); pitch = camPitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading();
-  Object.assign(PU, { boost: 30, ammo: 1, roidsUntil: 0, boosting: false }); puInit = false;
+  Object.assign(PU, { boost: 100, ammo: 1, roidsUntil: 0, boosting: false, used: false }); puInit = false;
   playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
   foodInit = false;
 }
@@ -851,7 +857,8 @@ function handleInput() {
   const sx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (sx) me.dir.addScaledVector(right, sx * .8).normalize();
   PU.boosting = (keys.ShiftLeft || keys.ShiftRight || boostHeld) && PU.boost > 0;
-  if (PU.boosting) PU.boost = Math.max(0, PU.boost - 30 * dt);
+  if (PU.boosting) { PU.boost = Math.max(0, PU.boost - 30 * dt); if (!PU.used) { PU.used = true; $('boostTip').classList.add('hidden'); } }
+  else if (PU.boost < 40) PU.boost = Math.min(40, PU.boost + 2.5 * dt);   // slow trickle so you always have a little nitro
   const roids = now < PU.roidsUntil ? 1.15 : 1;
   me.throttle = (keys.KeyS || brakeHeld) ? .12 : (PU.boosting ? 2.1 : 1) * roids;
 }
@@ -1125,9 +1132,9 @@ function updateHud() {
   $('tier').textContent = tierOf(m);
   $('sub').textContent = `${me.cells.length}/${MAX_CELLS} cells`;
   $('boostBar').style.width = PU.boost + '%';
-  $('cageBar').style.width = Math.min(100, (me.main()?.mass || 0) / WIN_MASS * 100) + '%';
+  $('cageBar').style.width = Math.min(100, (me.main()?.r || 0) / WIN_R * 100) + '%';
   const rl = Math.max(0, Math.ceil(PU.roidsUntil - now));
-  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em>💉 ${rl}s</em>` : '');
+  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em>📈 GROWTH ×2 · ${rl}s</em>` : '');
   const list = [...entities.values()].filter(e => e.cells.length && e.kind !== 'snack').sort((a, b) => b.mass - a.mass);
   const rank = list.indexOf(me) + 1;
   $('lbList').innerHTML = list.slice(0, 10).map((e, i) => `<li class="${e === me ? 'me' : ''}"><span>${i + 1}. ${escapeHtml(e.name)}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
@@ -1184,6 +1191,8 @@ function drawRadar() {
   const edge = ARENA - mainCell.pos.length();
   if (edge < range) { const d = _t.copy(mainCell.pos).normalize(); const x = d.dot(right), y = -d.dot(fwd); const a = Math.atan2(y, x); g.strokeStyle = 'rgba(57,243,255,.8)'; g.lineWidth = 6; g.beginPath(); g.arc(C, C, C - 6, a - .5, a + .5); g.stroke(); }
   const k0 = (C - 10) / range;
+  for (const p of pickups) { _t.subVectors(p.pos, mainCell.pos); if (_t.length() > range) continue; const x = C + _t.dot(right) * k0, y = C - _t.dot(fwd) * k0;
+    g.fillStyle = p.type === 'nitro' ? '#ffae3f' : p.type === 'rocket' ? '#ff5c7a' : '#4dff9a'; g.save(); g.translate(x, y); g.rotate(Math.PI / 4); g.fillRect(-5, -5, 10, 10); g.restore(); }
   for (const cl of clusters) { if (cl.alive < 3) continue; _t.subVectors(cl.c, mainCell.pos); if (_t.length() > range) continue;
     g.fillStyle = `hsla(${cl.hue * 360},100%,65%,${.35 + .5 * cl.alive / cl.total})`; g.beginPath(); g.arc(C + _t.dot(right) * k0, C - _t.dot(fwd) * k0, 4 + 5 * cl.alive / cl.total, 0, 7); g.fill(); }
   const mm = mainCell.mass;
@@ -1255,7 +1264,7 @@ function updateCamera() {
   camera.position.copy(camPos); camera.quaternion.copy(camQ);
   fovKick *= Math.exp(-DT * 3);
   camera.fov = (IS_TOUCH ? 74 : 66) + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
-  camera.far = ARENA * 3 + 4000;
+  camera.far = ARENA * 3 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
   camera.updateProjectionMatrix();
 }
 
@@ -1304,14 +1313,23 @@ const PU_TYPES = {
   rocket: { color: 0xff3b5c, geo: new THREE.ConeGeometry(.55, 1.6, 14), w: .25 },
 };
 const RING_GEO = new THREE.TorusGeometry(1.55, .07, 8, 40);
+const PU_LABEL = {};
+for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 GROWTH ×2', '#4dff9a'], ['rocket', '🚀 ROCKETS', '#ff5c7a']]) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
+  g.font = '900 64px Outfit, Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 12; g.strokeStyle = 'rgba(0,0,10,.7)'; g.strokeText(txt, 256, 66); g.fillStyle = col; g.fillText(txt, 256, 66);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; PU_LABEL[k] = t;
+}
 const pickups = [];
-const PU_N = IS_TOUCH ? 12 : 16;
+const PU_N = IS_TOUCH ? 16 : 22;
 function pickType() { const r = Math.random(); let a = 0; for (const [k, t] of Object.entries(PU_TYPES)) { a += t.w; if (r < a) return k; } return 'nitro'; }
 function makePickup() {
   const type = pickType(), t = PU_TYPES[type], g = new THREE.Group();
   const body = new THREE.Mesh(t.geo, puMat(t.color)), ring = new THREE.Mesh(RING_GEO, puMat(t.color));
-  g.add(body); g.add(ring); scene.add(g);
-  return { type, g, body, ring, pos: new V3(), spin: rnd(.6, 1.4) };
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: PU_LABEL[type], transparent: true, depthWrite: false, toneMapped: false }));
+  label.position.y = 2.8; label.scale.set(6.4, 1.6, 1);
+  g.add(body); g.add(ring); g.add(label); scene.add(g);
+  return { type, g, body, ring, label, pos: new V3(), spin: rnd(.6, 1.4) };
 }
 let puInit = false;
 function placePickup(p, c, T, far) {
@@ -1336,6 +1354,7 @@ function updatePickups() {
     p.g.position.copy(p.pos); p.g.position.y += Math.sin(now * 2 + p.spin * 9) * size * .15;
     p.g.scale.setScalar(size); p.body.rotation.y += DT * 2 * p.spin; p.body.rotation.x = Math.sin(now + p.spin) * .4;
     p.ring.rotation.x = now * 1.3 * p.spin; p.ring.rotation.y = now * .7;
+    const pd = p.pos.distanceTo(c); p.label.material.opacity = Math.exp(-pd / (viewRadius(mainCell.r) * .45));
     for (const cell of me.cells) {
       if (cell.pos.distanceTo(p.pos) < cell.r + size * 1.2) { collect(p.type, cell); const t = pickType(); if (t !== p.type) { scene.remove(p.g); pickups.splice(pickups.indexOf(p), 1); } else placePickup(p, c, T, true); break; }
     }
@@ -1347,7 +1366,7 @@ function collect(type, cell) {
   sfx('pickup');
   if (type === 'nitro') { PU.boost = Math.min(100, PU.boost + 34); feed('<b style="color:#ffae3f">+ NITRO</b>'); }
   else if (type === 'rocket') { PU.ammo = Math.min(9, PU.ammo + 3); feed('<b style="color:#ff5c7a">+3 ROCKETS</b> · press R'); }
-  else { PU.roidsUntil = Math.max(now, PU.roidsUntil) + 12; for (const c of me.cells) { c.mass *= 1.15; c.r = rad(c.mass); c.pulse = 1; } feed('<b style="color:#4dff9a">STEROIDS</b> · 2× growth'); }
+  else { PU.roidsUntil = Math.max(now, PU.roidsUntil) + 12; for (const c of me.cells) { c.mass *= 1.15; c.r = rad(c.mass); c.pulse = 1; } feed('<b style="color:#4dff9a">GROWTH ×2</b> · 12s'); }
 }
 
 // rockets: fire forward, shatter whatever they hit
@@ -1359,7 +1378,7 @@ function fireRocket() {
   const m = new THREE.Mesh(PU_TYPES.rocket.geo, ROCKET_MAT); scene.add(m);
   const s = Math.max(4, mainCell.r * .22);
   const pos = mainCell.pos.clone().addScaledVector(fwd, mainCell.r + s * 2);
-  rockets.push({ m, pos, vel: fwd.clone().multiplyScalar(speedOf(mainCell.mass) * 2 + 420 + mainCell.r * 3), born: now, s });
+  rockets.push({ m, pos, vel: fwd.clone().multiplyScalar(speedOf(mainCell.mass) * 2 + 420 + mainCell.r * 3), born: now, s, owner: me, homing: true });
   sfx('fire'); fovKick = Math.min(fovKick + 3, 10);
 }
 const _up = new V3(0, 1, 0), _rq = new THREE.Quaternion();
@@ -1368,18 +1387,20 @@ function updateRockets() {
     const r = rockets[i];
     // mild homing onto the nearest target ahead
     let best = null, bd = 1e9;
-    for (const e of entities.values()) { if (e === me) continue; for (const c of e.cells) { const d = c.pos.distanceTo(r.pos) - c.r; if (d < bd && d < 400 && _t.subVectors(c.pos, r.pos).dot(r.vel) > 0) { bd = d; best = c; } } }
+    if (r.homing) for (const e of entities.values()) { if (e === r.owner) continue; for (const c of e.cells) { const d = c.pos.distanceTo(r.pos) - c.r; if (d < bd && d < 400 && _t.subVectors(c.pos, r.pos).dot(r.vel) > 0) { bd = d; best = c; } } }
     if (best) { const sp = r.vel.length(); r.vel.lerp(_t.subVectors(best.pos, r.pos).normalize().multiplyScalar(sp), Math.min(1, DT * 2.5)).setLength(sp); }
     r.pos.addScaledVector(r.vel, DT);
     r.m.position.copy(r.pos); r.m.scale.setScalar(r.s); r.m.quaternion.copy(_rq.setFromUnitVectors(_up, _t.copy(r.vel).normalize()));
     burst(r.pos.x, r.pos.y, r.pos.z, new THREE.Color(1, .55, .2), 2, null, 30, r.s * .4);
     let hit = null;
-    for (const e of entities.values()) { if (e === me) continue; for (const c of e.cells) if (c.pos.distanceTo(r.pos) < c.r + r.s) { hit = c; break; } if (hit) break; }
+    for (const e of entities.values()) { if (e === r.owner) continue; for (const c of e.cells) if (c.pos.distanceTo(r.pos) < c.r + r.s) { hit = c; break; } if (hit) break; }
     if (hit || now - r.born > 3 || r.pos.length() > ARENA) {
       if (hit) {
         burst(r.pos.x, r.pos.y, r.pos.z, new THREE.Color(1, .45, .2), 60, null, 120 + hit.r * 2, Math.max(2, hit.r * .12));
         if (hit.ent.local) shatter(hit); else { try { act?.hit.send({ t: hit.id }, hit.ent.owner); } catch { } }
-        sfx('boom'); feed(`<b style="color:#ff5c7a">DIRECT HIT</b> · ${escapeHtml(hit.ent.name)} shattered`);
+        if (hit.ent === me) { sfx('boom'); fovKick = 12; feed(`<b style="color:#ff5c7a">HIT!</b> ${escapeHtml(r.owner?.name || 'someone')} rocketed you`); }
+        else if (r.owner === me) { sfx('boom'); feed(`<b style="color:#ff5c7a">DIRECT HIT</b> · ${escapeHtml(hit.ent.name)} shattered`); }
+        else if (mainCell && hit.pos.distanceTo(mainCell.pos) < viewRadius(mainCell.r)) sfx('boom');
       }
       scene.remove(r.m); rockets.splice(i, 1);
     }
@@ -1398,6 +1419,26 @@ function shatter(c) {
   }
   c.mergeAt = now + mergeTime(total);
 }
+// warzone: bots lob rockets at players and each other, with sloppy aim and no homing
+const BOT_ROCKET_MAX = 6;
+function botFire(E) {
+  if (E.lev || E.kind !== 'bot' || rockets.filter(r => r.owner !== me).length >= BOT_ROCKET_MAX) return;
+  const m = E.main(); if (!m || m.mass < 40) return;
+  E.fireAt = E.fireAt || now + rnd(2, 8); if (now < E.fireAt) return;
+  E.fireAt = now + rnd(4, 10);
+  const range = 280 + m.r * 6;
+  let tgt = null, bd = 1e9;
+  for (const e of entities.values()) {
+    if (e === E || e.kind === 'snack') continue;
+    for (const c of e.cells) { const d = c.pos.distanceTo(m.pos) - c.r; const w = d * (e.kind === 'me' || e.kind === 'remote' ? .6 : 1); if (d < range && w < bd) { bd = w; tgt = c; } }
+  }
+  if (!tgt || Math.random() < .25) return;
+  const dir = _t.subVectors(tgt.pos, m.pos).normalize().add(randUnit(_t2).multiplyScalar(rnd(.06, .22))).normalize();   // deliberately imperfect aim
+  const s = Math.max(4, m.r * .22);
+  const mesh = new THREE.Mesh(PU_TYPES.rocket.geo, ROCKET_MAT); scene.add(mesh);
+  rockets.push({ m: mesh, pos: m.pos.clone().addScaledVector(dir, m.r + s * 2), vel: dir.clone().multiplyScalar(300 + m.r * 2), born: now, s, owner: E, homing: false });
+  if (mainCell && playing && m.pos.distanceTo(mainCell.pos) < viewRadius(mainCell.r) * .6) sfx('fire');
+}
 function updateBoostFx() {
   if (!playing || !me) return;
   if (PU.boosting) {
@@ -1408,7 +1449,7 @@ function updateBoostFx() {
 }
 
 /* ============================== WIN: fill the cage, world resets ============================== */
-const WIN_MASS = MAX_CELL_MASS * .98;
+const WIN_R = ARENA * .9, WIN_MASS = (WIN_R / 1.5) ** 2;   // your ball is as big as the cage itself
 let winLock = 0;
 function checkWin() {
   if (!playing || !me || now < winLock) return;
@@ -1452,6 +1493,8 @@ function startGame() {
   home.classList.add('hidden'); death.classList.add('hidden'); hud.classList.remove('hidden');
   if (IS_TOUCH) { touchUI.classList.remove('hidden'); document.body.classList.add('touch'); }
   $('hint').style.opacity = 1; setTimeout(() => $('hint').style.opacity = 0, 9000);
+  if (IS_TOUCH) $('boostTip').innerHTML = '⚡ Hold <b>BOOST</b> for NITRO';
+  $('boostTip').classList.remove('hidden'); setTimeout(() => $('boostTip').classList.add('hidden'), 20000);
   toast(tierOf(me.mass), 'grow. split. devour.');
 }
 function onDeath() {
@@ -1498,7 +1541,7 @@ function frame(t) {
   DT = Math.min(.05, (t - last) / 1000); last = t; now += DT; U.time.value = now;
   let p0 = performance.now();
   if (playing && me) handleInput();
-  for (const e of entities.values()) if (e.local) { if (e.kind === 'snack') { botThink(e); e.throttle *= .85; if (!e.cells.length) continue; } if (e.kind === 'bot') { botThink(e); if (e.cells.length === 0) continue; e.cells.forEach(c => { if (!e.lev && c.mass < 1500) c.mass += DT * 2.5; }); } moveEntity(e); }
+  for (const e of entities.values()) if (e.local) { if (e.kind === 'snack') { botThink(e); e.throttle *= .85; if (!e.cells.length) continue; } if (e.kind === 'bot') { botThink(e); if (e.cells.length === 0) continue; if (playing) botFire(e); e.cells.forEach(c => { if (!e.lev && c.mass < 1500) c.mass += DT * 2.5; }); } moveEntity(e); }
   interactions();
   let p1 = performance.now(); PROF.sim += p1 - p0;
   if (playing && me) {
