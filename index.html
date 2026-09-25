@@ -24,7 +24,9 @@
   --a:#39f3ff; --b:#b45cff; --c:#ff4fa3; --good:#4dffa6; --bad:#ff5470;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow:hidden;
+*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+#touch,#touch *{touch-action:none}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;
   -webkit-user-select:none;user-select:none;touch-action:none}
 #game{position:fixed;inset:0}
 #game canvas{display:block;width:100%;height:100%}
@@ -80,6 +82,19 @@ kbd{font:600 11px Inter,sans-serif;padding:2px 6px;border-radius:5px;background:
 #mass{font:800 30px Outfit,sans-serif;line-height:1}
 #tier{font-size:11px;letter-spacing:.2em;color:var(--a);margin-top:4px;font-weight:700}
 #sub{font-size:12px;color:var(--muted);margin-top:6px}
+#stats .pu-row{display:flex;align-items:center;gap:8px;margin-top:7px}
+.pu-k{font:800 9px Outfit,sans-serif;letter-spacing:.18em;color:var(--muted);width:40px}
+.bar{flex:1;height:7px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden;min-width:90px}
+.bar i{display:block;height:100%;width:0;border-radius:9px;background:linear-gradient(90deg,#ff7a18,#ffd23f);box-shadow:0 0 10px rgba(255,160,40,.7);transition:width .15s}
+.bar.cage i{background:linear-gradient(90deg,var(--a),var(--b),var(--c));box-shadow:none}
+#puTxt{font-size:12px;margin-top:6px;color:var(--text);min-height:0}
+#puTxt b{color:#ff5c7a} #puTxt em{font-style:normal;color:#4dff9a}
+#win{position:fixed;inset:0;z-index:13;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,6,15,.35)}
+#win .crown{font-size:64px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 0 20px rgba(255,210,63,.7))}
+#win h2{font:900 34px Outfit,sans-serif;letter-spacing:.05em;background:linear-gradient(100deg,#ffd23f,var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
+#win .by{color:var(--muted);margin-top:8px}
+.tbrow{display:flex;gap:10px}
+#tBoost.on{background:linear-gradient(135deg,rgba(255,122,24,.7),rgba(255,210,63,.5))}
 #lb{position:absolute;right:16px;top:16px;padding:12px 14px;width:220px;font-size:13px}
 #lb h4{font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:var(--muted);margin-bottom:8px}
 #lb ol{list-style:none}
@@ -168,8 +183,8 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <button id="play">PLAY</button>
     <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
     <div class="keys" id="keysHelp">
-      <kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject<br>
-      <kbd>S</kbd>/<kbd>Shift</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
+      <kbd>Arrows</kbd> steer · <kbd>Shift</kbd> boost · <kbd>R</kbd> rocket · <kbd>Space</kbd> split · <kbd>F</kbd> eject<br>
+      <kbd>S</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
     </div>
   </div>
   <div class="side">
@@ -180,22 +195,36 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 
 <!-- HUD -->
 <div id="hud" class="hidden">
-  <div id="stats" class="glass"><div id="mass">0</div><div id="tier">MICROBE</div><div id="sub"></div></div>
+  <div id="stats" class="glass"><div id="mass">0</div><div id="tier">MICROBE</div><div id="sub"></div>
+    <div class="pu-row"><span class="pu-k">BOOST</span><div class="bar"><i id="boostBar"></i></div></div>
+    <div class="pu-row"><span class="pu-k">CAGE</span><div class="bar cage"><i id="cageBar"></i></div></div>
+    <div id="puTxt"></div>
+  </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
   <div id="radarWrap" class="glass"><canvas id="radar" width="300" height="300"></canvas></div>
   <div id="feed"></div>
   <canvas id="marks"></canvas>
   <div id="toast"></div>
   <div id="combo"></div>
-  <div id="hint" class="glass"><kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>S</kbd> brake</div>
+  <div id="hint" class="glass"><kbd>Arrows</kbd> steer · <kbd>Shift</kbd> boost · <kbd>R</kbd> rocket · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>S</kbd> brake</div>
 </div>
 
 <div id="touch" class="hidden">
   <div id="stick"><div id="knob"></div></div>
   <div class="tbtns">
-    <button class="tb sm" id="tBrake">BRAKE</button>
-    <button class="tb" id="tEject">EJECT</button>
+    <div class="tbrow"><button class="tb sm" id="tBrake">BRAKE</button><button class="tb sm" id="tEject">EJECT</button></div>
+    <div class="tbrow"><button class="tb" id="tFire">FIRE</button><button class="tb" id="tBoost">BOOST</button></div>
     <button class="tb big" id="tSplit">SPLIT</button>
+  </div>
+</div>
+
+<!-- WIN -->
+<div id="win" class="hidden">
+  <div class="card glass">
+    <div class="crown">👑</div>
+    <h2 id="winTitle">YOU FILLED THE CAGE</h2>
+    <div class="by" id="winBy">The world resets. Everyone starts small again.</div>
+    <div class="by" id="winCount"></div>
   </div>
 </div>
 
@@ -730,7 +759,7 @@ function rotLocal(axis, ang) { _q.setFromAxisAngle(axis, ang); orient.multiply(_
 const fwd = new V3(0, 0, -1), upv = new V3(0, 1, 0), right = new V3(1, 0, 0);
 function updateBasis() { fwd.set(0, 0, -1).applyQuaternion(orient); upv.set(0, 1, 0).applyQuaternion(orient); right.set(1, 0, 0).applyQuaternion(orient); }
 
-function spawnMe(name, hue) {
+function spawnMe(name, hue, forceMass) {
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
@@ -740,7 +769,7 @@ function spawnMe(name, hue) {
     for (let k = 0; k < 40; k++) { p.copy(L.pos).addScaledVector(randUnit(), L.r * 1.9 + 160); if (p.length() < ARENA * .9) break; }
     if (p.length() > ARENA * .9) p.setLength(ARENA * .85);
   } else p = randInSphere(ARENA * .6);
-  const startMass = clamp(Number(params.get('mass')) || 12, 12, MAX_CELL_MASS);
+  const startMass = forceMass || clamp(Number(params.get('mass')) || 12, 12, MAX_CELL_MASS);
   mainCell = addCell(me, p, startMass);
   mainCell.rr = mainCell.r; mainCell.appear = 1;
   const nearL = levs.map(e => e.main()).sort((a, b) => a.pos.distanceTo(p) - b.pos.distanceTo(p))[0];
@@ -749,6 +778,7 @@ function spawnMe(name, hue) {
   if (nearL) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
   const dd = new V3().subVectors(target, p).normalize();
   yaw = camYaw = Math.atan2(-dd.x, -dd.z); pitch = camPitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading();
+  Object.assign(PU, { boost: 30, ammo: 1, roidsUntil: 0, boosting: false }); puInit = false;
   playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
   foodInit = false;
 }
@@ -767,6 +797,7 @@ addEventListener('keydown', e => {
   if (!playing) return;
   if (e.code === 'Space') { split(me, fwd); e.preventDefault(); }
   if (e.code === 'KeyF' || e.code === 'KeyW') eject(me, fwd);
+  if (e.code === 'KeyR' && !e.repeat) fireRocket();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -786,6 +817,16 @@ function moveStick(e) {
 const tap = (id, fn) => document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
 tap('tSplit', () => playing && split(me, fwd));
 tap('tEject', () => playing && eject(me, fwd));
+tap('tFire', () => playing && fireRocket());
+let boostHeld = false;
+const tBoost = document.getElementById('tBoost');
+tBoost.addEventListener('pointerdown', e => { e.preventDefault(); boostHeld = true; tBoost.classList.add('on'); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tBoost.addEventListener(ev, () => { boostHeld = false; tBoost.classList.remove('on'); }));
+// phones: iOS ignores user-scalable=no, so block every page-zoom gesture ourselves (double-tap, pinch, two-finger)
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 || playing) e.preventDefault(); }, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => { const t = Date.now(); if (t - lastTouchEnd < 350) e.preventDefault(); lastTouchEnd = t; }, { passive: false });
 const tBrake = document.getElementById('tBrake');
 tBrake.addEventListener('pointerdown', e => { e.preventDefault(); brakeHeld = true; tBrake.style.background = 'rgba(57,243,255,.35)'; });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tBrake.addEventListener(ev, () => { brakeHeld = false; tBrake.style.background = ''; }));
@@ -809,7 +850,10 @@ function handleInput() {
   me.dir.copy(fwd);
   const sx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (sx) me.dir.addScaledVector(right, sx * .8).normalize();
-  me.throttle = (keys.KeyS || keys.ShiftLeft || keys.ShiftRight || brakeHeld) ? .12 : 1;
+  PU.boosting = (keys.ShiftLeft || keys.ShiftRight || boostHeld) && PU.boost > 0;
+  if (PU.boosting) PU.boost = Math.max(0, PU.boost - 30 * dt);
+  const roids = now < PU.roidsUntil ? 1.15 : 1;
+  me.throttle = (keys.KeyS || brakeHeld) ? .12 : (PU.boosting ? 2.1 : 1) * roids;
 }
 
 /* ============================== INTERACTIONS ============================== */
@@ -905,7 +949,7 @@ function updateFood() {
       if (d2 > reach * reach) continue;
       const d = Math.sqrt(d2);
       if (d < cc.r + s * .5) {
-        cc.mass += foodVal[i] * valK; cc.pulse = Math.max(cc.pulse, .35); ate++; lastCell = cc;
+        cc.mass += foodVal[i] * valK * (now < PU.roidsUntil ? 2 : 1); cc.pulse = Math.max(cc.pulse, .35); ate++; lastCell = cc;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 1 ? 10 : 4, cc, 30 * sc + cc.r * .6, .9 * sc);
         if (cl < 0) { respawnLoose(i, c.x, c.y, c.z, T, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2]; s = 0; }
@@ -1022,8 +1066,10 @@ function joinLobby(n) {
   net.lobby = n; net.status = 'online';
   const room = net.mod.joinRoom({ appId: CFG.APP_ID }, 'lobby-' + n);
   net.room = room;
-  act = { state: mkAction(room, 'state'), eat: mkAction(room, 'eat') };
+  act = { state: mkAction(room, 'state'), eat: mkAction(room, 'eat'), hit: mkAction(room, 'hit'), win: mkAction(room, 'win') };
   act.state.on(onState); act.eat.on(onEat);
+  act.hit.on((d, pid) => { if (d && typeof d.t === 'string') { const c = cellById.get(d.t); if (c && c.ent === me) { shatter(c); sfx('boom'); fovKick = 10; } } });
+  act.win.on((d, pid) => { if (d && typeof d.n === 'string') worldWon(cleanName(d.n) || 'Someone', false); });
   hook(room, 'onPeerJoin', pid => { if (net.room !== room) return; net.peers.add(pid); net.lastSeen.set(pid, performance.now()); recomputeHost(); updateNetUI(); });
   hook(room, 'onPeerLeave', pid => { if (net.room !== room) return; dropPeer(pid); });
   updateNetUI();
@@ -1058,6 +1104,10 @@ function sfx(type, arg) {
   else if (type === 'gulp') { o.type = 'sine'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(55, t + .25); env(.01, .3, .25); }
   else if (type === 'pop') { o.type = 'sawtooth'; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(40, t + .4); env(.005, .45, .12); }
   else if (type === 'die') { o.type = 'sine'; o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(30, t + .9); env(.01, 1, .3); }
+  else if (type === 'pickup') { o.type = 'triangle'; o.frequency.setValueAtTime(660, t); o.frequency.setValueAtTime(990, t + .07); o.frequency.setValueAtTime(1320, t + .14); env(.005, .25, .1); }
+  else if (type === 'fire') { o.type = 'sawtooth'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(900, t + .25); env(.005, .3, .08); }
+  else if (type === 'boom') { o.type = 'sawtooth'; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(30, t + .5); env(.005, .55, .25); }
+  else if (type === 'win') { o.type = 'triangle'; [523, 659, 784, 1047].forEach((f, i) => o.frequency.setValueAtTime(f, t + i * .15)); env(.01, 1.1, .18); }
   else if (type === 'tier') { o.type = 'triangle'; o.frequency.setValueAtTime(330, t); o.frequency.setValueAtTime(440, t + .12); o.frequency.setValueAtTime(660, t + .24); env(.01, .6, .12); }
 }
 
@@ -1074,6 +1124,10 @@ function updateHud() {
   $('mass').textContent = fmt(m);
   $('tier').textContent = tierOf(m);
   $('sub').textContent = `${me.cells.length}/${MAX_CELLS} cells`;
+  $('boostBar').style.width = PU.boost + '%';
+  $('cageBar').style.width = Math.min(100, (me.main()?.mass || 0) / WIN_MASS * 100) + '%';
+  const rl = Math.max(0, Math.ceil(PU.roidsUntil - now));
+  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em>💉 ${rl}s</em>` : '');
   const list = [...entities.values()].filter(e => e.cells.length && e.kind !== 'snack').sort((a, b) => b.mass - a.mass);
   const rank = list.indexOf(me) + 1;
   $('lbList').innerHTML = list.slice(0, 10).map((e, i) => `<li class="${e === me ? 'me' : ''}"><span>${i + 1}. ${escapeHtml(e.name)}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
@@ -1220,7 +1274,7 @@ function updateVisuals() {
       if (!hideLabel) {
         _cd.subVectors(camera.position, c.pos); const dd = _cd.length();
         if (dd < c.rr * 1.05) c.label.visible = false;
-        else { c.label.material.opacity = e === me ? 1 : Math.exp(-c.pos.distanceTo(U.pp.value) / (U.viewR.value * .4)) * c.appear; c.label.position.copy(c.pos).addScaledVector(_cd, c.rr * 1.02 / dd); const lw = Math.min(c.rr * 1.5, (dd - c.rr) * .45 + 2); c.label.scale.set(lw, lw * .25, 1); }
+        else { { const ld = Math.max(0, c.pos.distanceTo(U.pp.value) - c.rr); c.label.material.opacity = e === me ? 1 : Math.exp(-ld / (U.viewR.value * .4)) * (1 - clamp((ld - U.viewR.value * .6) / (U.viewR.value * .3), 0, 1)) * c.appear; } c.label.position.copy(c.pos).addScaledVector(_cd, c.rr * 1.02 / dd); const lw = Math.min(c.rr * 1.5, (dd - c.rr) * .45 + 2); c.label.scale.set(lw, lw * .25, 1); }
       }
     }
   }
@@ -1228,6 +1282,159 @@ function updateVisuals() {
   shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr;
   sky.position.copy(camera.position);
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
+}
+
+
+/* ============================== POWER-UPS (local pickups around you) ============================== */
+const PU = { boost: 0, ammo: 0, roidsUntil: 0, boosting: false };
+const puMat = hex => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: true,
+  uniforms: { uC: { value: new THREE.Color(hex) }, uPP: U.pp, uViewR: U.viewR, uTime: U.time },
+  vertexShader: `varying vec3 vN; varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; vN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader: `uniform vec3 uC; uniform vec3 uPP; uniform float uViewR; uniform float uTime; varying vec3 vN; varying vec3 vW;
+    void main(){ vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW);
+      float f = pow(1. - abs(dot(N, V)), 2.); float L = .55 + .45*max(dot(N, normalize(vec3(.5,.9,.3))), 0.);
+      vec3 col = uC*(L + f*.9)*(.85 + .15*sin(uTime*6.));
+      float d = length(vW - uPP); float fade = exp(-d/(uViewR*.6))*(1. - smoothstep(uViewR*.8, uViewR, d));
+      gl_FragColor = vec4(col, max(fade, .0)); }`,
+});
+const PU_TYPES = {
+  nitro:  { color: 0xff8a1f, geo: new THREE.OctahedronGeometry(1, 0), w: .5 },
+  roids:  { color: 0x3dff7a, geo: new THREE.CapsuleGeometry(.42, 1.1, 6, 14), w: .25 },
+  rocket: { color: 0xff3b5c, geo: new THREE.ConeGeometry(.55, 1.6, 14), w: .25 },
+};
+const RING_GEO = new THREE.TorusGeometry(1.55, .07, 8, 40);
+const pickups = [];
+const PU_N = IS_TOUCH ? 12 : 16;
+function pickType() { const r = Math.random(); let a = 0; for (const [k, t] of Object.entries(PU_TYPES)) { a += t.w; if (r < a) return k; } return 'nitro'; }
+function makePickup() {
+  const type = pickType(), t = PU_TYPES[type], g = new THREE.Group();
+  const body = new THREE.Mesh(t.geo, puMat(t.color)), ring = new THREE.Mesh(RING_GEO, puMat(t.color));
+  g.add(body); g.add(ring); scene.add(g);
+  return { type, g, body, ring, pos: new V3(), spin: rnd(.6, 1.4) };
+}
+let puInit = false;
+function placePickup(p, c, T, far) {
+  for (let k = 0; k < 10; k++) {
+    p.pos.set(rnd(-.5, .5) * T, rnd(-.5, .5) * T, rnd(-.5, .5) * T);
+    if (!far || p.pos.length() > T * .3) break;
+  }
+  p.pos.add(c); if (p.pos.length() > ARENA * .95) p.pos.setLength(ARENA * rnd(.5, .9));
+}
+function updatePickups() {
+  const on = playing && me && mainCell;
+  if (!on) { for (const p of pickups) p.g.visible = false; return; }
+  const c = mainCell.pos, T = viewRadius(mainCell.r) * 1.6, half = T / 2;
+  const size = Math.max(4.5, mainCell.r * .24 + 3);
+  if (!puInit) { for (const p of pickups) placePickup(p, c, T, false); puInit = true; }
+  while (pickups.length < PU_N) { const p = makePickup(); placePickup(p, c, T, true); pickups.push(p); }
+  for (const p of [...pickups]) {
+    p.g.visible = true;
+    // wrap around you like the food field, so there are always a few in reach
+    for (const ax of ['x', 'y', 'z']) { if (p.pos[ax] - c[ax] > half) p.pos[ax] -= T; else if (p.pos[ax] - c[ax] < -half) p.pos[ax] += T; }
+    if (p.pos.length() > ARENA) placePickup(p, c, T, true);
+    p.g.position.copy(p.pos); p.g.position.y += Math.sin(now * 2 + p.spin * 9) * size * .15;
+    p.g.scale.setScalar(size); p.body.rotation.y += DT * 2 * p.spin; p.body.rotation.x = Math.sin(now + p.spin) * .4;
+    p.ring.rotation.x = now * 1.3 * p.spin; p.ring.rotation.y = now * .7;
+    for (const cell of me.cells) {
+      if (cell.pos.distanceTo(p.pos) < cell.r + size * 1.2) { collect(p.type, cell); const t = pickType(); if (t !== p.type) { scene.remove(p.g); pickups.splice(pickups.indexOf(p), 1); } else placePickup(p, c, T, true); break; }
+    }
+  }
+}
+function collect(type, cell) {
+  const col = new THREE.Color(PU_TYPES[type].color);
+  burst(cell.pos.x, cell.pos.y, cell.pos.z, col, 30, cell, 60 + cell.r * 3, Math.max(1.5, cell.r * .12));
+  sfx('pickup');
+  if (type === 'nitro') { PU.boost = Math.min(100, PU.boost + 34); feed('<b style="color:#ffae3f">+ NITRO</b>'); }
+  else if (type === 'rocket') { PU.ammo = Math.min(9, PU.ammo + 3); feed('<b style="color:#ff5c7a">+3 ROCKETS</b> · press R'); }
+  else { PU.roidsUntil = Math.max(now, PU.roidsUntil) + 12; for (const c of me.cells) { c.mass *= 1.15; c.r = rad(c.mass); c.pulse = 1; } feed('<b style="color:#4dff9a">STEROIDS</b> · 2× growth'); }
+}
+
+// rockets: fire forward, shatter whatever they hit
+const rockets = [];
+const ROCKET_MAT = puMat(0xff3b5c);
+function fireRocket() {
+  if (!playing || !me || !mainCell || PU.ammo <= 0) return;
+  PU.ammo--;
+  const m = new THREE.Mesh(PU_TYPES.rocket.geo, ROCKET_MAT); scene.add(m);
+  const s = Math.max(4, mainCell.r * .22);
+  const pos = mainCell.pos.clone().addScaledVector(fwd, mainCell.r + s * 2);
+  rockets.push({ m, pos, vel: fwd.clone().multiplyScalar(speedOf(mainCell.mass) * 2 + 420 + mainCell.r * 3), born: now, s });
+  sfx('fire'); fovKick = Math.min(fovKick + 3, 10);
+}
+const _up = new V3(0, 1, 0), _rq = new THREE.Quaternion();
+function updateRockets() {
+  for (let i = rockets.length - 1; i >= 0; i--) {
+    const r = rockets[i];
+    // mild homing onto the nearest target ahead
+    let best = null, bd = 1e9;
+    for (const e of entities.values()) { if (e === me) continue; for (const c of e.cells) { const d = c.pos.distanceTo(r.pos) - c.r; if (d < bd && d < 400 && _t.subVectors(c.pos, r.pos).dot(r.vel) > 0) { bd = d; best = c; } } }
+    if (best) { const sp = r.vel.length(); r.vel.lerp(_t.subVectors(best.pos, r.pos).normalize().multiplyScalar(sp), Math.min(1, DT * 2.5)).setLength(sp); }
+    r.pos.addScaledVector(r.vel, DT);
+    r.m.position.copy(r.pos); r.m.scale.setScalar(r.s); r.m.quaternion.copy(_rq.setFromUnitVectors(_up, _t.copy(r.vel).normalize()));
+    burst(r.pos.x, r.pos.y, r.pos.z, new THREE.Color(1, .55, .2), 2, null, 30, r.s * .4);
+    let hit = null;
+    for (const e of entities.values()) { if (e === me) continue; for (const c of e.cells) if (c.pos.distanceTo(r.pos) < c.r + r.s) { hit = c; break; } if (hit) break; }
+    if (hit || now - r.born > 3 || r.pos.length() > ARENA) {
+      if (hit) {
+        burst(r.pos.x, r.pos.y, r.pos.z, new THREE.Color(1, .45, .2), 60, null, 120 + hit.r * 2, Math.max(2, hit.r * .12));
+        if (hit.ent.local) shatter(hit); else { try { act?.hit.send({ t: hit.id }, hit.ent.owner); } catch { } }
+        sfx('boom'); feed(`<b style="color:#ff5c7a">DIRECT HIT</b> · ${escapeHtml(hit.ent.name)} shattered`);
+      }
+      scene.remove(r.m); rockets.splice(i, 1);
+    }
+  }
+}
+// break a cell into flying pieces (you can then eat the chunks)
+function shatter(c) {
+  const E = c.ent, pieces = Math.min(MAX_CELLS - E.cells.length, 6);
+  if (pieces <= 0 || c.mass < 40) return;
+  const total = c.mass; c.mass = total * .4; c.r = rad(c.mass); c.pulse = 1;
+  const share = total * .6 / pieces;
+  for (let i = 0; i < pieces; i++) {
+    const n = addCell(E, c.pos, share); n.appear = 1; n.rr = n.r;
+    n.vel.copy(randUnit()).multiplyScalar(70 + rad(share) * 9);
+    n.mergeAt = now + mergeTime(total); n.noCollide = now + .4;
+  }
+  c.mergeAt = now + mergeTime(total);
+}
+function updateBoostFx() {
+  if (!playing || !me) return;
+  if (PU.boosting) {
+    fovKick = Math.max(fovKick, 7);
+    for (const c of me.cells) { const b = _t.copy(c.pos).addScaledVector(me.dir, -c.r * .95); burst(b.x, b.y, b.z, new THREE.Color(1, rnd(.35, .7), .15), 3, null, 20 + c.r, Math.max(1.2, c.r * .16)); }
+  }
+  if (now < PU.roidsUntil) for (const c of me.cells) c.pulse = Math.max(c.pulse, .35 + .25 * Math.sin(now * 10));
+}
+
+/* ============================== WIN: fill the cage, world resets ============================== */
+const WIN_MASS = MAX_CELL_MASS * .98;
+let winLock = 0;
+function checkWin() {
+  if (!playing || !me || now < winLock) return;
+  const big = me.main(); if (!big || big.mass < WIN_MASS) return;
+  try { act?.win.send({ n: me.name }); } catch { }
+  worldWon(me.name, true);
+}
+function worldWon(name, isMe) {
+  if (now < winLock) return; winLock = now + 12;
+  sfx('win');
+  if (mainCell) burst(mainCell.pos.x, mainCell.pos.y, mainCell.pos.z, new THREE.Color(1, .82, .25), 200, null, 400, Math.max(3, mainCell.r * .1));
+  $('winTitle').textContent = isMe ? 'YOU FILLED THE CAGE' : `${name} FILLED THE CAGE`;
+  $('win').classList.remove('hidden');
+  if (isMe) stats.wins = (stats.wins || 0) + 1;
+  let n = 5; $('winCount').textContent = `Resetting in ${n}…`;
+  const iv = setInterval(() => {
+    n--; $('winCount').textContent = n > 0 ? `Resetting in ${n}…` : 'Go!';
+    if (n <= 0) {
+      clearInterval(iv); $('win').classList.add('hidden');
+      // world reset: fresh bots, everyone back to a small ball
+      for (const e of [...entities.values()]) if (e.kind === 'bot' || e.kind === 'snack') removeEntity(e);
+      for (const r of rockets) scene.remove(r.m); rockets.length = 0;
+      if (playing || isMe) { spawnMe(me ? me.name : 'Orb', chosenHue, 12); death.classList.add('hidden'); hud.classList.remove('hidden'); }
+      ensureBots(); ensureSnacks();   // after respawn, so new bots are sized against your fresh small ball
+    }
+  }, 1000);
 }
 
 /* ============================== FLOW ============================== */
@@ -1281,7 +1488,7 @@ if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden')
 $('challenge').textContent = CFG.CHALLENGE;
 if (params.has('og')) document.body.classList.add('og');
 if (params.has('clean')) document.body.classList.add('clean');
-if (IS_TOUCH) $('keysHelp').innerHTML = 'Left stick steers · <b>SPLIT</b> to attack · <b>EJECT</b> to feed';
+if (IS_TOUCH) $('keysHelp').innerHTML = 'Left stick steers · <b>BOOST</b> · <b>FIRE</b> rockets · <b>SPLIT</b> to attack';
 
 /* ============================== MAIN LOOP ============================== */
 let last = performance.now();
@@ -1295,13 +1502,14 @@ function frame(t) {
   interactions();
   let p1 = performance.now(); PROF.sim += p1 - p0;
   if (playing && me) {
-    pickMain(); updateFood();
+    pickMain(); updateFood(); updatePickups(); checkWin();
     if (!me.cells.length) onDeath();
     else {
       const m = me.mass; if (m > stats.peak) stats.peak = m;
       const ti = tierIdx(m); if (ti > stats.peakTier) { stats.peakTier = ti; sfx('tier'); }
     }
-  } else food.visible = false;
+  } else { food.visible = false; updatePickups(); }
+  updateRockets(); updateBoostFx();
   let p2 = performance.now(); PROF.food += p2 - p1;
   updateSparks();
   updateVisuals();
@@ -1317,7 +1525,7 @@ isHost = true; ensureBots();
 for (let i = 0; i < 60; i++) { DT = .05; now += DT; for (const e of entities.values()) if (e.local) { botThink(e); moveEntity(e); } interactions(); }
 requestAnimationFrame(frame);
 if (params.has('offline')) { net.status = 'offline'; updateNetUI(); } else initNet();
-window.__orb = { frame: t => frame(t), PROF, dbg: { bloom, composer, renderer, scene, sky, shell, food, U }, entities, net, get me() { return me; }, get mainCell() { return mainCell; }, split: () => split(me, fwd), spawnMe };
+window.__orb = { PU, pickups, fireRocket, get rockets() { return rockets; }, worldWon, frame: t => frame(t), PROF, dbg: { bloom, composer, renderer, scene, sky, shell, food, U }, entities, net, get me() { return me; }, get mainCell() { return mainCell; }, split: () => split(me, fwd), spawnMe };
 </script>
 </body>
 </html>
