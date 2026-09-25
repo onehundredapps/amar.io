@@ -2,7 +2,7 @@
 
 agar.io in full 3D. Fly any direction, split, devour, and grow into a colossal sphere.
 
-**Play:** https://brianm3050.github.io/amar.io/
+**Play:** https://onehundredapps.github.io/amar.io/
 
 - Instant browser multiplayer (peer-to-peer WebRTC, no server), with AI bots so every lobby is alive
 - Arrow keys steer · Shift boost · R rocket · Space split · F eject · S brake · H hide HUD
