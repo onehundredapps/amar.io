@@ -496,6 +496,7 @@ for (let k = 0; k < CL_N; k++) {
   clusters.push({ c: new V3(), hue: 0, alive: 0, total: PER_CL, spread: 1, spr });
 }
 for (let i = 0; i < FOOD_N; i++) foodCl[i] = i < LOOSE_N ? -1 : Math.min(CL_N - 1, Math.floor((i - LOOSE_N) / PER_CL));
+let foodR = 0;
 let foodT = 420, foodInit = false;
 const foodColor = new THREE.Color();
 function setFoodColor(i, h, l = .58) { foodColor.setHSL(((h % 1) + 1) % 1, 1, l); food.setColorAt(i, foodColor); food.instanceColor.needsUpdate = true; }
@@ -975,7 +976,19 @@ function updateFood() {
   const R = viewRadius(mainCell.r);                        // food field radius around EACH of your balls
   const want = clamp(R * 2.1, 900, 20000);
   foodT += (want - foodT) * Math.min(1, DT * .6);
-  if (!foodInit) { foodT = want; for (let i = 0; i < FOOD_N; i++) respawnNear(i, R, false); foodInit = true; }
+  if (!foodInit) { foodT = want; for (let i = 0; i < FOOD_N; i++) respawnNear(i, R, false); foodInit = true; foodR = R; }
+  else if (Math.abs(R / foodR - 1) > .002) {
+    // the field grows with you: spread every pellet outward from its nearest ball so density drops as you grow
+    const k = R / foodR, cs = me.cells;
+    for (let i = 0; i < FOOD_N; i++) {
+      const j = i * 3, x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
+      let best = cs[0].pos, bd = 1e30;
+      for (const cc of cs) { const dx = cc.pos.x - x, dy = cc.pos.y - y, dz = cc.pos.z - z, d = dx * dx + dy * dy + dz * dz; if (d < bd) { bd = d; best = cc.pos; } }
+      foodPos[j] = best.x + (x - best.x) * k; foodPos[j + 1] = best.y + (y - best.y) * k; foodPos[j + 2] = best.z + (z - best.z) * k;
+    }
+    foodR = R;
+  }
+  for (const cc of me.cells) cc.fg = 0;   // food gained this frame, per ball (safety cap below)
   const T = foodT, sc = Math.sqrt(T / 750), valK = 1 + mainCell.r / 30;
   foodMat.uniforms.uFar.value = R;
   // keep every ball supplied: each frame a few faint, far-off pellets get re-seeded evenly around all your balls
@@ -999,12 +1012,13 @@ function updateFood() {
     if (dmin > R || x * x + y * y + z * z > A2) {           // drifted out of every ball's field: re-seed near one of them
       respawnNear(i, R, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2];
     } else if (hit) {
-      if (hd < hit.r + s * .5) {
-        hit.mass += foodVal[i] * valK * (now < PU.roidsUntil ? 4 : 1); hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
+      if (hd < hit.r + s * .5 && hit.fg < hit.mass * 1.2 * DT + 60) {   // safety: food can't add more than ~120%/s
+        const gain = foodVal[i] * valK * (now < PU.roidsUntil ? 4 : 1); hit.fg += gain;
+        hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 1 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
         respawnNear(i, R, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2];
-      } else {
+      } else if (hd >= hit.r + s * .5) {
         // vacuum: pellets accelerate into you the closer they get
         const pull = Math.min(hd, DT * (140 + hit.r * 6) * (1.6 - hd / reach) * 1.6) / hd;
         x += hx * pull; y += hy * pull; z += hz * pull;
