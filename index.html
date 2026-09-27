@@ -270,8 +270,8 @@ const CFG = {
   APP_ID: 'orbivore-3d-opus55-v2',
   ROOM_CAP: 10,
 };
-const ARENA = 2400;   // agar.io-style proportions: max ball ≈21% of map width
-const MAX_CELL_MASS = 2300000, MAX_CELLS = 16;   // a single ball can grow to fill the whole cage
+const ARENA = 9600;   // agar.io-style proportions: max ball ≈21% of map width
+const MAX_CELL_MASS = 36000000, MAX_CELLS = 16;   // a single ball can grow to fill the whole cage
 const BOT_MAX = 90000;
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches;   // real phones/tablets only
 const params = new URLSearchParams(location.search);
@@ -476,8 +476,24 @@ function farPoint(cx, cy, cz, T, out) {
   }
   return out;
 }
+// food richness: deterministic cluster hot-spots on a coarse world grid (same for every player), sparse elsewhere
+const RICH_G = 650;
+function hash3(a, b, c) { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+function richness(x, y, z) {
+  const gx = Math.floor(x / RICH_G), gy = Math.floor(y / RICH_G), gz = Math.floor(z / RICH_G); let d = .05;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) {
+    const a = gx + i, b = gy + j, c = gz + k, h = hash3(a, b, c); if (h < .45) continue;
+    const px = (a + hash3(a, c, b)) * RICH_G, py = (b + hash3(b, a, c)) * RICH_G, pz = (c + hash3(c, b, a)) * RICH_G, sg = 70 + 90 * hash3(c, a, b);
+    const dx = x - px, dy = y - py, dz = z - pz; d += Math.exp(-(dx * dx + dy * dy + dz * dz) / (2 * sg * sg));
+  }
+  return Math.min(1, d);
+}
 function respawnLoose(i, cx, cy, cz, T, far) {
-  const p = far ? farPoint(cx, cy, cz, T, _fp) : _fp.set(cx + rnd(-.5, .5) * T, cy + rnd(-.5, .5) * T, cz + rnd(-.5, .5) * T);
+  let p;
+  for (let k = 0; k < 40; k++) {
+    p = far ? farPoint(cx, cy, cz, T, _fp) : _fp.set(cx + rnd(-.5, .5) * T, cy + rnd(-.5, .5) * T, cz + rnd(-.5, .5) * T);
+    if (Math.random() < richness(p.x, p.y, p.z)) break;
+  }
   foodPos[i * 3] = p.x; foodPos[i * 3 + 1] = p.y; foodPos[i * 3 + 2] = p.z; foodAlive[i] = 1;
   const big = Math.random() < .05; foodSize[i] = big ? 4.2 : rnd(2, 2.8); foodVal[i] = big ? 76 : 20; foodHue[i] = Math.random(); setFoodColor(i, foodHue[i]);
 }
@@ -912,7 +928,7 @@ function updateFood() {
   food.visible = !!on; for (const cl of clusters) cl.spr.visible = !!on;
   if (!on) return;
   const c = mainCell.pos;
-  const want = clamp(viewRadius(mainCell.r) * 2.1, 900, 7000);
+  const want = clamp(viewRadius(mainCell.r) * 2.1, 900, 20000);
   const oldT = foodT; foodT += (want - foodT) * Math.min(1, DT * .6);
   if (!foodInit) {
     foodT = want;
@@ -945,9 +961,7 @@ function updateFood() {
     let x, y, z;
     if (cl < 0) {
       x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2];
-      if (x - c.x > half) x -= T; else if (x - c.x < -half) x += T;
-      if (y - c.y > half) y -= T; else if (y - c.y < -half) y += T;
-      if (z - c.z > half) z -= T; else if (z - c.z < -half) z += T;
+      if (Math.abs(x - c.x) > half || Math.abs(y - c.y) > half || Math.abs(z - c.z) > half) { respawnLoose(i, c.x, c.y, c.z, T, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2]; }
     } else { const cc = clusters[cl].c; x = cc.x + foodOff[j] * sc; y = cc.y + foodOff[j + 1] * sc; z = cc.z + foodOff[j + 2] * sc; }
     let s = foodAlive[i] ? foodSize[i] * sc : 0;
     if (s && x * x + y * y + z * z > A2) s = 0;
@@ -956,7 +970,7 @@ function updateFood() {
       if (d2 > reach * reach) continue;
       const d = Math.sqrt(d2);
       if (d < cc.r + s * .5) {
-        cc.mass += foodVal[i] * valK * (now < PU.roidsUntil ? 2 : 1); cc.pulse = Math.max(cc.pulse, .35); ate++; lastCell = cc;
+        cc.mass += foodVal[i] * valK * (now < PU.roidsUntil ? 4 : 1); cc.pulse = Math.max(cc.pulse, .35); ate++; lastCell = cc;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 1 ? 10 : 4, cc, 30 * sc + cc.r * .6, .9 * sc);
         if (cl < 0) { respawnLoose(i, c.x, c.y, c.z, T, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2]; s = 0; }
@@ -1004,7 +1018,7 @@ function syncCells(ent, arr) {
   const seen = new Set();
   for (const it of arr.slice(0, MAX_CELLS)) {
     if (!Array.isArray(it) || typeof it[0] !== 'string' || !num(it[1]) || !num(it[2]) || !num(it[3]) || !num(it[4])) continue;
-    const id = it[0].slice(0, 40), m = clamp(it[4], 1, 3e6); seen.add(id);
+    const id = it[0].slice(0, 40), m = clamp(it[4], 1, 4e7); seen.add(id);
     let c = cellById.get(id);
     if (c && c.ent !== ent) continue;
     if (!c) { c = addCell(ent, new V3(it[1], it[2], it[3]), m, id); }
@@ -1134,7 +1148,7 @@ function updateHud() {
   $('boostBar').style.width = PU.boost + '%';
   $('cageBar').style.width = Math.min(100, (me.main()?.r || 0) / WIN_R * 100) + '%';
   const rl = Math.max(0, Math.ceil(PU.roidsUntil - now));
-  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em>📈 GROWTH ×2 · ${rl}s</em>` : '');
+  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em>📈 GROWTH ×4 · ${rl}s</em>` : '');
   const list = [...entities.values()].filter(e => e.cells.length && e.kind !== 'snack').sort((a, b) => b.mass - a.mass);
   const rank = list.indexOf(me) + 1;
   $('lbList').innerHTML = list.slice(0, 10).map((e, i) => `<li class="${e === me ? 'me' : ''}"><span>${i + 1}. ${escapeHtml(e.name)}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
@@ -1245,6 +1259,7 @@ function updateCamera() {
     camTilt += ((spread > 0 ? .75 : .18) - camTilt) * k2;   // rise & look down over a split line so no ball hides behind another
     _des.copy(_look).addScaledVector(cf, -dist).addScaledVector(cu, dist * camTilt);
     camPos.copy(_des);
+    if (heat > .05) camPos.addScaledVector(randUnit(_t), r * .012 * heat);
     _m4.lookAt(camPos, _look, cu); _dq.setFromRotationMatrix(_m4);
     camQ.copy(_dq);
     camera.near = clamp(r * .04, .15, 6);
@@ -1314,7 +1329,7 @@ const PU_TYPES = {
 };
 const RING_GEO = new THREE.TorusGeometry(1.55, .07, 8, 40);
 const PU_LABEL = {};
-for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 GROWTH ×2', '#4dff9a'], ['rocket', '🚀 ROCKETS', '#ff5c7a']]) {
+for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 GROWTH ×4', '#4dff9a'], ['rocket', '🚀 ROCKETS', '#ff5c7a']]) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
   g.font = '900 64px Outfit, Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineWidth = 12; g.strokeStyle = 'rgba(0,0,10,.7)'; g.strokeText(txt, 256, 66); g.fillStyle = col; g.fillText(txt, 256, 66);
@@ -1366,7 +1381,7 @@ function collect(type, cell) {
   sfx('pickup');
   if (type === 'nitro') { PU.boost = Math.min(100, PU.boost + 34); feed('<b style="color:#ffae3f">+ NITRO</b>'); }
   else if (type === 'rocket') { PU.ammo = Math.min(9, PU.ammo + 3); feed('<b style="color:#ff5c7a">+3 ROCKETS</b> · press R'); }
-  else { PU.roidsUntil = Math.max(now, PU.roidsUntil) + 12; for (const c of me.cells) { c.mass *= 1.15; c.r = rad(c.mass); c.pulse = 1; } feed('<b style="color:#4dff9a">GROWTH ×2</b> · 12s'); }
+  else { PU.roidsUntil = Math.max(now, PU.roidsUntil) + 12; for (const c of me.cells) { c.mass *= 1.15; c.r = rad(c.mass); c.pulse = 1; } feed('<b style="color:#4dff9a">GROWTH ×4</b> · 12s'); }
 }
 
 // rockets: fire forward, shatter whatever they hit
@@ -1439,13 +1454,85 @@ function botFire(E) {
   rockets.push({ m: mesh, pos: m.pos.clone().addScaledVector(dir, m.r + s * 2), vel: dir.clone().multiplyScalar(300 + m.r * 2), born: now, s, owner: E, homing: false });
   if (mainCell && playing && m.pos.distanceTo(mainCell.pos) < viewRadius(mainCell.r) * .6) sfx('fire');
 }
-function updateBoostFx() {
-  if (!playing || !me) return;
-  if (PU.boosting) {
-    fovKick = Math.max(fovKick, 7);
-    for (const c of me.cells) { const b = _t.copy(c.pos).addScaledVector(me.dir, -c.r * .95); burst(b.x, b.y, b.z, new THREE.Color(1, rnd(.35, .7), .15), 3, null, 20 + c.r, Math.max(1.2, c.r * .16)); }
+// ---- epic boost: layered rocket flames, nozzle flare, speed lines, embers, camera shake ----
+const FLAME_GEO = new THREE.CylinderGeometry(0, 1, 1, 36, 16, true); FLAME_GEO.translate(0, .5, 0);   // nozzle at y=0, tip at y=1
+const flameMat = (core) => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  uniforms: { uTime: U.time, uHeat: { value: 0 }, uSeed: { value: Math.random() * 10 }, uCore: { value: core ? 1 : 0 } },
+  vertexShader: `uniform float uTime; uniform float uSeed; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+    void main(){ vUv = uv; vec3 p = position; float t = 1. - uv.y;
+      float w = 1. + .16*sin(uTime*47. + t*11. + uSeed) + .1*sin(uTime*31. - t*23. + uSeed*2.);   // turbulent flicker
+      p.xz *= w; p.y *= 1. + .12*sin(uTime*29. + uSeed);
+      vec4 wp = modelMatrix*vec4(p,1.); vW = wp.xyz; vN = normalize(mat3(modelMatrix)*normal);
+      gl_Position = projectionMatrix*viewMatrix*wp; }`,
+  fragmentShader: `uniform float uTime; uniform float uHeat; uniform float uCore; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+    void main(){
+      float t = 1. - vUv.y;                                   // 0 at nozzle -> 1 at tip
+      vec3 V = normalize(cameraPosition - vW);
+      float edge = pow(abs(dot(normalize(vN), V)), 1.4);      // soft gaseous edges
+      float bands = .65 + .35*sin(t*34. - uTime*55.);          // shock diamonds racing down the plume
+      vec3 hot = vec3(1.6, 1.75, 2.3), mid = vec3(2.2, 1.05, .28), tail = vec3(1.1, .18, .04);
+      vec3 col = uCore > .5 ? mix(hot, vec3(1.9,1.4,.7), smoothstep(0., .6, t)) : mix(mix(vec3(2.,1.5,.6), mid, smoothstep(0., .35, t)), tail, smoothstep(.35, 1., t));
+      float a = pow(1. - t, uCore > .5 ? 2.2 : 1.3) * edge * bands * uHeat;
+      gl_FragColor = vec4(col * a, a); }`,
+});
+const flames = new Map();   // cell id -> { outer, inner, flare }
+function flameFor(c) {
+  let f = flames.get(c.id);
+  if (!f) {
+    const outer = new THREE.Mesh(FLAME_GEO, flameMat(false)), inner = new THREE.Mesh(FLAME_GEO, flameMat(true));
+    const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: new THREE.Color(1.6, .9, .35), toneMapped: false }));
+    for (const o of [outer, inner, flare]) { o.frustumCulled = false; o.renderOrder = 5; scene.add(o); }
+    f = { outer, inner, flare }; flames.set(c.id, f);
   }
-  if (now < PU.roidsUntil) for (const c of me.cells) c.pulse = Math.max(c.pulse, .35 + .25 * Math.sin(now * 10));
+  return f;
+}
+// speed lines: streaks in camera space that rush past while boosting
+const SL_N = IS_TOUCH ? 90 : 170;
+const slGeo = new THREE.BufferGeometry();
+{ const a = new Float32Array(SL_N * 2 * 3); for (let i = 0; i < SL_N; i++) { const ang = Math.random() * 6.283, rr = .35 + Math.random() * .65, ph = Math.random();
+    for (let e = 0; e < 2; e++) { a[(i * 2 + e) * 3] = ang; a[(i * 2 + e) * 3 + 1] = rr; a[(i * 2 + e) * 3 + 2] = ph + e * 1000; } }
+  slGeo.setAttribute('position', new THREE.BufferAttribute(a, 3)); }
+const slMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+  uniforms: { uTime: U.time, uAmt: { value: 0 }, uR: { value: 10 } },
+  vertexShader: `uniform float uTime; uniform float uR; varying float vA;
+    void main(){ float ang = position.x, rr = position.y, ph = position.z; float tail = step(500., ph); ph = mod(ph, 1000.);
+      float D = uR*40.; float z = -D + fract(ph + uTime*1.6)*D;        // travels toward the camera
+      z -= tail * uR*(3. + 5.*rr);                                    // streak length
+      vec3 p = vec3(cos(ang)*rr*uR*7., sin(ang)*rr*uR*4.5, z);
+      vA = (1. - tail) * smoothstep(-D, -D*.6, z) * (1. - smoothstep(-uR*6., 0., z)) + tail*.0;
+      vA = max(vA, tail*smoothstep(-D, -D*.6, z)*.0);
+      gl_Position = projectionMatrix*vec4(p,1.); }`,
+  fragmentShader: `uniform float uAmt; varying float vA; void main(){ gl_FragColor = vec4(vec3(1.,.8,.55)*uAmt*.4, 1.); }`,
+});
+const speedLines = new THREE.LineSegments(slGeo, slMat); speedLines.frustumCulled = false; speedLines.renderOrder = 20; scene.add(speedLines);
+let heat = 0;
+function updateBoostFx() {
+  heat += ((playing && PU.boosting ? 1 : 0) - heat) * Math.min(1, DT * (PU.boosting ? 9 : 4));
+  const live = new Set();
+  if (playing && me) for (const c of me.cells) {
+    live.add(c.id);
+    if (heat < .02 && !flames.has(c.id)) continue;
+    const f = flameFor(c), back = _t.copy(me.dir).negate();
+    const base = _t2.copy(c.pos).addScaledVector(back, c.rr * .88);
+    _rq.setFromUnitVectors(_up, back);
+    const w = c.rr * .5 * Math.sqrt(heat), len = c.rr * (2.1 + .35 * Math.sin(now * 23 + c.rr)) * heat;
+    f.outer.position.copy(base); f.outer.quaternion.copy(_rq); f.outer.scale.set(w, len, w);
+    f.inner.position.copy(base); f.inner.quaternion.copy(_rq); f.inner.scale.set(w * .5, len * .6, w * .5);
+    f.flare.position.copy(base); f.flare.scale.setScalar(c.rr * 1.5 * heat * (1 + .12 * Math.sin(now * 37)));
+    f.outer.material.uniforms.uHeat.value = f.inner.material.uniforms.uHeat.value = heat;
+    f.flare.material.opacity = heat;
+    for (const o of [f.outer, f.inner, f.flare]) o.visible = heat > .02;
+    if (PU.boosting && Math.random() < .8) {   // bright embers torn off the exhaust
+      const e = _t.copy(base).addScaledVector(back, len * rnd(.2, .9)).addScaledVector(randUnit(_fp), w * .6);
+      burst(e.x, e.y, e.z, new THREE.Color(1, rnd(.55, .9), rnd(.1, .35)), 2, null, 40 + c.rr * 1.5, Math.max(1, c.rr * .09));
+    }
+  }
+  for (const [id, f] of flames) if (!live.has(id)) { for (const o of [f.outer, f.inner, f.flare]) { scene.remove(o); o.material.dispose(); } flames.delete(id); }
+  slMat.uniforms.uAmt.value = heat; slMat.uniforms.uR.value = mainCell ? Math.max(4, mainCell.rr) : 10; speedLines.visible = heat > .02;
+  if (playing && me && PU.boosting) fovKick = Math.max(fovKick, 9);
+  if (playing && me && now < PU.roidsUntil) for (const c of me.cells) c.pulse = Math.max(c.pulse, .35 + .25 * Math.sin(now * 10));
 }
 
 /* ============================== WIN: fill the cage, world resets ============================== */
@@ -1538,7 +1625,7 @@ let last = performance.now();
 const PROF = { sim: 0, food: 0, vis: 0, render: 0, n: 0 };
 function frame(t) {
   requestAnimationFrame(frame);
-  DT = Math.min(.05, (t - last) / 1000); last = t; now += DT; U.time.value = now;
+  DT = clamp((t - last) / 1000, 0, .05); last = Math.max(last, t);   // never let time run backwards now += DT; U.time.value = now;
   let p0 = performance.now();
   if (playing && me) handleInput();
   for (const e of entities.values()) if (e.local) { if (e.kind === 'snack') { botThink(e); e.throttle *= .85; if (!e.cells.length) continue; } if (e.kind === 'bot') { botThink(e); if (e.cells.length === 0) continue; if (playing) botFire(e); e.cells.forEach(c => { if (!e.lev && c.mass < 1500) c.mass += DT * 2.5; }); } moveEntity(e); }
