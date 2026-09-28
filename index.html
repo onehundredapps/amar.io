@@ -272,7 +272,7 @@ const CFG = {
   ROOM_CAP: 10,
 };
 const ARENA = 9600;   // agar.io-style proportions: max ball ≈21% of map width
-const MAX_CELL_MASS = 36000000, MAX_CELLS = 16;   // a single ball can grow to fill the whole cage
+const MAX_CELL_MASS = 36000000, MAX_CELLS = 64;   // split down to tiny pieces   // a single ball can grow to fill the whole cage
 const BOT_MAX = 90000;
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches;   // real phones/tablets only
 const params = new URLSearchParams(location.search);
@@ -842,6 +842,7 @@ const fwd = new V3(0, 0, -1), upv = new V3(0, 1, 0), right = new V3(1, 0, 0);
 function updateBasis() { fwd.set(0, 0, -1).applyQuaternion(orient); upv.set(0, 1, 0).applyQuaternion(orient); right.set(1, 0, 0).applyQuaternion(orient); }
 
 function spawnMe(name, hue, forceMass) {
+  camR = 0;
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
@@ -991,7 +992,7 @@ function updateFood() {
   const want = clamp(R * 2.1, 900, 20000);
   foodT += (want - foodT) * Math.min(1, DT * .6);
   if (!foodInit) { foodT = want; for (let i = 0; i < FOOD_N; i++) respawnNear(i, R, false); foodInit = true; foodR = R; }
-  else if (Math.abs(R / foodR - 1) > .01) {
+  else if (Math.abs(R / foodR - 1) > .0005) {
     // the field grows with you: spread every pellet outward from its nearest ball so density drops as you grow
     const k = R / foodR, cs = me.cells;
     for (let i = 0; i < FOOD_N; i++) {
@@ -1291,7 +1292,7 @@ function drawRadar() {
 
 /* ============================== CAMERA ============================== */
 const camPos = new V3(0, 0, 900), camQ = new THREE.Quaternion(), _m4 = new THREE.Matrix4(), _look = new V3(), _des = new V3(), _dq = new THREE.Quaternion();
-const _grp = new V3(), camLook = new V3(), _cq = new THREE.Quaternion(), _cf = new V3(), _cu = new V3(); let camExtra = 0, camTilt = .18;
+const _grp = new V3(), camLook = new V3(), _cq = new THREE.Quaternion(), _cf = new V3(), _cu = new V3(); let camR = 0, camExtra = 0, camTilt = .18;
 let attractAng = 0, attractTarget = null, deathCam = null;
 function pickMain() {
   if (!me || !me.cells.length) return;
@@ -1301,7 +1302,8 @@ function pickMain() {
 function updateCamera() {
   const k = 1 - Math.exp(-DT * 8);
   if (playing && mainCell) {
-    const P = mainCell.pos, r = mainCell.rr;
+    const P = mainCell.pos;
+    camR = camR > 0 ? camR + (mainCell.rr - camR) * (1 - Math.exp(-DT * 1.8)) : mainCell.rr; const r = camR;
     // chase-cam: view trails your heading by a beat, and leans a few degrees into turns
     const ck = 1 - Math.exp(-DT * 6);
     camYaw += angDiff(yaw, camYaw) * ck; camPitch += (pitch - camPitch) * ck;
@@ -1354,7 +1356,7 @@ function updateVisuals() {
   for (const e of entities.values()) {
     for (const c of e.cells) {
       if (!e.local) c.pos.lerp(c.tpos, 1 - Math.exp(-DT * 11));
-      c.rr += (c.r - c.rr) * Math.min(1, DT * 7);
+      c.rr += (c.r - c.rr) * Math.min(1, DT * 4);
       c.pulse *= Math.exp(-DT * 4);
       c.mesh.position.copy(c.pos); c.mesh.scale.setScalar(c.rr);
       c.appear = Math.min(1, c.appear + DT * .8); const u = c.mesh.material.uniforms; u.uAppear.value = c.appear; u.uR.value = c.rr; u.uPulse.value = c.pulse * .5; u.uWobble.value = .022;
@@ -1367,7 +1369,7 @@ function updateVisuals() {
       }
     }
   }
-  { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of me.cells) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
+  { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
   const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(pr) : 1e5; if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
   shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr;
   sky.position.copy(camera.position);
