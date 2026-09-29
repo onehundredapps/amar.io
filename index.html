@@ -375,7 +375,7 @@ void main(){
   gl_Position = projectionMatrix*viewMatrix*wp;
 }`;
 const cellFrag = /* glsl */`
-uniform vec3 uColor; uniform vec3 uDeep; uniform float uTime; uniform float uR; uniform vec3 uFog; uniform float uPulse; uniform float uSeed; uniform float uVein; uniform float uView; uniform float uViewR; uniform float uAppear; uniform vec3 uPP; uniform float uOwn; uniform vec4 uEngine;
+uniform vec3 uColor; uniform vec3 uDeep; uniform float uTime; uniform float uR; uniform vec3 uFog; uniform float uPulse; uniform float uSeed; uniform float uVein; uniform float uView; uniform float uViewR; uniform float uAppear; uniform vec3 uPP; uniform float uOwn; uniform vec4 uEngine; uniform sampler2D uName; uniform float uNameOn;
 ${OWN_GLSL}
 varying vec3 vN; varying vec3 vW; varying vec3 vO;
 ${NOISE}
@@ -393,6 +393,17 @@ void main(){
   vec3 H = normalize(L+V); float spec = pow(max(dot(N,H),0.), 60.) * .25 * (1. - fow);
   vec3 col = mix(uDeep, uColor, .35 + .65*ndv) * diff;
   col += uColor * vein * .35;
+  // painted name: wraps around the middle of the ball twice, lit and fogged like the surface itself
+  if (uNameOn > .5) {
+    vec3 on = normalize(vO);
+    float lon = atan(on.z, on.x) / 6.28318 + .5, lat = asin(clamp(on.y, -1., 1.)) / 3.14159 + .5;
+    vec2 nuv = vec2(fract(-lon * 2.), (lat - .37) / .26);
+    if (nuv.y > 0. && nuv.y < 1.) {
+      vec4 tx = texture2D(uName, nuv);
+      float paint = tx.a * (1. - fow);
+      col = mix(col, tx.rgb * (.35 + .65 * diff) * 1.15, paint * .92);
+    }
+  }
   col += spec;
   col *= 1. + uPulse*.4;
   col += vec3(1., .55, .2) * uEngine.w * pow(max(dot(N, uEngine.xyz), 0.), 2.5) * .9;   // your engine lights up the back of your ball
@@ -402,13 +413,15 @@ void main(){
   float edge = smoothstep(0., .04 + fow*.4, ndv);
   gl_FragColor = vec4(col, (1. - fow*.75) * cutoff * edge * uAppear);
 }`;
-function cellMaterial(color, deep, seed, vein = 5) {
+const NO_NAME = new THREE.DataTexture(new Uint8Array(4), 1, 1); NO_NAME.needsUpdate = true;
+function cellMaterial(color, deep, seed, vein = 5, nameTex = null) {
   return new THREE.ShaderMaterial({
     vertexShader: cellVert, fragmentShader: cellFrag,
     transparent: true,
     uniforms: {
       uTime: U.time, uFog: U.fog, uView: U.view, uViewR: U.viewR, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uEngine: { value: new THREE.Vector4() }, uOwn: { value: 0 }, uAppear: { value: 1 }, uColor: { value: color }, uDeep: { value: deep },
       uR: { value: 1 }, uPulse: { value: 0 }, uWobble: { value: .025 }, uSeed: { value: seed }, uVein: { value: vein },
+      uName: { value: nameTex || NO_NAME }, uNameOn: { value: nameTex ? 1 : 0 },
     },
   });
 }
@@ -485,7 +498,7 @@ food.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 food.frustumCulled = false;
 const foodPos = new Float32Array(FOOD_N * 3), foodSize = new Float32Array(FOOD_N), foodVal = new Float32Array(FOOD_N);
 const foodBorn = new Float32Array(FOOD_N).fill(-9);
-const foodCl = new Int16Array(FOOD_N).fill(-1), foodOff = new Float32Array(FOOD_N * 3), foodAlive = new Uint8Array(FOOD_N).fill(1), foodHue = new Float32Array(FOOD_N);
+const foodCl = new Int16Array(FOOD_N).fill(-1), foodOff = new Float32Array(FOOD_N * 3), foodAlive = new Uint8Array(FOOD_N).fill(0), foodHue = new Float32Array(FOOD_N);
 scene.add(food);
 // soft glowing beacon so a cluster is visible from far away
 const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
@@ -520,6 +533,114 @@ function richness(x, y, z) {
     const dx = x - px, dy = y - py, dz = z - pz; d += Math.exp(-(dx * dx + dy * dy + dz * dz) / (2 * sg * sg));
   }
   return Math.min(1, d);
+}
+/* ---- WORLD FOOD: the whole arena is tiled with chunks; every chunk holds orbs at fixed spots (same for every
+   player). Only chunks near you are loaded. Eaten orbs grow back after a while. Chunks scale up as you grow (LOD). ---- */
+const C0 = 120, K_PER = IS_TOUCH ? 9 : 16;
+const FOOD_TARGET = Math.round(FOOD_N * .6), K_MIN = 4, K_MAX = 20000;
+let foodK = K_PER * 2;                     // orb spots tried per chunk; tuned so the screen always holds ~FOOD_TARGET orbs
+const chunks = new Map();                  // key -> { a, b, c, L, slots: Set, pending: [[k, t]] }
+const freeSlots = []; for (let i = FOOD_N - 1; i >= 0; i--) freeSlots.push(i);
+const slotKey = new Array(FOOD_N).fill(null);   // slot -> [chunkKey, k]
+const eatenUntil = new Map();              // `${chunkKey}:${k}` -> time it grows back
+let foodLevel = -1, chunkT = 0; const chunkC = new V3(1e9, 1e9, 1e9);
+const hash4 = (a, b, c, k) => hash3(a + k * 7919, b - k * 104729, c + k * 1299709);
+function freeSlot(i) { foodAlive[i] = 0; foodPos[i * 3] = foodPos[i * 3 + 1] = foodPos[i * 3 + 2] = 1e9; slotKey[i] = null; freeSlots.push(i); }
+// cluster hot-spots that can reach a chunk (in level-scaled coords), found once per chunk so each orb is cheap
+function chunkHot(a, b, c) {
+  const cx = (a + .5) * C0, cy = (b + .5) * C0, cz = (c + .5) * C0, gx = Math.floor(cx / RICH_G), gy = Math.floor(cy / RICH_G), gz = Math.floor(cz / RICH_G), hot = [];
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) {
+    const a2 = gx + i, b2 = gy + j, c2 = gz + k; if (hash3(a2, b2, c2) < .45) continue;
+    const px = (a2 + hash3(a2, c2, b2)) * RICH_G, py = (b2 + hash3(b2, a2, c2)) * RICH_G, pz = (c2 + hash3(c2, b2, a2)) * RICH_G, sg = 70 + 90 * hash3(c2, a2, b2);
+    if (Math.hypot(px - cx, py - cy, pz - cz) > sg * 4 + C0) continue;
+    hot.push(px, py, pz, 1 / (2 * sg * sg));
+  }
+  return hot;
+}
+function spawnPellet(ch, key, k) {
+  const { a, b, c, L } = ch, C = C0 * 2 ** L, sL = 2 ** L;
+  const x = (a + hash4(a, b, c, k * 3)) * C, y = (b + hash4(a, b, c, k * 3 + 1)) * C, z = (c + hash4(a, b, c, k * 3 + 2)) * C;
+  if (x * x + y * y + z * z > ARENA * ARENA * .97) return;
+  const h = hash4(c, a, b, k);
+  if (h > .158) {   // dense in rich zones, sparse elsewhere
+    if (h > .95) return;
+    const hot = ch.hot, sx = x / sL, sy = y / sL, sz = z / sL; let d = .12;
+    for (let n = 0; n < hot.length; n += 4) { const dx = sx - hot[n], dy = sy - hot[n + 1], dz = sz - hot[n + 2]; d += Math.exp(-(dx * dx + dy * dy + dz * dz) * hot[n + 3]); }
+    if (h > Math.min(1, d) * .9 + .05) return;
+  }
+  if (!freeSlots.length) return;
+  const i = freeSlots.pop(); ch.slots.add(i); slotKey[i] = [key, k];
+  foodPos[i * 3] = x; foodPos[i * 3 + 1] = y; foodPos[i * 3 + 2] = z; foodAlive[i] = 1; foodBorn[i] = now;
+  const big = hash4(b, c, a, k) < .05; foodSize[i] = big ? 4.2 : 2 + .8 * hash4(a, c, b, k); foodVal[i] = big ? 45 : 12;
+  foodHue[i] = hash4(b, a, c, k); setFoodColor(i, foodHue[i]);
+}
+function loadChunk(L, a, b, c, key) {
+  const ch = { a, b, c, L, slots: new Set(), pending: [], hot: chunkHot(a, b, c) };
+  chunks.set(key, ch);
+  for (let k = 0; k < foodK; k++) {
+    const t = eatenUntil.get(key + ':' + k);
+    if (t !== undefined && now < t) { ch.pending.push([k, t]); continue; }
+    spawnPellet(ch, key, k);
+  }
+}
+function unloadChunk(key) { const ch = chunks.get(key); if (!ch) return; for (const i of ch.slots) freeSlot(i); chunks.delete(key); }
+function eatPellet(i) {
+  const sk = slotKey[i]; if (!sk) { foodAlive[i] = 0; return; }
+  const [key, k] = sk, ch = chunks.get(key), t = now + rnd(25, 45);
+  eatenUntil.set(key + ':' + k, t);
+  if (ch) { ch.slots.delete(i); ch.pending.push([k, t]); }
+  freeSlot(i);
+}
+// orbs k < foodK exist in every chunk, so raising/lowering foodK just adds/removes orbs everywhere evenly
+function setFoodK(nk) {
+  if (nk > foodK) { for (const [key, ch] of chunks) for (let k = foodK; k < nk; k++) { const t = eatenUntil.get(key + ':' + k); if (t !== undefined && now < t) ch.pending.push([k, t]); else spawnPellet(ch, key, k); } }
+  else if (nk < foodK) for (const ch of chunks.values()) { for (const i of [...ch.slots]) if (slotKey[i][1] >= nk) { ch.slots.delete(i); freeSlot(i); } ch.pending = ch.pending.filter(q => q[0] < nk); }
+  foodK = nk;
+}
+function tuneFoodK() {
+  const alive = FOOD_N - freeSlots.length;
+  if (alive < FOOD_TARGET * .7 && foodK < K_MAX) setFoodK(Math.min(K_MAX, Math.ceil(foodK * clamp(FOOD_TARGET / Math.max(alive, 1), 1.2, 8))));
+  else if (alive > FOOD_TARGET * 1.35 && foodK > K_MIN) setFoodK(Math.max(K_MIN, Math.floor(foodK * clamp(FOOD_TARGET / alive, .4, .85))));
+}
+function resetWorldFood() {
+  for (const key of [...chunks.keys()]) unloadChunk(key);
+  foodLevel = -1; chunkC.set(1e9, 1e9, 1e9);
+  for (const p of [...pickups]) dropPickup(p); puChunks.clear();
+}
+function refreshChunks(G, radius) {
+  const V = viewRadius(myR()), Lf = Math.log2(V / (5 * C0));
+  let L = foodLevel; if (L < 0 || Math.abs(Lf - L) > .75) L = clamp(Math.round(Lf), 0, 9);
+  if (L !== foodLevel) {
+    for (const key of [...chunks.keys()]) unloadChunk(key);
+    if (foodLevel >= 0) { const q = (V / (C0 * 2 ** foodLevel) + .87) / (V / (C0 * 2 ** L) + .87); foodK = clamp(Math.round(foodK * q * q * q), K_MIN, K_MAX); }   // keep the orb count steady across levels
+    foodLevel = L;
+  }
+  const C = C0 * 2 ** L, rng = Math.ceil(radius / C) + 1, ga = Math.floor(G.x / C), gb = Math.floor(G.y / C), gc = Math.floor(G.z / C);
+  const want = [], lim = radius + C * .87, AL = (ARENA + C) * (ARENA + C), lo = Math.floor(-ARENA / C) - 1, hi = Math.floor(ARENA / C) + 1;
+  for (let a = Math.max(lo, ga - rng); a <= Math.min(hi, ga + rng); a++) for (let b = Math.max(lo, gb - rng); b <= Math.min(hi, gb + rng); b++) for (let c = Math.max(lo, gc - rng); c <= Math.min(hi, gc + rng); c++) {
+    const cx = (a + .5) * C, cy = (b + .5) * C, cz = (c + .5) * C;
+    if (cx * cx + cy * cy + cz * cz > AL) continue;
+    const dx = cx - G.x, dy = cy - G.y, dz = cz - G.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (d < lim) want.push([d, a, b, c]);
+  }
+  want.sort((p, q) => p[0] - q[0]);
+  const keep = new Set(want.map(w => L + '|' + w[1] + ',' + w[2] + ',' + w[3]));
+  for (const key of [...chunks.keys()]) if (!keep.has(key)) unloadChunk(key);
+  const t0 = performance.now(); let busy = false;   // nearest chunks first, a few ms per frame at most (no hitches)
+  for (const [, a, b, c] of want) {
+    const key = L + '|' + a + ',' + b + ',' + c;
+    if (!chunks.has(key)) { if (!freeSlots.length) break; if (performance.now() - t0 > 3) { busy = true; break; } loadChunk(L, a, b, c, key); }
+  }
+  // regrow eaten orbs whose timer is up
+  for (const [key, ch] of chunks) if (ch.pending.length) {
+    const still = [];
+    for (const [k, t] of ch.pending) { if (now >= t) { eatenUntil.delete(key + ':' + k); spawnPellet(ch, key, k); } else still.push([k, t]); }
+    ch.pending = still;
+  }
+  if (!busy) tuneFoodK();
+  refreshPickups(G, radius * 1.1, L);
+  if (eatenUntil.size > 30000) for (const [k, t] of eatenUntil) if (t < now) eatenUntil.delete(k);   // tidy long sessions
+  return busy;
 }
 // place pellet i somewhere around one of your balls (inside radius R), following the cluster richness field
 function respawnNear(i, R, far) {
@@ -616,9 +737,10 @@ const short = () => net.selfId.slice(0, 6);
 
 function labelTexture(text) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128;
-  const g = c.getContext('2d'); g.font = '800 62px Outfit, Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.lineWidth = 12; g.strokeStyle = 'rgba(0,0,10,.55)'; g.strokeText(text, 256, 66); g.fillStyle = '#fff'; g.fillText(text, 256, 66);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  const g = c.getContext('2d'); let fs = 74; g.textAlign = 'center'; g.textBaseline = 'middle';
+  do { g.font = `900 ${fs}px Outfit, Inter, system-ui, sans-serif`; fs -= 2; } while (g.measureText(text).width > 440 && fs > 24);   // fit long names
+  g.lineJoin = 'round'; g.lineWidth = 10; g.strokeStyle = 'rgba(0,0,10,.6)'; g.strokeText(text, 256, 66); g.fillStyle = '#fff'; g.fillText(text, 256, 66);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.wrapS = THREE.RepeatWrapping; return t;
 }
 
 class Entity {
@@ -635,7 +757,7 @@ class Entity {
 }
 function addCell(ent, pos, mass, id) {
   id = id || `${short()}-${(cellCounter++).toString(36)}`;
-  const mat = cellMaterial(ent.color, ent.deep, Math.random());
+  const mat = cellMaterial(ent.color, ent.deep, Math.random(), 5, ent.labelTex);
   if (ent.kind === 'me') mat.uniforms.uOwn.value = 1;
   const mesh = new THREE.Mesh(CELL_GEO, mat);
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ent.labelTex, transparent: true, depthWrite: false, toneMapped: false }));
@@ -745,6 +867,7 @@ function botThink(E) {
   if (!threat && foodInit && playing && me && mainCell && me.cells.length && ownDistJS(m.pos) < viewRadius(myR())) {
     const lim = m.r * 10 + 300; let bd = lim * lim;
     for (let i = 0; i < FOOD_N; i++) {             // true nearest orb (cheap box reject first)
+      if (!foodAlive[i]) continue;
       const dx = foodPos[i * 3] - m.pos.x; if (dx > lim || dx < -lim) continue;
       const dy = foodPos[i * 3 + 1] - m.pos.y; if (dy > lim || dy < -lim) continue;
       const dz = foodPos[i * 3 + 2] - m.pos.z, d2 = dx * dx + dy * dy + dz * dz;
@@ -862,9 +985,9 @@ function spawnMe(name, hue, forceMass) {
   if (nearL) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
   const dd = new V3().subVectors(target, p).normalize();
   yaw = camYaw = Math.atan2(-dd.x, -dd.z); pitch = camPitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading();
-  Object.assign(PU, { boost: 100, ammo: 1, roidsUntil: 0, boosting: false, used: false }); puInit = false;
+  Object.assign(PU, { boost: 100, ammo: 1, roidsUntil: 0, boosting: false, used: false });
   playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
-  foodInit = false;
+  foodInit = false; resetWorldFood();
 }
 
 /* ============================== INPUT ============================== */
@@ -985,46 +1108,38 @@ function onMeAte(victim, killed) {
 const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 let combo = 0, comboT = -9, comboShown = 0;
+const botGrid = new Map(), BG = 256;
 function updateFood() {
   const on = playing && me && mainCell && me.cells.length;
   food.visible = !!on; for (const cl of clusters) cl.spr.visible = false;
   if (!on) return;
-  const R = viewRadius(myR());                        // food field radius around EACH of your balls
-  const want = clamp(R * 2.1, 900, 20000);
-  foodT += (want - foodT) * Math.min(1, DT * .6);
-  if (!foodInit) { foodT = want; for (let i = 0; i < FOOD_N; i++) respawnNear(i, R, false); foodInit = true; foodR = R; }
-  else if (Math.abs(R / foodR - 1) > .0005) {
-    // the field grows with you: spread every pellet outward from its nearest ball so density drops as you grow
-    const k = R / foodR, best = mainCell.pos;
-    for (let i = 0; i < FOOD_N; i++) {
-      const j = i * 3, x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
-      foodPos[j] = best.x + (x - best.x) * k; foodPos[j + 1] = best.y + (y - best.y) * k; foodPos[j + 2] = best.z + (z - best.z) * k;
-    }
-    foodR = R;
-  }
-  for (const cc of me.cells) cc.fg = 0;   // food gained this frame, per ball (safety cap below)
-  // bot balls inside your food field can eat pellets too
-  const botCells = [];
-  for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < R + bc.r) { bc.fg = 0; botCells.push(bc); }
-  const T = foodT, sc = Math.sqrt(T / 750), valK = 1 + myR() / 30;
-  const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
-  foodMat.uniforms.uFar.value = R;
-  // keep every ball supplied: each frame a few faint, far-off pellets get re-seeded evenly around all your balls
-  if (me.cells.length > 1) for (let q = 0, n = Math.ceil(FOOD_N / 40); q < n; q++) {
-    const i = (Math.random() * FOOD_N) | 0; _fq.set(foodPos[i * 3], foodPos[i * 3 + 1], foodPos[i * 3 + 2]);
-    if (ownDistJS(_fq) > R * .72) respawnNear(i, R, true);
-  }
-  const arr = food.instanceMatrix.array, cells = me.cells, A2 = ARENA * ARENA;
-  let ate = 0, lastCell = null;
-  // bounding sphere of all your balls: most pellets are far away and only need one distance check
+  const V = viewRadius(myR()), cells = me.cells;
+  // bounding sphere of all your balls
   let gx = 0, gy = 0, gz = 0, tm = 0, gR = 0, maxReach = 0;
+  const sc = Math.sqrt(V * 2.1 / 750), valK = 1 + myR() / 30;
   for (const cc of cells) { gx += cc.pos.x * cc.mass; gy += cc.pos.y * cc.mass; gz += cc.pos.z * cc.mass; tm += cc.mass; }
   gx /= tm; gy /= tm; gz /= tm;
   for (const cc of cells) { const dx = cc.pos.x - gx, dy = cc.pos.y - gy, dz = cc.pos.z - gz; gR = Math.max(gR, Math.sqrt(dx * dx + dy * dy + dz * dz) + cc.rr); maxReach = Math.max(maxReach, cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10); }
+  _fq.set(gx, gy, gz);
+  const Cnow = C0 * 2 ** Math.max(0, foodLevel);
+  chunkT -= DT;
+  if (foodLevel < 0 || chunkT <= 0 || _fq.distanceTo(chunkC) > Cnow * .5) { chunkT = refreshChunks(_fq, gR + V) ? 0 : .25; chunkC.copy(_fq); foodInit = true; }
+  const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
+  foodMat.uniforms.uFar.value = V;
+  for (const cc of cells) cc.fg = 0;   // food gained this frame, per ball (safety cap)
+  botGrid.clear();
+  for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < V + bc.r) {
+    bc.fg = 0; const br = bc.r * 1.4 + 6, p = bc.pos;
+    for (let ix = Math.floor((p.x - br) / BG); ix <= Math.floor((p.x + br) / BG); ix++) for (let iy = Math.floor((p.y - br) / BG); iy <= Math.floor((p.y + br) / BG); iy++) for (let iz = Math.floor((p.z - br) / BG); iz <= Math.floor((p.z + br) / BG); iz++) {
+      const gk = (ix + 128) * 65536 + (iy + 128) * 256 + iz + 128; let l = botGrid.get(gk); if (!l) botGrid.set(gk, l = []); l.push(bc);
+    }
+  }
+  const arr = food.instanceMatrix.array;
+  let ate = 0, lastCell = null;
   for (let i = 0; i < FOOD_N; i++) {
-    const j = i * 3;
+    const j = i * 3, o = i * 16;
+    if (!foodAlive[i]) { if (arr[o] !== 0) { arr[o] = arr[o + 5] = arr[o + 10] = 0; } continue; }
     let x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
-    // new pellets grow in over 0.6s, never pop
     let s = foodSize[i] * pk * Math.min(1, (now - foodBorn[i]) / .6), hit = null, hd = 0, hx = 0, hy = 0, hz = 0, reach = 0;
     const ex = x - gx, ey = y - gy, ez = z - gz, dG = Math.sqrt(ex * ex + ey * ey + ez * ez);
     if (dG < gR + maxReach) for (let k = 0; k < cells.length; k++) {
@@ -1032,15 +1147,13 @@ function updateFood() {
       const rc = cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10;
       if (d < rc) { hit = cc; hd = d; hx = dx; hy = dy; hz = dz; reach = rc; break; }
     }
-    if (dG - gR > R || x * x + y * y + z * z > A2) {           // drifted out of every ball's field: re-seed near one of them
-      respawnNear(i, R, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2];
-    } else if (hit) {
-      if (hd < hit.r + s * .5 && hit.fg < hit.mass * 1.2 * DT + 60) {   // safety: food can't add more than ~120%/s
+    if (hit) {
+      if (hd < hit.r + s * .5 && hit.fg < hit.mass * 1.2 * DT + 60) {
         const gain = Math.min(foodVal[i] * valK, hit.mass * .1 + .6) * (now < PU.roidsUntil ? 4 : 1); hit.fg += gain;   // ≤ ~15% per orb when tiny, like agar
         hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
-        burst(x, y, z, foodColor, foodVal[i] > 1 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
-        respawnNear(i, R, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2];
+        burst(x, y, z, foodColor, foodVal[i] > 12 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
+        eatPellet(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue;
       } else if (hd >= hit.r + s * .5) {
         // vacuum: pellets accelerate into you the closer they get
         const pull = Math.min(hd, DT * (140 + hit.r * 6) * (1.6 - hd / reach) * 1.6) / hd;
@@ -1048,15 +1161,18 @@ function updateFood() {
         foodPos[j] = x; foodPos[j + 1] = y; foodPos[j + 2] = z;
       }
     }
-    for (let b = 0; b < botCells.length; b++) {
-      const bc = botCells[b], dx = bc.pos.x - x, dy = bc.pos.y - y, dz = bc.pos.z - z;
-      const br = bc.r * 1.4 + 6;   // bots get a small pickup reach, like your vacuum
-      if (dx * dx + dy * dy + dz * dz < br * br && bc.fg < 1) {   // bots: max one orb per frame, flat value (no size bonus) so they can't snowball
+    let botAte = false;
+    const bl = botGrid.size ? botGrid.get((Math.floor(x / BG) + 128) * 65536 + (Math.floor(y / BG) + 128) * 256 + Math.floor(z / BG) + 128) : undefined;
+    if (bl) for (let b = 0; b < bl.length; b++) {
+      const bc = bl[b], dx = bc.pos.x - x, dy = bc.pos.y - y, dz = bc.pos.z - z;
+      const br = bc.r * 1.4 + 6;   // bots get a small pickup reach
+      if (dx * dx + dy * dy + dz * dz < br * br && bc.fg < 1) {   // bots: max one orb per frame, flat value so they can't snowball
         const gain = foodVal[i] * .35; bc.mass = Math.min(BOT_MAX, bc.mass + gain); bc.r = rad(bc.mass); bc.fg += 1;
-        respawnNear(i, R, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2]; s = 0; break;
+        eatPellet(i); botAte = true; break;
       }
     }
-    const o = i * 16; arr[o] = s; arr[o + 5] = s; arr[o + 10] = s; arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
+    if (botAte) { arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; }
+    arr[o] = s; arr[o + 5] = s; arr[o + 10] = s; arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
   }
   food.instanceMatrix.needsUpdate = true;
   if (ate) {
@@ -1367,7 +1483,7 @@ function updateVisuals() {
       c.pulse *= Math.exp(-DT * 4);
       c.mesh.position.copy(c.pos); c.mesh.scale.setScalar(c.rr);
       c.appear = Math.min(1, c.appear + DT * .8); const u = c.mesh.material.uniforms; u.uAppear.value = c.appear; u.uR.value = c.rr; u.uPulse.value = c.pulse * .5; u.uWobble.value = .022;
-      const hideLabel = c.rr < 2.5;
+      const hideLabel = true;   // names are painted on the ball surface now
       c.label.visible = !hideLabel;
       if (!hideLabel) {
         _cd.subVectors(camera.position, c.pos); const dd = _cd.length();
@@ -1411,39 +1527,48 @@ for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 
   g.lineWidth = 12; g.strokeStyle = 'rgba(0,0,10,.7)'; g.strokeText(txt, 256, 66); g.fillStyle = col; g.fillText(txt, 256, 66);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; PU_LABEL[k] = t;
 }
-const pickups = [];
-const PU_N = IS_TOUCH ? 16 : 24;
-function pickType() { const r = Math.random(); let a = 0; for (const [k, t] of Object.entries(PU_TYPES)) { a += t.w; if (r < a) return k; } return 'nitro'; }
-function makePickup() {
-  const type = pickType(), t = PU_TYPES[type], g = new THREE.Group();
+const pickups = [];                    // active (loaded) power-ups
+const puChunks = new Map();            // chunk key -> pickup
+const puTaken = new Map();             // chunk key -> time the power-up comes back
+const puPool = { nitro: [], roids: [], rocket: [] };
+function pickType(h = Math.random()) { let a = 0; for (const [k, t] of Object.entries(PU_TYPES)) { a += t.w; if (h < a) return k; } return 'nitro'; }
+function makePickup(type = pickType()) {
+  const t = PU_TYPES[type], g = new THREE.Group();
   const body = new THREE.Mesh(t.geo, puMat(t.color)), ring = new THREE.Mesh(RING_GEO, puMat(t.color));
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: PU_LABEL[type], transparent: true, depthWrite: false, toneMapped: false }));
   label.position.y = 2.8; label.scale.set(6.4, 1.6, 1);
   g.add(body); g.add(ring); g.add(label); scene.add(g);
-  return { type, g, body, ring, label, pos: new V3(1e9, 1e9, 1e9), spin: rnd(.6, 1.4) };
+  return { type, g, body, ring, label, pos: new V3(1e9, 1e9, 1e9), spin: rnd(.6, 1.4), key: '' };
 }
-let puInit = false;
-// power-ups are spread evenly around your balls with a minimum gap between them (no bunches)
-function placePickup(p, far) {
-  const V = viewRadius(myR()), R = V * 1.5, gap = V * .42;
-  for (let k = 0; k < 30; k++) {
-    const c = me.cells[(Math.random() * me.cells.length) | 0].pos;
-    randUnit(p.pos).multiplyScalar(far ? R * rnd(.75, 1) : R * Math.cbrt(Math.random())).add(c);
-    if (p.pos.length() > ARENA * .95) continue;
-    if (pickups.every(q => q === p || q.pos.distanceTo(p.pos) > gap)) return;
+function getPickup(type) { const p = puPool[type].pop() || makePickup(type); p.g.visible = true; return p; }
+function dropPickup(p) { p.g.visible = false; puPool[p.type].push(p); const i = pickups.indexOf(p); if (i >= 0) pickups.splice(i, 1); if (p.key) puChunks.delete(p.key); }
+// power-ups live at fixed spots across the WHOLE map: roughly every 3.5 food chunks there's a 45% chance of one
+function refreshPickups(G, radius, L) {
+  L = Math.min(L, 3);
+  const P = C0 * 2 ** L * 3.5, rng = Math.ceil(radius / P) + 1, ga = Math.floor(G.x / P), gb = Math.floor(G.y / P), gc = Math.floor(G.z / P);
+  const want = new Map(), lo = Math.floor(-ARENA / P) - 1, hi = Math.floor(ARENA / P) + 1;
+  for (let a = Math.max(lo, ga - rng); a <= Math.min(hi, ga + rng); a++) for (let b = Math.max(lo, gb - rng); b <= Math.min(hi, gb + rng); b++) for (let c = Math.max(lo, gc - rng); c <= Math.min(hi, gc + rng); c++) {
+    if (hash3(a * 3 + L, b * 5 - L, c * 7 + 11) > .45) continue;
+    const x = (a + .15 + .7 * hash3(a, b + 31, c)) * P, y = (b + .15 + .7 * hash3(b, c + 17, a)) * P, z = (c + .15 + .7 * hash3(c, a + 5, b)) * P;
+    if (x * x + y * y + z * z > ARENA * ARENA * .9) continue;
+    const dx = x - G.x, dy = y - G.y, dz = z - G.z; if (dx * dx + dy * dy + dz * dz > radius * radius) continue;
+    const key = L + '|' + a + ',' + b + ',' + c, t = puTaken.get(key);
+    if (t !== undefined) { if (now < t) continue; puTaken.delete(key); }
+    want.set(key, [x, y, z, pickType(hash3(c + 3, a - 9, b + L))]);
+  }
+  for (const [key, p] of [...puChunks]) if (!want.has(key)) dropPickup(p);
+  for (const [key, [x, y, z, type]] of want) if (!puChunks.has(key)) {
+    const p = getPickup(type); p.key = key; p.pos.set(x, y, z); puChunks.set(key, p); pickups.push(p);
   }
 }
 function updatePickups() {
   const on = playing && me && mainCell && me.cells.length;
-  if (!on) { for (const p of pickups) p.g.visible = false; return; }
-  const V = viewRadius(myR()), R = V * 1.5;
+  for (const p of pickups) p.g.visible = !!on;
+  if (!on) return;
+  const V = viewRadius(myR());
   const size = Math.max(4.5, mainCell.r * .24 + 3, ((camR || myR()) * 6.8 + 30) * .012);
-  if (!puInit) { for (const p of pickups) p.pos.set(1e9, 1e9, 1e9); for (const p of pickups) placePickup(p, false); puInit = true; }
-  while (pickups.length < PU_N) { const p = makePickup(); pickups.push(p); placePickup(p, true); }
   for (const p of [...pickups]) {
-    p.g.visible = true;
     const pd = ownDistJS(p.pos);
-    if (pd > R * 1.1 || p.pos.length() > ARENA) { placePickup(p, true); continue; }
     p.g.position.copy(p.pos); p.g.position.y += Math.sin(now * 2 + p.spin * 9) * size * .15;
     p.g.scale.setScalar(size); p.body.rotation.y += DT * 2 * p.spin; p.body.rotation.x = Math.sin(now + p.spin) * .4;
     p.ring.rotation.x = now * 1.3 * p.spin; p.ring.rotation.y = now * .7;
@@ -1451,8 +1576,8 @@ function updatePickups() {
     for (const cell of me.cells) {
       if (cell.pos.distanceTo(p.pos) < cell.r + size * 1.2) {
         collect(p.type, cell);
-        const t = pickType();
-        if (t !== p.type) { scene.remove(p.g); pickups.splice(pickups.indexOf(p), 1); } else { p.pos.set(1e9, 1e9, 1e9); placePickup(p, true); }
+        puTaken.set(p.key, now + rnd(40, 70));   // this spot's power-up comes back later
+        dropPickup(p);
         break;
       }
     }
@@ -1732,7 +1857,8 @@ let last = performance.now();
 const PROF = { sim: 0, food: 0, vis: 0, render: 0, n: 0 };
 function frame(t) {
   requestAnimationFrame(frame);
-  DT = clamp((t - last) / 1000, 0, .05); last = Math.max(last, t);   // never let time run backwards now += DT; U.time.value = now;
+  // never let time run backwards
+  DT = clamp((t - last) / 1000, 0, .05); last = Math.max(last, t); now += DT; U.time.value = now;
   let p0 = performance.now();
   if (playing && me) handleInput();
   for (const e of entities.values()) if (e.local) { if (e.kind === 'snack') { botThink(e); e.throttle *= .85; if (!e.cells.length) continue; } if (e.kind === 'bot') { botThink(e); if (e.cells.length === 0) continue; if (playing) botFire(e); e.cells.forEach(c => { if (!e.lev && c.mass < 1500) c.mass += DT * 2.5; }); } moveEntity(e); }
@@ -1762,7 +1888,7 @@ isHost = true; ensureBots();
 for (let i = 0; i < 60; i++) { DT = .05; now += DT; for (const e of entities.values()) if (e.local) { botThink(e); moveEntity(e); } interactions(); }
 requestAnimationFrame(frame);
 if (params.has('offline')) { net.status = 'offline'; updateNetUI(); } else initNet();
-window.__orb = { PU, pickups, fireRocket, get rockets() { return rockets; }, worldWon, frame: t => frame(t), PROF, dbg: { bloom, composer, renderer, scene, sky, shell, food, U }, entities, net, get me() { return me; }, get mainCell() { return mainCell; }, split: () => split(me, fwd), spawnMe };
+window.__orb = { chunks, get foodLevel() { return foodLevel; }, foodAlive, foodPos, FOOD_N, PU, pickups, fireRocket, get rockets() { return rockets; }, worldWon, frame: t => frame(t), PROF, dbg: { bloom, composer, renderer, scene, sky, shell, food, U }, entities, net, get me() { return me; }, get mainCell() { return mainCell; }, split: () => split(me, fwd), spawnMe };
 </script>
 </body>
 </html>
