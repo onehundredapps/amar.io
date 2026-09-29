@@ -281,7 +281,7 @@ const params = new URLSearchParams(location.search);
 const V3 = THREE.Vector3;
 const rad = m => 1.5 * Math.sqrt(m);
 // agar.io speed: 2.2 * size^-0.439 * 40 per tick at 25 ticks/s, with agar size = 10*sqrt(mass); our radius = 1.5*sqrt(mass)
-const speedOf = m => 180 * Math.pow(m, -0.2195);
+const speedOf = m => 360 * Math.pow(m, -0.2195);
 const viewRadius = r => 560 + r * 14;
 const myR = () => (me && me.cells.length ? rad(me.mass) : 5);   // radius of your TOTAL mass   // fog-of-war: how far you can see, grows with you
 const KILL_BONUS = 2;   // players gain 2× the mass of any ball they eat
@@ -456,7 +456,7 @@ const shell = new THREE.Mesh(new THREE.SphereGeometry(ARENA, 96, 64), shellMat);
 shell.frustumCulled = false; scene.add(shell);
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
-const FOOD_N = IS_TOUCH ? 3400 : 6200;
+const FOOD_N = IS_TOUCH ? 5500 : 12000;
 const CL_N = 0;   // clusters disabled: classic evenly-spread agar pellets
 const LOOSE_N = FOOD_N;
 const PER_CL = 0;
@@ -1007,6 +1007,7 @@ function updateFood() {
   const botCells = [];
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < R + bc.r) { bc.fg = 0; botCells.push(bc); }
   const T = foodT, sc = Math.sqrt(T / 750), valK = 1 + myR() / 30;
+  const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
   foodMat.uniforms.uFar.value = R;
   // keep every ball supplied: each frame a few faint, far-off pellets get re-seeded evenly around all your balls
   if (me.cells.length > 1) for (let q = 0, n = Math.ceil(FOOD_N / 40); q < n; q++) {
@@ -1015,22 +1016,27 @@ function updateFood() {
   }
   const arr = food.instanceMatrix.array, cells = me.cells, A2 = ARENA * ARENA;
   let ate = 0, lastCell = null;
+  // bounding sphere of all your balls: most pellets are far away and only need one distance check
+  let gx = 0, gy = 0, gz = 0, tm = 0, gR = 0, maxReach = 0;
+  for (const cc of cells) { gx += cc.pos.x * cc.mass; gy += cc.pos.y * cc.mass; gz += cc.pos.z * cc.mass; tm += cc.mass; }
+  gx /= tm; gy /= tm; gz /= tm;
+  for (const cc of cells) { const dx = cc.pos.x - gx, dy = cc.pos.y - gy, dz = cc.pos.z - gz; gR = Math.max(gR, Math.sqrt(dx * dx + dy * dy + dz * dz) + cc.rr); maxReach = Math.max(maxReach, cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10); }
   for (let i = 0; i < FOOD_N; i++) {
     const j = i * 3;
     let x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
     // new pellets grow in over 0.6s, never pop
-    let s = foodSize[i] * sc * Math.min(1, (now - foodBorn[i]) / .6), dmin = 1e18, hit = null, hd = 0, hx = 0, hy = 0, hz = 0, reach = 0;
-    for (let k = 0; k < cells.length; k++) {
+    let s = foodSize[i] * pk * Math.min(1, (now - foodBorn[i]) / .6), hit = null, hd = 0, hx = 0, hy = 0, hz = 0, reach = 0;
+    const ex = x - gx, ey = y - gy, ez = z - gz, dG = Math.sqrt(ex * ex + ey * ey + ez * ez);
+    if (dG < gR + maxReach) for (let k = 0; k < cells.length; k++) {
       const cc = cells[k], dx = cc.pos.x - x, dy = cc.pos.y - y, dz = cc.pos.z - z, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (d - cc.rr < dmin) dmin = d - cc.rr;
       const rc = cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10;
-      if (!hit && d < rc) { hit = cc; hd = d; hx = dx; hy = dy; hz = dz; reach = rc; }
+      if (d < rc) { hit = cc; hd = d; hx = dx; hy = dy; hz = dz; reach = rc; break; }
     }
-    if (dmin > R || x * x + y * y + z * z > A2) {           // drifted out of every ball's field: re-seed near one of them
+    if (dG - gR > R || x * x + y * y + z * z > A2) {           // drifted out of every ball's field: re-seed near one of them
       respawnNear(i, R, true); x = foodPos[j]; y = foodPos[j + 1]; z = foodPos[j + 2];
     } else if (hit) {
       if (hd < hit.r + s * .5 && hit.fg < hit.mass * 1.2 * DT + 60) {   // safety: food can't add more than ~120%/s
-        const gain = foodVal[i] * valK * (now < PU.roidsUntil ? 4 : 1); hit.fg += gain;
+        const gain = Math.min(foodVal[i] * valK, hit.mass * .1 + .6) * (now < PU.roidsUntil ? 4 : 1); hit.fg += gain;   // ≤ ~15% per orb when tiny, like agar
         hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 1 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
@@ -1406,7 +1412,7 @@ for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; PU_LABEL[k] = t;
 }
 const pickups = [];
-const PU_N = IS_TOUCH ? 10 : 14;
+const PU_N = IS_TOUCH ? 16 : 24;
 function pickType() { const r = Math.random(); let a = 0; for (const [k, t] of Object.entries(PU_TYPES)) { a += t.w; if (r < a) return k; } return 'nitro'; }
 function makePickup() {
   const type = pickType(), t = PU_TYPES[type], g = new THREE.Group();
@@ -1419,7 +1425,7 @@ function makePickup() {
 let puInit = false;
 // power-ups are spread evenly around your balls with a minimum gap between them (no bunches)
 function placePickup(p, far) {
-  const V = viewRadius(myR()), R = V * 1.5, gap = V * .5;
+  const V = viewRadius(myR()), R = V * 1.5, gap = V * .42;
   for (let k = 0; k < 30; k++) {
     const c = me.cells[(Math.random() * me.cells.length) | 0].pos;
     randUnit(p.pos).multiplyScalar(far ? R * rnd(.75, 1) : R * Math.cbrt(Math.random())).add(c);
@@ -1431,7 +1437,7 @@ function updatePickups() {
   const on = playing && me && mainCell && me.cells.length;
   if (!on) { for (const p of pickups) p.g.visible = false; return; }
   const V = viewRadius(myR()), R = V * 1.5;
-  const size = Math.max(4.5, mainCell.r * .24 + 3);
+  const size = Math.max(4.5, mainCell.r * .24 + 3, ((camR || myR()) * 6.8 + 30) * .012);
   if (!puInit) { for (const p of pickups) p.pos.set(1e9, 1e9, 1e9); for (const p of pickups) placePickup(p, false); puInit = true; }
   while (pickups.length < PU_N) { const p = makePickup(); pickups.push(p); placePickup(p, true); }
   for (const p of [...pickups]) {
