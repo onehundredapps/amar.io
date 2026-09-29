@@ -5,8 +5,9 @@ agar.io in full 3D. Fly any direction, split, devour, and grow into a colossal s
 **Play:** https://onehundredapps.github.io/amar.io/
 
 - Instant browser multiplayer (peer-to-peer WebRTC, no server), with AI bots so every lobby is alive
-- Arrow keys steer · Shift boost · R rocket · Space split · F eject · S brake · H hide HUD
-- Power-ups: NITRO boost (hold Shift), GROWTH ×4, ROCKETS that shatter targets. Bots fire rockets too.
+- Arrow keys steer · Space split · F eject · S brake · H hide HUD
+- Orbs and GROWTH ×4 power-ups fill the entire map, edge to edge
+- Big balls stay fast: speed scales with your size, so a giant crosses the screen as quickly as a speck
 - Grow one ball as big as the whole cage to win: the world resets
 - Works on phones (touch stick + buttons)
 
