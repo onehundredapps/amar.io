@@ -281,8 +281,9 @@ const params = new URLSearchParams(location.search);
 const V3 = THREE.Vector3;
 const rad = m => 1.5 * Math.sqrt(m);
 // agar.io speed: 2.2 * size^-0.439 * 40 per tick at 25 ticks/s, with agar size = 10*sqrt(mass); our radius = 1.5*sqrt(mass)
-const speedOf = m => 120 * Math.pow(m, -0.2195);
-const viewRadius = r => 560 + r * 14;   // fog-of-war: how far you can see, grows with you
+const speedOf = m => 180 * Math.pow(m, -0.2195);
+const viewRadius = r => 560 + r * 14;
+const myR = () => (me && me.cells.length ? rad(me.mass) : 5);   // radius of your TOTAL mass   // fog-of-war: how far you can see, grows with you
 const KILL_BONUS = 2;   // players gain 2× the mass of any ball they eat
 const mergeTime = m => 8 + Math.min(22, Math.sqrt(m) * 0.12);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -468,9 +469,9 @@ const foodMat = new THREE.ShaderMaterial({
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
       float dc = length(cameraPosition - c);
       float od = ownDist(c);
-      vFade = exp(-od / (uViewR*.5));
+      vFade = 1. - smoothstep(uViewR*.5, uViewR*.97, od);
       float s = (1. + .25*sin(uTime*3.5 + c.x*.13 + c.y*.07 + c.z*.05)) * (1. - smoothstep(uFar*.85, uFar, od));   // grow in/out at the edge of the field around your balls
-      s *= smoothstep(.1, .3, vFade);
+      s *= smoothstep(.0, .25, vFade);
       vec4 w = modelMatrix*instanceMatrix*vec4(position,1.); w.xyz = c + (w.xyz-c)*s;
       vW = w.xyz; vC = instanceColor; vN = normalize(mat3(modelMatrix*instanceMatrix)*normal);
       gl_Position = projectionMatrix*viewMatrix*w; }`,
@@ -531,7 +532,7 @@ function respawnNear(i, R, far) {
     if (Math.random() < richness(_fp.x, _fp.y, _fp.z)) break;
   }
   foodPos[i * 3] = _fp.x; foodPos[i * 3 + 1] = _fp.y; foodPos[i * 3 + 2] = _fp.z; foodAlive[i] = 1; foodBorn[i] = far ? now : -9;
-  const big = Math.random() < .05; foodSize[i] = big ? 4.2 : rnd(2, 2.8); foodVal[i] = big ? 76 : 20; foodHue[i] = Math.random(); setFoodColor(i, foodHue[i]);
+  const big = Math.random() < .05; foodSize[i] = big ? 4.2 : rnd(2, 2.8); foodVal[i] = big ? 45 : 12; foodHue[i] = Math.random(); setFoodColor(i, foodHue[i]);
 }
 function respawnLoose(i, cx, cy, cz, T, far) {
   let p;
@@ -540,7 +541,7 @@ function respawnLoose(i, cx, cy, cz, T, far) {
     if (Math.random() < richness(p.x, p.y, p.z)) break;
   }
   foodPos[i * 3] = p.x; foodPos[i * 3 + 1] = p.y; foodPos[i * 3 + 2] = p.z; foodAlive[i] = 1;
-  const big = Math.random() < .05; foodSize[i] = big ? 4.2 : rnd(2, 2.8); foodVal[i] = big ? 76 : 20; foodHue[i] = Math.random(); setFoodColor(i, foodHue[i]);
+  const big = Math.random() < .05; foodSize[i] = big ? 4.2 : rnd(2, 2.8); foodVal[i] = big ? 45 : 12; foodHue[i] = Math.random(); setFoodColor(i, foodHue[i]);
 }
 const _fp = new V3();
 const _fq = new V3();
@@ -741,7 +742,7 @@ function botThink(E) {
   E.throttle = 1;
   // look for orbs: bots inside a player's food field hunt the nearest pellet (sampled for speed)
   let orb = null;
-  if (!threat && foodInit && playing && me && mainCell && me.cells.length && ownDistJS(m.pos) < viewRadius(mainCell.r)) {
+  if (!threat && foodInit && playing && me && mainCell && me.cells.length && ownDistJS(m.pos) < viewRadius(myR())) {
     const lim = m.r * 10 + 300; let bd = lim * lim;
     for (let i = 0; i < FOOD_N; i++) {             // true nearest orb (cheap box reject first)
       const dx = foodPos[i * 3] - m.pos.x; if (dx > lim || dx < -lim) continue;
@@ -988,17 +989,15 @@ function updateFood() {
   const on = playing && me && mainCell && me.cells.length;
   food.visible = !!on; for (const cl of clusters) cl.spr.visible = false;
   if (!on) return;
-  const R = viewRadius(mainCell.r);                        // food field radius around EACH of your balls
+  const R = viewRadius(myR());                        // food field radius around EACH of your balls
   const want = clamp(R * 2.1, 900, 20000);
   foodT += (want - foodT) * Math.min(1, DT * .6);
   if (!foodInit) { foodT = want; for (let i = 0; i < FOOD_N; i++) respawnNear(i, R, false); foodInit = true; foodR = R; }
   else if (Math.abs(R / foodR - 1) > .0005) {
     // the field grows with you: spread every pellet outward from its nearest ball so density drops as you grow
-    const k = R / foodR, cs = me.cells;
+    const k = R / foodR, best = mainCell.pos;
     for (let i = 0; i < FOOD_N; i++) {
       const j = i * 3, x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
-      let best = cs[0].pos, bd = 1e30;
-      for (const cc of cs) { const dx = cc.pos.x - x, dy = cc.pos.y - y, dz = cc.pos.z - z, d = dx * dx + dy * dy + dz * dz; if (d < bd) { bd = d; best = cc.pos; } }
       foodPos[j] = best.x + (x - best.x) * k; foodPos[j + 1] = best.y + (y - best.y) * k; foodPos[j + 2] = best.z + (z - best.z) * k;
     }
     foodR = R;
@@ -1007,7 +1006,7 @@ function updateFood() {
   // bot balls inside your food field can eat pellets too
   const botCells = [];
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < R + bc.r) { bc.fg = 0; botCells.push(bc); }
-  const T = foodT, sc = Math.sqrt(T / 750), valK = 1 + mainCell.r / 30;
+  const T = foodT, sc = Math.sqrt(T / 750), valK = 1 + myR() / 30;
   foodMat.uniforms.uFar.value = R;
   // keep every ball supplied: each frame a few faint, far-off pellets get re-seeded evenly around all your balls
   if (me.cells.length > 1) for (let q = 0, n = Math.ceil(FOOD_N / 40); q < n; q++) {
@@ -1264,7 +1263,7 @@ function drawMarks() {
 function drawRadar() {
   const g = radarCtx, W = 300, C = W / 2; g.clearRect(0, 0, W, W);
   if (!mainCell) return;
-  const range = viewRadius(mainCell.r);
+  const range = viewRadius(myR());
   g.strokeStyle = 'rgba(140,170,255,.25)'; g.lineWidth = 2;
   for (const f of [1, .66, .33]) { g.beginPath(); g.arc(C, C, C * f - 4, 0, 7); g.stroke(); }
   g.beginPath(); g.moveTo(C, 8); g.lineTo(C, W - 8); g.moveTo(8, C); g.lineTo(W - 8, C); g.stroke();
@@ -1292,7 +1291,7 @@ function drawRadar() {
 
 /* ============================== CAMERA ============================== */
 const camPos = new V3(0, 0, 900), camQ = new THREE.Quaternion(), _m4 = new THREE.Matrix4(), _look = new V3(), _des = new V3(), _dq = new THREE.Quaternion();
-const _grp = new V3(), camLook = new V3(), _cq = new THREE.Quaternion(), _cf = new V3(), _cu = new V3(); let camR = 0, camExtra = 0, camTilt = .18;
+const _grp = new V3(), camLook = new V3(), _cq = new THREE.Quaternion(), _cf = new V3(), _cu = new V3(); const camP = new V3(); let camR = 0, camExtra = 0, camTilt = .18;
 let attractAng = 0, attractTarget = null, deathCam = null;
 function pickMain() {
   if (!me || !me.cells.length) return;
@@ -1302,8 +1301,10 @@ function pickMain() {
 function updateCamera() {
   const k = 1 - Math.exp(-DT * 8);
   if (playing && mainCell) {
-    const P = mainCell.pos;
-    camR = camR > 0 ? camR + (mainCell.rr - camR) * (1 - Math.exp(-DT * 1.8)) : mainCell.rr; const r = camR;
+    // follow a smoothed position (split pieces bumping your main ball no longer shake the view) and zoom by your total size
+    if (camR <= 0) camP.copy(mainCell.pos); else camP.lerp(mainCell.pos, 1 - Math.exp(-DT * 9));
+    const P = camP;
+    camR = camR > 0 ? camR + (myR() - camR) * (1 - Math.exp(-DT * 1.5)) : myR(); const r = camR;
     // chase-cam: view trails your heading by a beat, and leans a few degrees into turns
     const ck = 1 - Math.exp(-DT * 6);
     camYaw += angDiff(yaw, camYaw) * ck; camPitch += (pitch - camPitch) * ck;
@@ -1370,7 +1371,7 @@ function updateVisuals() {
     }
   }
   { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
-  const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(pr) : 1e5; if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
+  const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) : 1e5; if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
   shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr;
   sky.position.copy(camera.position);
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
@@ -1418,7 +1419,7 @@ function makePickup() {
 let puInit = false;
 // power-ups are spread evenly around your balls with a minimum gap between them (no bunches)
 function placePickup(p, far) {
-  const V = viewRadius(mainCell.r), R = V * 1.5, gap = V * .5;
+  const V = viewRadius(myR()), R = V * 1.5, gap = V * .5;
   for (let k = 0; k < 30; k++) {
     const c = me.cells[(Math.random() * me.cells.length) | 0].pos;
     randUnit(p.pos).multiplyScalar(far ? R * rnd(.75, 1) : R * Math.cbrt(Math.random())).add(c);
@@ -1429,7 +1430,7 @@ function placePickup(p, far) {
 function updatePickups() {
   const on = playing && me && mainCell && me.cells.length;
   if (!on) { for (const p of pickups) p.g.visible = false; return; }
-  const V = viewRadius(mainCell.r), R = V * 1.5;
+  const V = viewRadius(myR()), R = V * 1.5;
   const size = Math.max(4.5, mainCell.r * .24 + 3);
   if (!puInit) { for (const p of pickups) p.pos.set(1e9, 1e9, 1e9); for (const p of pickups) placePickup(p, false); puInit = true; }
   while (pickups.length < PU_N) { const p = makePickup(); pickups.push(p); placePickup(p, true); }
@@ -1491,7 +1492,7 @@ function updateRockets() {
         if (hit.ent.local) shatter(hit); else { try { act?.hit.send({ t: hit.id }, hit.ent.owner); } catch { } }
         if (hit.ent === me) { sfx('boom'); fovKick = 12; feed(`<b style="color:#ff5c7a">HIT!</b> ${escapeHtml(r.owner?.name || 'someone')} rocketed you`); }
         else if (r.owner === me) { sfx('boom'); feed(`<b style="color:#ff5c7a">DIRECT HIT</b> · ${escapeHtml(hit.ent.name)} shattered`); }
-        else if (mainCell && hit.pos.distanceTo(mainCell.pos) < viewRadius(mainCell.r)) sfx('boom');
+        else if (mainCell && hit.pos.distanceTo(mainCell.pos) < viewRadius(myR())) sfx('boom');
       }
       scene.remove(r.m); killPlume(r.fx); rockets.splice(i, 1);
     }
@@ -1528,7 +1529,7 @@ function botFire(E) {
   const s = Math.max(4, m.r * .22);
   const mesh = new THREE.Mesh(PU_TYPES.rocket.geo, ROCKET_MAT); scene.add(mesh);
   rockets.push({ m: mesh, pos: m.pos.clone().addScaledVector(dir, m.r + s * 2), vel: dir.clone().multiplyScalar(300 + m.r * 2), born: now, s, owner: E, homing: false, fx: makePlume() });
-  if (mainCell && playing && m.pos.distanceTo(mainCell.pos) < viewRadius(mainCell.r) * .6) sfx('fire');
+  if (mainCell && playing && m.pos.distanceTo(mainCell.pos) < viewRadius(myR()) * .6) sfx('fire');
 }
 // ---- rocket-engine boost: Falcon-style orange plume with a Raptor-blue core, shock diamonds, turbulence, glow ----
 // plume profile: nozzle -> bulge -> long tapering column (not a candle teardrop)
