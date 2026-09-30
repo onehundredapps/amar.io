@@ -280,9 +280,9 @@ const params = new URLSearchParams(location.search);
 /* ============================== UTILS ============================== */
 const V3 = THREE.Vector3;
 const rad = m => 1.5 * Math.sqrt(m);
-// big balls move across the screen about as fast as small ones: speed grows with the camera distance for that size
-const SPEED_GROW = .9;
-const speedOf = m => 217 * Math.pow(Math.max(1, (rad(m) * 6.8 + 30) / 62.3), SPEED_GROW);
+// agar.io speed 1:1 — agar moves a cell 2.2·size^-0.439·40 units per tick at 25 ticks/s, with agar size = 10·sqrt(mass);
+// our radius is 1.5·sqrt(mass) (0.15× agar units), so that's 120·mass^-0.2195 of our units per second
+const speedOf = m => 120 * Math.pow(m, -0.2195);
 const BOOST_ON = false, ROCKETS_ON = false;   // nitro + rockets switched off for now
 const viewRadius = r => 560 + r * 14;
 const myR = () => (me && me.cells.length ? rad(me.mass) : 5);   // radius of your TOTAL mass   // fog-of-war: how far you can see, grows with you
@@ -854,13 +854,13 @@ function botThink(E) {
     if (m.pos.length() > ARENA * .6) E.wanderDir.lerp(_t.copy(m.pos).negate().normalize(), .5).normalize();
     E.dir.lerp(E.wanderDir, .08).normalize(); return;
   }
-  const sense = m.r * 8 + 170; let threat = false, best = null, bestE = null, bestS = 0; _flee.set(0, 0, 0);
+  const sense = m.r * 8 + 170; let threat = false, best = null, bestS = 0; _flee.set(0, 0, 0);
   for (const e of entities.values()) {
     if (e === E) continue;
     for (const c of e.cells) {
       const d = c.pos.distanceTo(m.pos) - c.r - m.r; if (d > sense) continue;
       if (c.mass > m.mass * 1.25) { threat = true; _flee.addScaledVector(_t.subVectors(m.pos, c.pos).normalize(), 1 / Math.max(4, d)); }
-      else if (c.mass * 1.3 < m.mass) { const s = c.mass / (Math.max(1, d) + 30) * (e.kind === 'bot' ? 1 : 1.6); if (s > bestS) { bestS = s; best = c; bestE = e; } }
+      else if (c.mass * 1.3 < m.mass) { const s = c.mass / (Math.max(1, d) + 30) * (e.kind === 'bot' ? 1 : 1.6); if (s > bestS) { bestS = s; best = c; } }
     }
   }
   E.throttle = 1;
@@ -881,7 +881,6 @@ function botThink(E) {
   else if (orb !== null && !bestClose) E.dir.lerp(_t.set(foodPos[orb * 3] - m.pos.x, foodPos[orb * 3 + 1] - m.pos.y, foodPos[orb * 3 + 2] - m.pos.z).normalize(), .8).normalize();
   else if (best) {
     E.dir.subVectors(best.pos, m.pos).normalize();
-    E.throttle = Math.min(1, speedOf(bestE.mass) * 1.15 / speedOf(E.mass));   // chase only a bit faster than the prey
     const d = best.pos.distanceTo(m.pos);
     if (E.aggr && best.mass * 2.7 < m.mass && d < m.r * 3.5 + 40 && E.cells.length < 4 && m.mass >= 36 && Math.random() < .3) split(E, E.dir);
   } else {
@@ -923,10 +922,10 @@ function eject(E, dir) {
 }
 function moveEntity(E) {
   const m = E === me && mainCell && !mainCell.dead ? mainCell : E.main(); if (!m) return;
-  const aim = _t2.copy(m.pos).addScaledVector(E.dir, m.r * 6 + 60), es = speedOf(E.mass) * E.throttle;   // all your pieces move at your size's speed
+  const aim = _t2.copy(m.pos).addScaledVector(E.dir, m.r * 6 + 60);
   for (const c of E.cells) {
     const to = _t.subVectors(aim, c.pos); const d = to.length();
-    const sp = es * Math.min(1, d / (c.r + 10) + .35);
+    const sp = speedOf(c.mass) * E.throttle * Math.min(1, d / (c.r + 10) + .35);
     if (d > .001) c.pos.addScaledVector(to, sp * DT / d);
     c.pos.addScaledVector(c.vel, DT); c.vel.multiplyScalar(Math.exp(-3 * DT));
     const L = c.pos.length(), lim = ARENA - c.r * .4;
