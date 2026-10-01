@@ -193,7 +193,6 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   </div>
   <div class="side">
     <a class="donate glass" id="donate" target="_blank" rel="noopener">❤ Support the game</a>
-    <div class="credit">Built entirely by <b>Claude Opus 5.5</b><br><span id="challenge"></span></div>
   </div>
 </div>
 
@@ -286,7 +285,7 @@ const speedOf = m => 132 * Math.pow(m, -0.2195);
 const BOOST_ON = false, ROCKETS_ON = false;   // nitro + rockets switched off for now
 const viewRadius = r => 560 + r * 14;
 const myR = () => (me && me.cells.length ? rad(me.mass) : 5);   // radius of your TOTAL mass   // fog-of-war: how far you can see, grows with you
-const KILL_BONUS = 2;   // players gain 2× the mass of any ball they eat
+const KILL_BONUS = 1.5;   // players gain 1.5× the mass of any ball they eat (snacks: 1×)
 const mergeTime = m => 8 + Math.min(22, Math.sqrt(m) * 0.12);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -851,7 +850,7 @@ function spawnBot(lev = false) {
   const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length);
   if (!lev && humans.length && Math.random() < .75) {
     const h = humans[Math.floor(Math.random() * humans.length)], hm = h.main();
-    const k = Math.random(); m = clamp(h.mass * (k < .4 ? rnd(.25, .7) : k < .8 ? rnd(1.4, 3) : rnd(3, 6)), 10, BOT_MAX);
+    const k = Math.random(); m = clamp(h.mass * (k < .4 ? rnd(.15, .5) : k < .8 ? rnd(1.4, 3) : rnd(3, 6)), 10, BOT_MAX);
     pos = hm.pos.clone().addScaledVector(randUnit(), viewRadius(hm.r) * 1.15 + rad(m) + rnd(50, 400));
     if (pos.length() > ARENA * .95) pos.setLength(ARENA * .9);
     e.anchor = hm;   // drifts toward this player and creeps into view
@@ -898,7 +897,7 @@ function ensureSnacks() {
     const p = new V3().copy(mainCell.pos).addScaledVector(randUnit(), viewRadius(r) * 1.1 + rnd(50, 300));
     e.anchor = mainCell;
     if (p.length() > ARENA * .95) p.setLength(ARENA * .9);
-    addCell(e, p, clamp(my * rnd(.05, .3), 3, 60 + my * .04));
+    addCell(e, p, clamp(my * rnd(.03, .12), 3, 30 + my * .02));
   }
 }
 function gatherBots() {   // on (re)spawn: bring the crowd to you, just outside your fog, so they drift into view
@@ -1169,7 +1168,7 @@ function interactions() {
   for (const [a, b] of eaten) {
     const victim = a.ent;
     removeCell(a);
-    if (b.ent.local && !b.dead) { b.mass += a.mass * (b.ent === me ? KILL_BONUS : 1); b.r = rad(b.mass); b.pulse = 1; }
+    if (b.ent.local && !b.dead) { b.mass += a.mass * (b.ent === me && victim.kind !== 'snack' ? KILL_BONUS : 1); b.r = rad(b.mass); b.pulse = 1; }
     if (b.ent === me) { burst(a.pos.x, a.pos.y, a.pos.z, victim.color, clamp(Math.round(20 + a.r * 2), 20, 120), b, 40 + a.r * 4, Math.max(1.2, a.r * .25)); }
     else if (!b.ent.local) netEat(b.ent.owner, { t: b.id, m: Math.round(a.mass), v: victim.name, k: victim.cells.length === 0 ? 1 : 0 });
     if (b.ent === me) onMeAte(victim, victim.cells.length === 0);
@@ -1218,7 +1217,10 @@ function updateFood() {
   if (fillIdx < fillOrder.length) fillChunks(firstFill ? 12 : 2.5);
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
   foodMat.uniforms.uFar.value = V;
-  for (const cc of cells) cc.fg = 0;   // food gained this frame, per ball (safety cap)
+  // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
+  // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
+  const gRate = (.22 * Math.pow(tm, .7) + 1) * (now < PU.roidsUntil ? 4 : 1);
+  me.allow = Math.min((me.allow || 0) + gRate * DT, gRate * 1.5 + 4);
   botGrid.clear();
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < V + bc.r) {
     bc.fg = 0; const br = bc.r * 1.4 + 6, p = bc.pos;
@@ -1241,8 +1243,8 @@ function updateFood() {
       if (d < rc) { hit = cc; hd = d; hx = dx; hy = dy; hz = dz; reach = rc; break; }
     }
     if (hit) {
-      if (hd < hit.r + s * .5 && hit.fg < hit.mass * 1.2 * DT + 60) {
-        const gain = Math.min(foodVal[i] * valK, hit.mass * .1 + .6) * (now < PU.roidsUntil ? 4 : 1); hit.fg += gain;   // ≤ ~15% per orb when tiny, like agar
+      if (hd < hit.r + s * .5 && me.allow > 0) {
+        const gain = Math.min(Math.min(foodVal[i] * valK, hit.mass * .05 + .5) * (now < PU.roidsUntil ? 4 : 1), me.allow); me.allow -= gain;   // ≤ ~5–9% per orb when tiny
         hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 12 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
@@ -1942,7 +1944,6 @@ $('toHome').addEventListener('click', () => { death.classList.add('hidden'); hom
 // monetization links
 $('donate').href = $('donate2').href = CFG.DONATE_URL;
 if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden'); $('donate2').classList.add('hidden'); }   // no real link yet
-$('challenge').textContent = CFG.CHALLENGE;
 if (params.has('og')) document.body.classList.add('og');
 if (params.has('clean')) document.body.classList.add('clean');
 if (IS_TOUCH) $('keysHelp').innerHTML = 'Left stick steers · <b>SPLIT</b> to attack · <b>EJECT</b> to feed';
