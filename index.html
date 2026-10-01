@@ -116,6 +116,10 @@ body.touch #boostTip{bottom:auto;top:120px}
 #cross{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
   border:1.5px solid rgba(255,255,255,.55);box-shadow:0 0 8px rgba(57,243,255,.6)}
 #cross::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px;border-radius:50%;background:#fff}
+#chatIn{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);width:min(520px,88vw);padding:12px 16px;border-radius:14px;
+  font:600 16px Outfit,Inter,system-ui,sans-serif;color:var(--text);background:rgba(10,12,28,.82);border:1px solid rgba(140,170,255,.35);outline:none;pointer-events:auto}
+#chatIn.hidden{display:none}
+body.touch #chatIn{bottom:auto;top:70px}
 #hint{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--muted);padding:8px 14px;white-space:nowrap;transition:opacity 1s}
 #toast{position:absolute;top:34%;left:50%;transform:translate(-50%,-50%);font:900 clamp(28px,6vw,56px) Outfit,sans-serif;letter-spacing:.14em;
   background:linear-gradient(100deg,var(--a),var(--b),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;
@@ -181,13 +185,14 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <input id="name" type="text" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false">
     <div class="row swatches" id="swatches"></div>
     <div class="opts">
+      <label><input type="checkbox" id="optMouse" checked> Mouse steer</label>
       <label><input type="checkbox" id="optInvert"> Invert Y</label>
       <label><input type="checkbox" id="optSound" checked> Sound</label>
     </div>
     <button id="play">PLAY</button>
     <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
     <div class="keys" id="keysHelp">
-      <kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject<br>
+      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>Enter</kbd> chat<br>
       <kbd>S</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
     </div>
   </div>
@@ -204,19 +209,20 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <div id="puTxt"></div>
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
-  <div id="radarWrap" class="glass"><canvas id="radar" width="300" height="300"></canvas></div>
+  <div id="radarWrap" class="glass" style="display:none"><canvas id="radar" width="300" height="300"></canvas></div>
   <div id="feed"></div>
   <canvas id="marks"></canvas>
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>S</kbd> brake</div>
+  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>Enter</kbd> chat</div>
+  <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
 <div id="touch" class="hidden">
   <div id="stick"><div id="knob"></div></div>
   <div class="tbtns">
-    <div class="tbrow"><button class="tb sm" id="tBrake">BRAKE</button><button class="tb sm" id="tEject">EJECT</button></div>
+    <div class="tbrow"><button class="tb sm" id="tChat">CHAT</button><button class="tb sm" id="tBrake">BRAKE</button><button class="tb sm" id="tEject">EJECT</button></div>
     <div class="tbrow" style="display:none"><button class="tb" id="tFire">FIRE</button><button class="tb" id="tBoost">BOOST</button></div>
     <button class="tb big" id="tSplit">SPLIT</button>
   </div>
@@ -831,7 +837,7 @@ function removeCell(c) {
   c.dead = true; scene.remove(c.mesh); scene.remove(c.label); c.mesh.material.dispose(); c.label.material.dispose();
   const a = c.ent.cells; const i = a.indexOf(c); if (i >= 0) a.splice(i, 1); cellById.delete(c.id);
 }
-function removeEntity(e) { for (const c of [...e.cells]) removeCell(c); e.labelTex.dispose(); entities.delete(e.id); }
+function removeEntity(e) { for (const c of [...e.cells]) removeCell(c); e.labelTex.dispose(); dropChat(e); entities.delete(e.id); }
 
 /* ============================== BOTS (simulated by lobby host) ============================== */
 const BOT_NAMES = ['Nucleus', 'Blobfather', 'Mitochondria', 'xX_Orb_Xx', 'Plasma', 'Gloop', 'Photon', 'Axolotl', 'Nebula', 'Bubbles', 'Quasar', 'Jellyfish',
@@ -1040,18 +1046,27 @@ function moveEntity(E) {
 let me = null, playing = false, mainCell = null, zoom = 1, fovKick = 0;
 const orient = new THREE.Quaternion();
 const stats = { peak: 0, eaten: 0, start: 0, peakTier: 0, killer: '' };
-const opts = { level: true, invert: false, sound: true };
+const opts = { level: true, invert: false, sound: true, mouse: true };
 const AX = { X: new V3(1, 0, 0), Y: new V3(0, 1, 0), Z: new V3(0, 0, -1) };
 const _q = new THREE.Quaternion();
-// Heading = yaw (around world-up) + pitch (clamped just short of straight up/down). No roll ever, so the horizon
-// stays put and nothing gets disorienting — yet you can still fly in any direction in 3D.
-let yaw = 0, pitch = 0, yawVel = 0, pitchVel = 0, camYaw = 0, camPitch = 0, bank = 0;
+// Heading turns freely about your own axes: no limit up or down, you can loop right over the top. While you're
+// upright, stray roll is gently leveled out so the horizon stays calm.
+let yaw = 0, pitch = 0, yawVel = 0, pitchVel = 0, bank = 0;
+const camO = new THREE.Quaternion(), _lv = new V3(), _lc = new V3(), _bq = new THREE.Quaternion(), ROLL_AX = new V3(0, 0, 1);
+const mouse = { x: 0, y: 0, in: false };
 const PITCH_LIM = 1.45, _eul = new THREE.Euler();
 const angDiff = (a, b) => ((a - b + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 function setHeading() { orient.setFromEuler(_eul.set(pitch, yaw, 0, 'YXZ')); updateBasis(); }
 function rotLocal(axis, ang) { _q.setFromAxisAngle(axis, ang); orient.multiply(_q).normalize(); }
 const fwd = new V3(0, 0, -1), upv = new V3(0, 1, 0), right = new V3(1, 0, 0);
 function updateBasis() { fwd.set(0, 0, -1).applyQuaternion(orient); upv.set(0, 1, 0).applyQuaternion(orient); right.set(1, 0, 0).applyQuaternion(orient); }
+function levelRoll(dt) {   // upside-down (mid-loop) is left alone
+  updateBasis();
+  const fy = fwd.y; if (Math.abs(fy) > .95 || upv.y <= 0) return;
+  _lv.set(0, 1, 0).addScaledVector(fwd, -fy).normalize();
+  const ang = Math.atan2(_lc.crossVectors(upv, _lv).dot(fwd), upv.dot(_lv));
+  rotLocal(AX.Z, ang * (1 - Math.exp(-dt * 2.5)));
+}
 
 function spawnMe(name, hue, forceMass) {
   camR = 0;
@@ -1072,7 +1087,7 @@ function spawnMe(name, hue, forceMass) {
   const target = new V3();
   if (nearL) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
   const dd = new V3().subVectors(target, p).normalize();
-  yaw = camYaw = Math.atan2(-dd.x, -dd.z); pitch = camPitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading();
+  yaw = Math.atan2(-dd.x, -dd.z); pitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading(); camO.copy(orient);
   Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, boosting: false, used: false });
   playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
   foodInit = false; resetWorldFood();
@@ -1084,7 +1099,9 @@ let locked = false, mouseX = innerWidth / 2, mouseY = innerHeight / 2;
 const stick = { x: 0, y: 0, id: null };
 let brakeHeld = false;
 addEventListener('keydown', e => {
+  if (chatOpen) return;   // typing a chat message: keys don't steer
   if (document.activeElement?.tagName === 'INPUT') { if (e.code === 'Enter') startGame(); return; }
+  if (playing && (e.code === 'Enter' || e.code === 'KeyT')) { e.preventDefault(); openChat(); return; }
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') && playing) e.preventDefault();
   if (e.code === 'KeyH') document.getElementById('hud').classList.toggle('clean');
@@ -1095,7 +1112,9 @@ addEventListener('keydown', e => {
   if (ROCKETS_ON && e.code === 'KeyR' && !e.repeat) fireRocket();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = e.clientY / innerHeight * 2 - 1; mouse.in = true; });
+document.documentElement.addEventListener('mouseleave', () => { mouse.in = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.in = false; });
 const canvas = renderer.domElement;
 
 // touch joystick + buttons
@@ -1111,6 +1130,7 @@ function moveStick(e) {
 }
 const tap = (id, fn) => document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
 tap('tSplit', () => playing && split(me, fwd, crosshairPoint()));
+tap('tChat', () => playing && openChat());
 tap('tEject', () => playing && eject(me, fwd, crosshairPoint()));
 tap('tFire', () => playing && fireRocket());
 let boostHeld = false;
@@ -1133,15 +1153,17 @@ function handleInput() {
   if (IS_TOUCH) { yIn = -stick.x; pIn = -stick.y; }
   if (keys.ArrowLeft) yIn += 1; if (keys.ArrowRight) yIn -= 1;
   if (keys.ArrowUp) pIn += 1; if (keys.ArrowDown) pIn -= 1;
+  if (opts.mouse && mouse.in && !IS_TOUCH && !chatOpen) {   // mouse: the ball flies toward your cursor (dead zone in the middle)
+    const curve = v => Math.sign(v) * clamp((Math.abs(v) - .1) / .55, 0, 1);
+    yIn -= curve(mouse.x); pIn -= curve(mouse.y);
+  }
   yIn = clamp(yIn, -1, 1); pIn = clamp(pIn, -1, 1);
   if (opts.invert) pIn = -pIn;
   const acc = 1 - Math.exp(-dt * 7);
   yawVel += (yIn * 2.0 - yawVel) * acc;
   pitchVel += (pIn * 1.5 - pitchVel) * acc;
-  yaw += yawVel * dt;
-  pitch += pitchVel * dt;
-  if (Math.abs(pitch) > PITCH_LIM) { pitch = Math.sign(pitch) * PITCH_LIM; pitchVel = 0; }
-  setHeading();
+  rotLocal(AX.Y, yawVel * dt); rotLocal(AX.X, pitchVel * dt);
+  levelRoll(dt); updateBasis();
   me.dir.copy(fwd);
   const sx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (sx) me.dir.addScaledVector(right, sx * .8).normalize();
@@ -1172,7 +1194,7 @@ function interactions() {
     if (b.ent === me) { burst(a.pos.x, a.pos.y, a.pos.z, victim.color, clamp(Math.round(20 + a.r * 2), 20, 120), b, 40 + a.r * 4, Math.max(1.2, a.r * .25)); }
     else if (!b.ent.local) netEat(b.ent.owner, { t: b.id, m: Math.round(a.mass), v: victim.name, k: victim.cells.length === 0 ? 1 : 0 });
     if (b.ent === me) onMeAte(victim, victim.cells.length === 0);
-    if (victim === me && me.cells.length === 0) stats.killer = b.ent.name;
+    if (victim === me && me.cells.length === 0) { stats.killer = b.ent.name; if (b.ent.kind === 'bot' && Math.random() < .7) showChat(b.ent, pick(BOT_TAUNTS)); }
     if ((victim.kind === 'bot' || victim.kind === 'snack') && victim.cells.length === 0) setTimeout(() => { if (entities.get(victim.id) === victim && !victim.cells.length) removeEntity(victim); }, 0);
   }
   // blobs
@@ -1283,6 +1305,82 @@ function showCombo(n) {
   const m = $('mass'); m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop');
 }
 
+/* ============================== CHAT: big speech bubbles over your ball ============================== */
+const CHAT_MAX = 80, chatSeen = new Map(), _chu = new V3();
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const BOT_QUIPS = ['lol', 'come here, snack 😋', 'you look delicious', 'nice try', 'gg', 'run.', 'skill issue', 'who invited the tiny one',
+  'brb, eating', '😂😂', 'mass is temporary, vibes are forever', 'I was here first', 'split me if you dare', 'big things coming', 'touch grass',
+  'my mom says I\'m round', 'is this the line for the buffet?', 'ok but have you tried NOT being eaten', '👀', 'rent free'];
+const BOT_TAUNTS = ['delicious 😋', 'thanks for the snack', 'gg ez', 'yum', 'should have split', 'nom nom', 'skill issue', 'tasted like victory'];
+let chatOpen = false, lastChatSent = 0, botChatT = 25;
+const chatIn = document.getElementById('chatIn');
+function openChat() { if (!playing || chatOpen) return; chatOpen = true; for (const k in keys) keys[k] = false; chatIn.classList.remove('hidden'); chatIn.value = ''; chatIn.focus(); }
+function closeChat() { chatOpen = false; chatIn.blur(); chatIn.classList.add('hidden'); chatIn.value = ''; }
+chatIn.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter') { sendChat(chatIn.value); closeChat(); e.preventDefault(); }
+  else if (e.key === 'Escape') { closeChat(); e.preventDefault(); }
+});
+chatIn.addEventListener('blur', () => { if (chatOpen) closeChat(); });
+function sendChat(text) {
+  text = cleanChat(text); if (!text || !me || !me.cells.length) return;
+  const t = performance.now(); if (t - lastChatSent < 1200) return; lastChatSent = t;
+  showChat(me, text);
+  try { act?.chat?.send({ t: text }); } catch { }
+  // a nearby bot sometimes answers back
+  if (Math.random() < .45) setTimeout(() => { const b = nearbyBot(); if (b) showChat(b, pick(BOT_QUIPS)); }, 900 + Math.random() * 1400);
+}
+const cleanChat = t => String(t).replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+function nearbyBot() {
+  if (!mainCell) return null; const V = viewRadius(myR()); let best = null, bd = 1e18;
+  for (const e of entities.values()) { if (e.kind !== 'bot' || !e.cells.length) continue; const d = e.main().pos.distanceTo(mainCell.pos); if (d < V * .8 && d < bd) { bd = d; best = e; } }
+  return best;
+}
+function chatTexture(text) {
+  const c = document.createElement('canvas'), g = c.getContext('2d'), fs = 64, font = `800 ${fs}px Outfit, Inter, system-ui, sans-serif`, maxW = 880;
+  g.font = font;
+  const lines = []; let line = '';
+  for (const w of text.split(' ')) { const t = line ? line + ' ' + w : w; if (line && g.measureText(t).width > maxW) { lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line);
+  if (lines.length > 3) { lines.length = 3; lines[2] += '…'; }
+  const tw = Math.min(maxW, Math.max(...lines.map(l => g.measureText(l).width))), pad = 38, lh = fs * 1.18, tail = 36;
+  const W = Math.ceil(tw + pad * 2), H = Math.ceil(lines.length * lh + pad * 1.3);
+  c.width = W; c.height = H + tail;
+  g.fillStyle = 'rgba(255,255,255,.97)'; g.strokeStyle = 'rgba(20,24,48,.9)'; g.lineWidth = 6;
+  g.beginPath(); g.roundRect(4, 4, W - 8, H - 8, 42); g.moveTo(W / 2 - 28, H - 6); g.lineTo(W / 2, H + tail - 4); g.lineTo(W / 2 + 28, H - 6); g.fill();
+  g.beginPath(); g.roundRect(4, 4, W - 8, H - 8, 42); g.stroke();
+  g.fillStyle = '#12141f'; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+  lines.forEach((l, i) => g.fillText(l, W / 2, pad * .65 + lh * (i + .5), maxW));
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  return { tex, aspect: c.width / c.height };
+}
+function dropChat(E) { const ch = E.chat; if (!ch) return; scene.remove(ch.spr); ch.spr.material.map.dispose(); ch.spr.material.dispose(); E.chat = null; }
+function showChat(E, text) {
+  text = cleanChat(text); if (!text || !E.cells.length) return;
+  dropChat(E);
+  const { tex, aspect } = chatTexture(text);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, toneMapped: false }));
+  spr.renderOrder = 20; scene.add(spr);
+  E.chat = { spr, aspect, born: now, until: now + 5 + text.length * .06 };
+  feed(`<b>${escapeHtml(E.name)}</b>: ${escapeHtml(text)}`);
+}
+function updateChats() {
+  const V = playing && me && me.cells.length ? viewRadius(myR()) : 1e9;
+  _chu.set(0, 1, 0).applyQuaternion(camera.quaternion);   // "above" = up on your screen
+  if (playing && mainCell && (botChatT -= DT) <= 0) { botChatT = rnd(25, 50); const b = nearbyBot(); if (b && !b.chat) showChat(b, pick(BOT_QUIPS)); }
+  for (const E of entities.values()) {
+    const ch = E.chat; if (!ch) continue;
+    const m = E.cells.length ? E.main() : null;
+    if (!m || now > ch.until) { dropChat(E); continue; }
+    const r = m.rr || m.r, t = now - ch.born;
+    const h = Math.max(r * 1.5, ((camR || myR()) * 6.8 + 30) * .13) * (t < .22 ? .55 + 2 * t : 1);   // pops in
+    ch.spr.scale.set(h * ch.aspect, h, 1);
+    ch.spr.position.copy(m.pos).addScaledVector(_chu, r * 1.08 + h * .55);
+    const seen = E === me || ownDistJS(m.pos) < V;   // fog of war hides other people's bubbles too
+    ch.spr.material.opacity = seen ? Math.min(1, t / .15, (ch.until - now) / .5) : 0;
+  }
+}
+
 /* ============================== NETWORK (serverless P2P via WebRTC) ============================== */
 let act = null;
 const r1 = v => Math.round(v * 10) / 10;
@@ -1369,7 +1467,13 @@ function joinLobby(n) {
   net.lobby = n; net.status = 'online';
   const room = net.mod.joinRoom({ appId: CFG.APP_ID }, 'lobby-' + n);
   net.room = room;
-  act = { state: mkAction(room, 'state'), eat: mkAction(room, 'eat'), hit: mkAction(room, 'hit'), win: mkAction(room, 'win') };
+  act = { state: mkAction(room, 'state'), eat: mkAction(room, 'eat'), hit: mkAction(room, 'hit'), win: mkAction(room, 'win'), chat: mkAction(room, 'chat') };
+  act.chat.on((d, pid) => {
+    if (!d || typeof d.t !== 'string') return;
+    const t = performance.now(); if (t - (chatSeen.get(pid) || 0) < 800) return; chatSeen.set(pid, t);   // flood guard
+    const e = [...entities.values()].find(x => x.kind === 'remote' && x.owner === pid);
+    if (e) showChat(e, d.t);
+  });
   act.state.on(onState); act.eat.on(onEat);
   act.hit.on((d, pid) => { if (d && typeof d.t === 'string') { const c = cellById.get(d.t); if (c && c.ent === me) { shatter(c); sfx('boom'); fovKick = 10; } } });
   act.win.on((d, pid) => { if (d && typeof d.n === 'string') worldWon(cleanName(d.n) || 'Someone', false); });
@@ -1524,24 +1628,21 @@ function updateCamera() {
     camR = camR > 0 ? camR + (myR() - camR) * (1 - Math.exp(-DT * 1.5)) : myR(); const r = camR;
     // chase-cam: view trails your heading by a beat, and leans a few degrees into turns
     const ck = 1 - Math.exp(-DT * 6);
-    camYaw += angDiff(yaw, camYaw) * ck; camPitch += (pitch - camPitch) * ck;
+    camO.slerp(orient, ck);
     bank += (clamp(-yawVel * .03, -.06, .06) - bank) * ck;
-    _cq.setFromEuler(_eul.set(camPitch, camYaw, bank, 'YXZ'));
+    _cq.copy(camO).multiply(_bq.setFromAxisAngle(ROLL_AX, bank));
     const cf = _cf.set(0, 0, -1).applyQuaternion(_cq), cu = _cu.set(0, 1, 0).applyQuaternion(_cq);
-    // split framing: when your cells spread out, ease the camera back and tilt toward the group so all stay in view
-    _grp.copy(P); let spread = 0;
-    if (me.cells.length > 1) {
-      _grp.set(0, 0, 0); let tm = 0; for (const c of me.cells) { _grp.addScaledVector(c.pos, c.mass); tm += c.mass; } _grp.multiplyScalar(1 / tm);
-      for (const c of me.cells) spread = Math.max(spread, c.pos.distanceTo(_grp) + c.rr);
-    }
+    // same camera angle whether you're one ball or split; it only eases back a little so your pieces stay in view
+    let spread = 0;
+    if (me.cells.length > 1) for (const c of me.cells) spread = Math.max(spread, c.pos.distanceTo(P) + c.rr);
     const tanH = Math.tan(camera.fov * Math.PI / 360) * Math.min(1, camera.aspect);
     const needDist = spread > 0 ? spread * 1.25 / tanH : 0;
     const k2 = 1 - Math.exp(-DT * 3);
     camExtra += (Math.max(0, needDist - (r * 6.8 + 30) * zoom) - camExtra) * k2;
-    camLook.lerp(_t.subVectors(_grp, P).multiplyScalar(.6), k2);
+    camLook.set(0, 0, 0);
     const dist = (r * 6.8 + 30) * zoom + camExtra;
     _look.copy(P).add(camLook);
-    camTilt += ((spread > 0 ? .75 : .18) + heat * .55 - camTilt) * k2;   // boosting lifts the camera so you see the plume stream behind you   // rise & look down over a split line so no ball hides behind another
+    camTilt += (.18 + heat * .55 - camTilt) * k2;
     _des.copy(_look).addScaledVector(cf, -dist).addScaledVector(cu, dist * camTilt);
     camPos.copy(_des);
     if (heat > .05) camPos.addScaledVector(randUnit(_t), r * .012 * heat);
@@ -1898,7 +1999,7 @@ let chosenHue = Math.random();
 function startGame() {
   const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
   try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); } catch { }
-  opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked;
+  opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked;
   sfx('tier');
   document.activeElement?.blur?.();   // keys (arrows/space) must reach the game, not the name box
   spawnMe(name, chosenHue);
@@ -1946,7 +2047,7 @@ $('donate').href = $('donate2').href = CFG.DONATE_URL;
 if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden'); $('donate2').classList.add('hidden'); }   // no real link yet
 if (params.has('og')) document.body.classList.add('og');
 if (params.has('clean')) document.body.classList.add('clean');
-if (IS_TOUCH) $('keysHelp').innerHTML = 'Left stick steers · <b>SPLIT</b> to attack · <b>EJECT</b> to feed';
+if (IS_TOUCH) $('keysHelp').innerHTML = 'Left stick steers · <b>SPLIT</b> to attack · <b>EJECT</b> to feed · <b>CHAT</b> to talk';
 
 /* ============================== MAIN LOOP ============================== */
 let last = performance.now();
@@ -1968,13 +2069,12 @@ function frame(t) {
       const ti = tierIdx(m); if (ti > stats.peakTier) { stats.peakTier = ti; sfx('tier'); }
     }
   } else { food.visible = false; updatePickups(); }
-  updateRockets(); updateBoostFx();
+  updateRockets(); updateBoostFx(); updateChats();
   let p2 = performance.now(); PROF.food += p2 - p1;
   updateSparks();
   updateVisuals();
   updateCamera();
   hudT -= DT; if (hudT <= 0) { hudT = .25; updateHud(); }
-  if (playing) drawRadar();
   let p3 = performance.now(); PROF.vis += p3 - p2;
   composer.render();
   PROF.render += performance.now() - p3; PROF.n++;
