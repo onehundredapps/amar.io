@@ -1100,7 +1100,10 @@ const stick = { x: 0, y: 0, id: null };
 let brakeHeld = false;
 addEventListener('keydown', e => {
   if (chatOpen) return;   // typing a chat message: keys don't steer
-  if (document.activeElement?.tagName === 'INPUT') { if (e.code === 'Enter') startGame(); return; }
+  if (document.activeElement?.tagName === 'INPUT') {
+    if (e.code === 'Enter' || e.key === 'Enter') { if (!playing) startGame(); else dismissKeyboard(); }
+    return;
+  }
   if (playing && (e.code === 'Enter' || e.code === 'KeyT')) { e.preventDefault(); openChat(); return; }
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') && playing) e.preventDefault();
@@ -1119,7 +1122,7 @@ const canvas = renderer.domElement;
 
 // touch joystick + buttons
 const stickEl = document.getElementById('stick'), knob = document.getElementById('knob');
-stickEl.addEventListener('pointerdown', e => { stick.id = e.pointerId; stickEl.setPointerCapture(e.pointerId); moveStick(e); });
+stickEl.addEventListener('pointerdown', e => { if (!chatOpen) dismissKeyboard(); stick.id = e.pointerId; stickEl.setPointerCapture(e.pointerId); moveStick(e); });
 stickEl.addEventListener('pointermove', e => { if (e.pointerId === stick.id) moveStick(e); });
 const endStick = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
 stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
@@ -1128,7 +1131,7 @@ function moveStick(e) {
   const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
   stick.x = x; stick.y = y; knob.style.transform = `translate(${x * 38}px,${y * 38}px)`;
 }
-const tap = (id, fn) => document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+const tap = (id, fn) => document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (!chatOpen && id !== 'tChat') dismissKeyboard(); fn(); });
 tap('tSplit', () => playing && split(me, fwd, crosshairPoint()));
 tap('tChat', () => playing && openChat());
 tap('tEject', () => playing && eject(me, fwd, crosshairPoint()));
@@ -1487,6 +1490,7 @@ setInterval(() => {   // prune silent peers, keep bot population healthy
   const t = performance.now();
   for (const [pid, s] of net.lastSeen) if (t - s > 8000) dropPeer(pid);
   ensureBots(); ensureSnacks();
+  if (playing && !chatOpen && /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) dismissKeyboard();
 }, 1500);
 addEventListener('pagehide', () => { try { net.room?.leave(); } catch { } });
 function updateNetUI() {
@@ -1996,12 +2000,21 @@ function worldWon(name, isMe) {
 /* ============================== FLOW ============================== */
 const home = $('home'), hud = $('hud'), death = $('death'), touchUI = $('touch');
 let chosenHue = Math.random();
+// iOS keeps the keyboard up if a hidden text box still has focus; a read-only blur reliably drops it
+function dismissKeyboard() {
+  const el = document.activeElement;
+  if (!el || el === document.body || el === chatIn && chatOpen) return;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { el.setAttribute('readonly', ''); el.blur(); setTimeout(() => el.removeAttribute('readonly'), 300); }
+  else el.blur?.();
+  if (IS_TOUCH) window.scrollTo(0, 0);
+}
+document.addEventListener('focusin', e => { if (playing && e.target !== chatIn && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) dismissKeyboard(); });
 function startGame() {
   const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
   try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); } catch { }
   opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked;
   sfx('tier');
-  document.activeElement?.blur?.();   // keys (arrows/space) must reach the game, not the name box
+  dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
   spawnMe(name, chosenHue);
   gatherBots(); ensureSnacks();
   deathCam = null; attractTarget = null;
