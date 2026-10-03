@@ -1344,7 +1344,7 @@ function updateFood() {
   foodMat.uniforms.uFar.value = V;
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
-  const gRate = (.44 * Math.pow(tm, .7) + 2) * (now < PU.roidsUntil ? 4 : 1);
+  const gRate = (.88 * Math.pow(tm, .7) + 4) * (now < PU.roidsUntil ? 4 : 1);
   me.allow = Math.min((me.allow || 0) + gRate * DT, gRate * 1.5 + 4);
   botGrid.clear();
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < V + bc.r) {
@@ -1369,7 +1369,7 @@ function updateFood() {
     }
     if (hit) {
       if (hd < hit.r + s * .5 && me.allow > 0) {
-        const gain = Math.min(Math.min(foodVal[i] * valK * 2, hit.mass * .1 + 1) * (now < PU.roidsUntil ? 4 : 1), me.allow); me.allow -= gain;   // ≤ ~10–18% per orb when tiny
+        const gain = Math.min(Math.min(foodVal[i] * valK * 4, hit.mass * .2 + 2) * (now < PU.roidsUntil ? 4 : 1), me.allow); me.allow -= gain;   // ≤ ~20–35% per orb when tiny
         hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 12 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
