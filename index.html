@@ -941,7 +941,11 @@ function spawnBot(lev = false, near = true) {
   const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length);
   if (!lev && near && humans.length) {
     const h = humans[Math.floor(Math.random() * humans.length)], hm = h.main();
-    const k = Math.random(); m = clamp(h.mass * (k < .4 ? rnd(.15, .5) : k < .8 ? rnd(1.4, 3) : rnd(3, 6)), 10, BOT_MAX);
+    // prey is capped so the late game isn't an endless buffet; once you outgrow every bot, newcomers are just small fry
+    const k = Math.random(), PREY_MAX = 3000;
+    if (k < .4) m = clamp(h.mass * rnd(.15, .5), 10, PREY_MAX);
+    else { m = h.mass * (k < .8 ? rnd(1.4, 3) : rnd(3, 6)); if (m > BOT_MAX) m = rnd(200, PREY_MAX); }
+    m = clamp(m, 10, BOT_MAX);
     pos = hm.pos.clone().addScaledVector(randUnit(), viewRadius(hm.r) * 1.15 + rad(m) + rnd(50, 400));
     if (pos.length() > ARENA * .95) pos.setLength(ARENA * .9);
     e.anchor = hm;   // drifts toward this player and creeps into view
@@ -955,12 +959,13 @@ const BOT_NEAR = IS_TOUCH ? 30 : 45;   // how many bots hang around each player;
 function botTarget() { return { norm: IS_TOUCH ? 90 : 140, lev: 3 }; }
 function humanMains() { return [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length).map(h => h.main()); }
 function countNearBots(hs) { let n = 0; for (const e of entities.values()) { if (e.kind !== 'bot' || e.lev || !e.cells.length) continue; const p = e.main().pos; if (hs.some(h => h.pos.distanceTo(p) < viewRadius(h.r) * 2.4)) n++; } return n; }
+let levNext = 0;
 function ensureBots() {
   if (!isHost) return;
   let n = 0, l = 0; for (const e of entities.values()) if (e.kind === 'bot') e.lev ? l++ : n++;
   const t = botTarget();
   const humans = humanMains(); let near = humans.length ? countNearBots(humans) : 0;
-  while (l < t.lev) { spawnBot(true); l++; }
+  while (l < t.lev && now >= levNext) { spawnBot(true); l++; }   // an eaten giant takes a while to come back (see levNext)
   while (n < t.norm) { const nb = near < BOT_NEAR * humans.length; spawnBot(false, nb); if (nb) near++; n++; }
   // keep a crowd around every player: pull a few far-roaming bots in per tick while the crowd is thin
   if (!humans.length) return;
@@ -1010,11 +1015,15 @@ const _t = new V3(), _t2 = new V3(), _flee = new V3();
 function botThink(E) {
   const m = E.main(); if (!m) return;
   E.thinkT -= DT; if (E.thinkT > 0) return; E.thinkT = rnd(.18, .32);
-  if (E.lev) {   // giants cruise the map, often swinging past you, and swallow whatever is in their way
+  if (E.lev) {   // giants cruise the map, often swinging past smaller players, and swallow whatever is in their way
     E.throttle = 1; E.wanderT -= .25;
+    const outgrown = playing && mainCell && me.mass > m.mass * 1.1;
+    if (outgrown && mainCell.pos.distanceTo(m.pos) < viewRadius(m.r)) {   // something could swallow it: keep away (giants cruise faster than huge balls)
+      E.dir.lerp(_t.subVectors(m.pos, mainCell.pos).normalize(), .5).normalize(); return;
+    }
     if (E.wanderT <= 0) {
       E.wanderT = rnd(5, 10); randUnit(E.wanderDir);
-      if (playing && mainCell && Math.random() < .5) E.wanderDir.lerp(_t.subVectors(mainCell.pos, m.pos).normalize(), .6).normalize();
+      if (playing && mainCell && !outgrown && Math.random() < .5) E.wanderDir.lerp(_t.subVectors(mainCell.pos, m.pos).normalize(), .6).normalize();
     }
     if (m.pos.length() > ARENA * .6) E.wanderDir.lerp(_t.copy(m.pos).negate().normalize(), .5).normalize();
     E.dir.lerp(E.wanderDir, .12).normalize(); return;
@@ -1181,7 +1190,7 @@ function spawnMe(name, hue, forceMass) {
   if (nearL) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
   const dd = new V3().subVectors(target, p).normalize();
   yaw = Math.atan2(-dd.x, -dd.z); pitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading(); camO.copy(orient);
-  Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, boosting: false, used: false });
+  Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, roidsReady: 0, boosting: false, used: false });
   playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
   foodInit = false; resetWorldFood();
 }
@@ -1298,6 +1307,7 @@ function interactions() {
     else if (!b.ent.local) netEat(b.ent.owner, { t: b.id, m: Math.round(a.mass), v: victim.name, k: victim.cells.length === 0 ? 1 : 0 });
     if (b.ent === me) onMeAte(victim, victim.cells.length === 0);
     if (victim === me && me.cells.length === 0) { stats.killer = b.ent.name; if (b.ent.kind === 'bot' && Math.random() < .7) showChat(b.ent, pick(BOT_TAUNTS)); }
+    if (victim.lev && victim.cells.length === 0) levNext = now + 90;
     if ((victim.kind === 'bot' || victim.kind === 'snack') && victim.cells.length === 0) setTimeout(() => { if (entities.get(victim.id) === victim && !victim.cells.length) removeEntity(victim); }, 0);
   }
   // blobs
@@ -1858,7 +1868,7 @@ function updateVisuals() {
 
 
 /* ============================== POWER-UPS (local pickups around you) ============================== */
-const PU = { boost: 0, ammo: 0, roidsUntil: 0, boosting: false };
+const PU = { boost: 0, ammo: 0, roidsUntil: 0, roidsReady: 0, boosting: false };
 const puMat = hex => new THREE.ShaderMaterial({
   transparent: true, depthWrite: true,
   uniforms: { uC: { value: new THREE.Color(hex) }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uTime: U.time },
@@ -1931,6 +1941,7 @@ function updatePickups() {
     p.ring.rotation.x = now * 1.3 * p.spin; p.ring.rotation.y = now * .7;
     p.label.material.opacity = Math.exp(-pd / (V * .45));
     for (const cell of me.cells) {
+      if (p.type === 'roids' && now < PU.roidsReady) break;   // GROWTH ×4: one at a time, then 20 s to recharge (pickups stay put)
       if (cell.pos.distanceTo(p.pos) < cell.r + size * 1.2) {
         collect(p.type, cell);
         puTaken.set(p.key, now + rnd(40, 70));   // this spot's power-up comes back later
@@ -1946,7 +1957,7 @@ function collect(type, cell) {
   sfx('pickup');
   if (type === 'nitro') { PU.boost = Math.min(100, PU.boost + 34); feed('<b style="color:#ffae3f">+ NITRO</b>'); }
   else if (type === 'rocket') { PU.ammo = Math.min(9, PU.ammo + 3); feed('<b style="color:#ff5c7a">+3 ROCKETS</b> · press R'); }
-  else { const active = now < PU.roidsUntil; PU.roidsUntil = now + 12; if (!active) for (const c of me.cells) { c.mass *= 1.15; c.r = rad(c.mass); c.pulse = 1; } feed(active ? '<b style="color:#4dff9a">GROWTH ×4</b> · timer reset to 12s (max ×4)' : '<b style="color:#4dff9a">GROWTH ×4</b> · 12s'); }
+  else { PU.roidsUntil = now + 12; PU.roidsReady = now + 32; for (const c of me.cells) c.pulse = 1; feed('<b style="color:#4dff9a">GROWTH ×4</b> · 12s'); }
 }
 
 // rockets: fire forward, shatter whatever they hit
@@ -2147,6 +2158,7 @@ function worldWon(name, isMe) {
       clearInterval(iv); $('win').classList.add('hidden');
       // world reset: fresh bots, everyone back to a small ball
       for (const e of [...entities.values()]) if (e.kind === 'bot' || e.kind === 'snack') removeEntity(e);
+      levNext = 0;
       for (const r of rockets) { scene.remove(r.m); killPlume(r.fx); } rockets.length = 0;
       if (playing || isMe) { spawnMe(me ? me.name : 'Orb', chosenHue, 12); death.classList.add('hidden'); hud.classList.remove('hidden'); }
       ensureBots(); ensureSnacks();   // after respawn, so new bots are sized against your fresh small ball
