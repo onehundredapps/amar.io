@@ -201,7 +201,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <div class="row swatches" id="swatches"></div>
     <div class="opts">
       <label><input type="checkbox" id="optMouse" checked> Mouse steer</label>
-      <label><input type="checkbox" id="optInvert"> Invert Y</label>
+      <label><input type="checkbox" id="optInvert" checked> Inverted up/down</label>
       <label><input type="checkbox" id="optSound" checked> Sound</label>
     </div>
     <button id="play">PLAY</button>
@@ -1139,7 +1139,7 @@ function moveEntity(E) {
 let me = null, playing = false, mainCell = null, zoom = 1, fovKick = 0;
 const orient = new THREE.Quaternion();
 const stats = { peak: 0, eaten: 0, start: 0, peakTier: 0, killer: '' };
-const opts = { level: true, invert: false, sound: true, mouse: true };
+const opts = { level: true, invert: true, sound: true, mouse: true };   // inverted (flight-style) up/down by default
 const AX = { X: new V3(1, 0, 0), Y: new V3(0, 1, 0), Z: new V3(0, 0, -1) };
 const _q = new THREE.Quaternion();
 // Heading turns freely about your own axes: no limit up or down, you can loop right over the top. While you're
@@ -2168,7 +2168,7 @@ function dismissKeyboard() {
 document.addEventListener('focusin', e => { if (playing && e.target !== chatIn && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) dismissKeyboard(); });
 function startGame() {
   const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
-  try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); } catch { }
+  try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); localStorage.setItem('orb_invert', $('optInvert').checked ? '1' : '0'); } catch { }
   opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked;
   sfx('tier');
   dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
@@ -2206,7 +2206,7 @@ $('again').addEventListener('click', startGame);
 $('toHome').addEventListener('click', () => { death.classList.add('hidden'); home.classList.remove('hidden'); });
 // swatches
 { const hues = [.52, .6, .72, .83, .93, .02, .09, .15, .3, .42]; const wrap = $('swatches');
-  try { const h = parseFloat(localStorage.getItem('orb_hue')); if (isFinite(h)) chosenHue = h; $('name').value = localStorage.getItem('orb_name') || ''; } catch { }
+  try { const h = parseFloat(localStorage.getItem('orb_hue')); if (isFinite(h)) chosenHue = h; $('name').value = localStorage.getItem('orb_name') || ''; $('optInvert').checked = localStorage.getItem('orb_invert') !== '0'; } catch { }
   let best = 0; hues.forEach((h, i) => { if (Math.abs(h - chosenHue) < Math.abs(hues[best] - chosenHue)) best = i; });
   hues.forEach((h, i) => { const b = document.createElement('button'); b.className = 'sw' + (i === best ? ' on' : ''); b.style.background = `hsl(${h * 360},95%,56%)`; b.setAttribute('aria-label', 'color');
     b.onclick = () => { chosenHue = h; wrap.querySelectorAll('.sw').forEach(x => x.classList.toggle('on', x === b)); }; wrap.appendChild(b); });
