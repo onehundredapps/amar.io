@@ -77,7 +77,7 @@ kbd{font:600 11px Inter,sans-serif;padding:2px 6px;border-radius:5px;background:
 .credit b{color:var(--text)}
 
 /* ---------- HUD ---------- */
-#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:7}
 #stats{position:absolute;left:16px;top:16px;padding:12px 16px;min-width:0}
 #mass{font:800 30px Outfit,sans-serif;line-height:1}
 #tier{font-size:11px;letter-spacing:.2em;color:var(--a);margin-top:4px;font-weight:700}
@@ -99,7 +99,22 @@ body.touch #boostTip{bottom:auto;top:120px}
 #win .by{color:var(--muted);margin-top:8px}
 .tbrow{display:flex;gap:10px}
 #tBoost.on{background:linear-gradient(135deg,rgba(255,122,24,.7),rgba(255,210,63,.5))}
-#lb{position:absolute;right:16px;top:16px;padding:12px 14px;width:220px;font-size:13px}
+#srv{position:absolute;left:16px;top:86px;min-width:160px;pointer-events:auto;font-size:12px;overflow:hidden}
+#srvBtn{display:flex;align-items:center;gap:8px;padding:8px 12px;width:100%;font-weight:700;color:var(--text);text-align:left}
+#srv .sdot{width:8px;height:8px;border-radius:50%;background:#3dff7a;box-shadow:0 0 8px #3dff7a;flex:none}
+#srv.off .sdot{background:#7a7f99;box-shadow:none}
+#srv .car{margin-left:auto;color:var(--muted);transition:transform .2s}
+#srv.open .car{transform:rotate(180deg)}
+#srvList{list-style:none;display:none;padding:0 12px 10px;max-height:40vh;overflow:auto}
+#srv.open #srvList{display:block}
+#srvList li{display:flex;justify-content:space-between;gap:12px;padding:2px 0;white-space:nowrap}
+#srvList li.me{color:var(--a);font-weight:700}
+#srvList li .m{color:var(--muted);font-variant-numeric:tabular-nums}
+#globeWrap{position:absolute;right:16px;top:16px;width:150px;height:150px;pointer-events:none}
+#globe{width:100%;height:100%;display:block}
+body.touch #srv{left:12px;top:66px}
+body.touch #globeWrap{right:10px;top:10px;width:104px;height:104px}
+#lb{position:absolute;right:16px;top:176px;padding:12px 14px;width:220px;font-size:13px}
 #lb h4{font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:var(--muted);margin-bottom:8px}
 #lb ol{list-style:none}
 #lb li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;white-space:nowrap}
@@ -140,6 +155,7 @@ body.touch #chatIn{bottom:auto;top:70px}
 #stick{position:absolute;inset:0;pointer-events:auto;opacity:0}
 #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px;border-radius:50%;
   background:radial-gradient(circle at 35% 35%,rgba(57,243,255,.7),rgba(180,92,255,.5));box-shadow:0 0 20px rgba(57,243,255,.5)}
+.tbtnsL{position:absolute;left:18px;bottom:26px;display:flex;gap:10px;align-items:flex-end;pointer-events:auto}
 .tbtns{position:absolute;right:22px;bottom:26px;display:flex;flex-direction:column;gap:12px;align-items:flex-end;pointer-events:auto}
 .tb{width:74px;height:74px;border-radius:50%;font:800 12px Outfit,sans-serif;letter-spacing:.12em;background:var(--glass-strong);border:1px solid var(--line)}
 .tb.big{width:92px;height:92px;background:linear-gradient(135deg,rgba(57,243,255,.35),rgba(255,79,163,.35));font-size:14px}
@@ -191,7 +207,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <button id="play">PLAY</button>
     <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
     <div class="keys" id="keysHelp">
-      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>Enter</kbd> chat<br>
+      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Enter</kbd> chat<br>
       <kbd>S</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
     </div>
   </div>
@@ -208,20 +224,22 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <div id="puTxt"></div>
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
+  <div id="srv" class="glass"><button id="srvBtn"><span class="sdot"></span><span id="srvTxt">Lobby</span><span class="car">▾</span></button><ol id="srvList"></ol></div>
+  <div id="globeWrap"><canvas id="globe" width="300" height="300"></canvas></div>
   <div id="radarWrap" class="glass" style="display:none"><canvas id="radar" width="300" height="300"></canvas></div>
   <div id="feed"></div>
   <canvas id="marks"></canvas>
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> eject · <kbd>Enter</kbd> chat</div>
+  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Enter</kbd> chat</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
 <div id="touch" class="hidden">
   <div id="stick"><div id="knob"></div></div>
+  <div class="tbtnsL"><button class="tb sm" id="tChat">CHAT</button><button class="tb sm" id="tBrake">BRAKE</button><button class="tb sm" id="tEject">SPIT</button></div>
   <div class="tbtns">
-    <div class="tbrow"><button class="tb sm" id="tChat">CHAT</button><button class="tb sm" id="tBrake">BRAKE</button><button class="tb sm" id="tEject">EJECT</button></div>
     <div class="tbrow" style="display:none"><button class="tb" id="tFire">FIRE</button><button class="tb" id="tBoost">BOOST</button></div>
     <button class="tb big" id="tSplit">SPLIT</button>
   </div>
@@ -288,7 +306,8 @@ const rad = m => 1.5 * Math.sqrt(m);
 // our radius is 1.5·sqrt(mass) (0.15× agar units), so that's 120·mass^-0.2195 of our units per second — plus ~20%
 const speedOf = m => 145 * Math.pow(m, -0.2195);
 const BOOST_ON = false, ROCKETS_ON = false;   // nitro + rockets switched off for now
-const viewRadius = r => 560 + r * 14;
+const viewRadius = r => 1120 + r * 28;   // how far you can see through the fog of war
+const foodRadius = r => 560 + r * 14;    // orbs are kept this close to you
 const myR = () => (me && me.cells.length ? rad(me.mass) : 5);   // radius of your TOTAL mass   // fog-of-war: how far you can see, grows with you
 const KILL_BONUS = 1.5;   // players gain 1.5× the mass of any ball they eat (snacks: 1×)
 const mergeTime = m => 8 + Math.min(22, Math.sqrt(m) * 0.12);
@@ -381,10 +400,25 @@ void main(){
   gl_Position = projectionMatrix*viewMatrix*wp;
 }`;
 const cellFrag = /* glsl */`
-uniform vec3 uColor; uniform vec3 uDeep; uniform float uTime; uniform float uR; uniform vec3 uFog; uniform float uPulse; uniform float uSeed; uniform float uVein; uniform float uView; uniform float uViewR; uniform float uAppear; uniform vec3 uPP; uniform float uOwn; uniform vec4 uEngine; uniform sampler2D uName; uniform float uNameOn;
+uniform vec3 uColor; uniform vec3 uDeep; uniform vec3 uAlt; uniform float uDesign; uniform float uSpin; uniform float uTime; uniform float uR; uniform vec3 uFog; uniform float uPulse; uniform float uSeed; uniform float uVein; uniform float uView; uniform float uViewR; uniform float uAppear; uniform vec3 uPP; uniform float uOwn; uniform vec4 uEngine; uniform sampler2D uName; uniform float uNameOn;
 ${OWN_GLSL}
 varying vec3 vN; varying vec3 vW; varying vec3 vO;
 ${NOISE}
+float spots(vec3 x){ vec3 p=floor(x-.5), f=x-p; float d1=8.;
+  for(int k=0;k<=1;k++) for(int j=0;j<=1;j++) for(int i=0;i<=1;i++){ vec3 b=vec3(i,j,k); vec3 r=b-f+hash33(p+b); d1=min(d1,dot(r,r)); }
+  return sqrt(d1); }
+// every ball gets one of 8 looks (picked per player), painted in its own two colors
+vec3 design(vec3 o, out float gloss){
+  vec3 a = uColor, b = uAlt; gloss = .55;
+  if (uDesign < .5) { float e = voro(o*uVein + vec3(uSeed*7., uTime*.12, 0.)); return mix(a, mix(a, b, .55)*1.25, 1. - smoothstep(0., .12, e)); }   // living cell veins
+  if (uDesign < 1.5) { float st = sin((o.y + .12*sin(o.x*3. + uSeed*5.))*9.); gloss = .8; return mix(a, b, smoothstep(-.12, .12, st)); }   // candy stripes
+  if (uDesign < 2.5) { float d = spots(o*3.4 + uSeed*3.); return mix(b, a, smoothstep(.28, .36, d)); }   // polka spots
+  if (uDesign < 3.5) { float n = fbm(o*1.7 + uSeed*4.); gloss = .95; return mix(a, b, smoothstep(-.4, .7, sin(o.x*4. + o.y*2. + n*8.))); }   // marble
+  if (uDesign < 4.5) { float e = voro(o*10. + uSeed*3.); return mix(b*.55, a, smoothstep(.03, .1, e)); }   // reptile scales
+  if (uDesign < 5.5) { float n = fbm(vec3(o.y*5., o.x*.7 + uTime*.02, o.z*.7) + uSeed); return mix(a, b, .5 + .5*sin(o.y*13. + n*5.)); }   // gas-giant bands
+  if (uDesign < 6.5) { float n = fbm(o*2.3 + uSeed*9.); return n > .56 ? b : n > .44 ? mix(a, uDeep*2.2, .55) : a; }   // camo
+  gloss = 1.; return mix(a, b, smoothstep(-.2, .2, o.y + .25*o.x));   // glossy two-tone
+}
 void main(){
   vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW);
   float ndv = clamp(dot(N,V),0.,1.);
@@ -392,35 +426,42 @@ void main(){
   float dp = ownDist(vW);
   float fow = clamp(1. - exp(-dp / (uViewR*.5)), 0., 1.) * (1. - uOwn);   // your own balls are never fogged
   float cutoff = mix(1. - smoothstep(uViewR*.75, uViewR, dp), 1., uOwn);
-  float e = voro(vO*uVein + vec3(uSeed*7., uTime*.12, 0.));
-  float vein = (1. - smoothstep(0., .13 + fow*.2, e)) * (1. - fow);
-  vec3 L = normalize(vec3(.5,.9,.35));
-  float diff = .3 + .7*max(dot(N,L),0.);
-  vec3 H = normalize(L+V); float spec = pow(max(dot(N,H),0.), 60.) * .25 * (1. - fow);
-  vec3 col = mix(uDeep, uColor, .35 + .65*ndv) * diff;
-  col += uColor * vein * .35;
+  float ang = uTime*uSpin, cs = cos(ang), sn = sin(ang);
+  vec3 o = vec3(cs*vO.x + sn*vO.z, vO.y, -sn*vO.x + cs*vO.z);   // the pattern slowly spins, so you can read motion
+  float gloss; vec3 alb = design(o, gloss);
+  // lighting: soft wrapped key light (squishy, subsurface feel), cool fill, sky-tinted fresnel rim, clear-coat highlight
+  vec3 L = normalize(vec3(.5,.9,.35)), L2 = normalize(vec3(-.6,-.35,-.5));
+  float wrap = max((dot(N,L) + .4) / 1.4, 0.);
+  vec3 col = alb * (.2 + .9*wrap) + alb * max(dot(N,L2), 0.) * vec3(.25,.3,.45);
+  col = mix(uDeep*.7 + alb*.12, col, .3 + .7*pow(ndv, .55));
+  float fr = pow(1. - ndv, 3.);
+  vec3 R = reflect(-V, N);
+  col += mix(vec3(.22,.4,1.), alb, .35) * fr * .85;
+  col += vec3(.4,.3,.7) * smoothstep(-.1, .9, R.y) * fr * .45 * gloss;
+  vec3 H = normalize(L + V);
+  float spec = pow(max(dot(N,H),0.), mix(36., 220., gloss)) * mix(.3, 1.1, gloss) * (1. - fow);
   // painted name: wraps around the middle of the ball twice, lit and fogged like the surface itself
   if (uNameOn > .5) {
-    vec3 on = normalize(vO);
+    vec3 on = normalize(o);
     float lon = atan(on.z, on.x) / 6.28318 + .5, lat = asin(clamp(on.y, -1., 1.)) / 3.14159 + .5;
     vec2 nuv = vec2(fract(-lon * 2.), (lat - .37) / .26);
     if (nuv.y > 0. && nuv.y < 1.) {
       vec4 tx = texture2D(uName, nuv);
       float paint = tx.a * (1. - fow);
-      col = mix(col, tx.rgb * (.35 + .65 * diff) * 1.15, paint * .92);
+      col = mix(col, tx.rgb * (.35 + .65 * wrap) * 1.15, paint * .92);
     }
   }
   col += spec;
   col *= 1. + uPulse*.4;
-  col += vec3(1., .55, .2) * uEngine.w * pow(max(dot(N, uEngine.xyz), 0.), 2.5) * .9;   // your engine lights up the back of your ball
+  col += vec3(1., .55, .2) * uEngine.w * pow(max(dot(N, uEngine.xyz), 0.), 2.5) * .9;
   float lum = dot(col, vec3(.3,.55,.15));
-  col = mix(col, vec3(lum)*vec3(.5,.6,.9), fow*.6);
+  col = mix(col, vec3(lum)*vec3(.5,.6,.9), fow*.6);   // distance drains color toward cold blue: far balls read as far
   col = mix(col, uFog, fow*.9);
   float edge = smoothstep(0., .04 + fow*.4, ndv);
   gl_FragColor = vec4(col, (1. - fow*.75) * cutoff * edge * uAppear);
 }`;
 const NO_NAME = new THREE.DataTexture(new Uint8Array(4), 1, 1); NO_NAME.needsUpdate = true;
-function cellMaterial(color, deep, seed, vein = 5, nameTex = null) {
+function cellMaterial(color, deep, seed, vein = 5, nameTex = null, look = null) {
   return new THREE.ShaderMaterial({
     vertexShader: cellVert, fragmentShader: cellFrag,
     transparent: true,
@@ -428,10 +469,52 @@ function cellMaterial(color, deep, seed, vein = 5, nameTex = null) {
       uTime: U.time, uFog: U.fog, uView: U.view, uViewR: U.viewR, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uEngine: { value: new THREE.Vector4() }, uOwn: { value: 0 }, uAppear: { value: 1 }, uColor: { value: color }, uDeep: { value: deep },
       uR: { value: 1 }, uPulse: { value: 0 }, uWobble: { value: .025 }, uSeed: { value: seed }, uVein: { value: vein },
       uName: { value: nameTex || NO_NAME }, uNameOn: { value: nameTex ? 1 : 0 },
+      uAlt: { value: look ? look.alt : color }, uDesign: { value: look ? look.design : 0 }, uSpin: { value: look ? look.spin : 0 },
     },
   });
 }
 const CELL_GEO = new THREE.SphereGeometry(1, IS_TOUCH ? 40 : 56, IS_TOUCH ? 28 : 40);
+
+/* ---- wakes behind moving balls (yours excluded) ---- */
+const WAKE_N = 320;
+const wakeGeo = new THREE.CylinderGeometry(0, 1, 1, 14, 1, true); wakeGeo.rotateX(Math.PI / 2); wakeGeo.translate(0, 0, .5);   // wide at z=0, tip at z=1
+const wakeA = new THREE.InstancedBufferAttribute(new Float32Array(WAKE_N), 1); wakeGeo.setAttribute('aA', wakeA);
+const wakes = new THREE.InstancedMesh(wakeGeo, new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  vertexShader: `attribute float aA; varying float vT; varying float vA; varying vec3 vC; varying vec3 vN; varying vec3 vW;
+    void main(){ vT = position.z; vA = aA; vC = instanceColor; vec4 w = modelMatrix*instanceMatrix*vec4(position,1.); vW = w.xyz;
+      vN = normalize(mat3(modelMatrix*instanceMatrix)*normal); gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader: `varying float vT; varying float vA; varying vec3 vC; varying vec3 vN; varying vec3 vW;
+    void main(){ float f = abs(dot(normalize(vN), normalize(cameraPosition - vW)));
+      float a = vA * pow(1. - vT, 1.6) * (.25 + .75*f);
+      gl_FragColor = vec4(vC * a * 1.3, 1.); }`,
+}), WAKE_N);
+wakes.instanceMatrix.setUsage(THREE.DynamicDrawUsage); wakes.frustumCulled = false; wakes.count = 0;
+wakes.setColorAt(0, new THREE.Color());
+scene.add(wakes);
+const _wd = new V3(), _wz = new V3(0, 0, 1), _wq = new THREE.Quaternion(), _wm = new THREE.Matrix4(), _wp = new V3(), _ws = new V3();
+function updateWakes() {
+  let n = 0; const V = U.viewR.value;
+  for (const e of entities.values()) {
+    for (const c of e.cells) {
+      if (!c.wv) { c.wv = new V3(); c.wp = c.pos.clone(); }
+      _wd.subVectors(c.pos, c.wp).divideScalar(Math.max(DT, 1e-3)); c.wp.copy(c.pos);
+      if (_wd.lengthSq() > 4e8) _wd.set(0, 0, 0);   // teleports (respawns, net jumps) aren't motion
+      c.wv.lerp(_wd, 1 - Math.exp(-DT * 6));
+      if (e === me || n >= WAKE_N || DT <= 0) continue;
+      const sp = c.wv.length(); if (sp < 6) continue;
+      const od = playing ? ownDistJS(c.pos) : 0; if (od > V) continue;
+      const len = Math.min(c.rr * 5, sp * .9 + c.rr * .4);
+      _wd.copy(c.wv).multiplyScalar(-1 / sp);
+      _wq.setFromUnitVectors(_wz, _wd);
+      _wm.compose(_wp.copy(c.pos).addScaledVector(_wd, c.rr * .5), _wq, _ws.set(c.rr * .85, c.rr * .85, len));
+      wakes.setMatrixAt(n, _wm); wakes.setColorAt(n, e.color);
+      wakeA.array[n] = Math.min(1, sp / (35 + c.rr * .8)) * .5 * Math.exp(-od / (V * .45)) * c.appear;
+      n++;
+    }
+  }
+  wakes.count = n; wakes.instanceMatrix.needsUpdate = true; wakes.instanceColor.needsUpdate = true; wakeA.needsUpdate = true;
+}
 
 /* ---- sky ---- */
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.ShaderMaterial({
@@ -479,25 +562,21 @@ const FOOD_N = IS_TOUCH ? 5500 : 12000;
 const CL_N = 0;   // clusters disabled: classic evenly-spread agar pellets
 const LOOSE_N = FOOD_N;
 const PER_CL = 0;
-const foodGeo = new THREE.IcosahedronGeometry(1, 1);
+const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
   uniforms: { uTime: U.time, uFar: { value: 200 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uTime; uniform float uFar; uniform vec3 uPP; uniform float uViewR; varying vec3 vC; varying vec3 vN; varying vec3 vW; varying float vFade;
+  vertexShader: `uniform float uFar; varying vec3 vC; varying float vFade;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
-      float dc = length(cameraPosition - c);
-      float od = ownDist(c);
-      vFade = 1. - smoothstep(uViewR*.5, uViewR*.97, od);
-      float s = (1. + .25*sin(uTime*3.5 + c.x*.13 + c.y*.07 + c.z*.05)) * (1. - smoothstep(uFar*.85, uFar, od));   // grow in/out at the edge of the field around your balls
-      s *= smoothstep(.0, .25, vFade);
-      vec4 w = modelMatrix*instanceMatrix*vec4(position,1.); w.xyz = c + (w.xyz-c)*s;
-      vW = w.xyz; vC = instanceColor; vN = normalize(mat3(modelMatrix*instanceMatrix)*normal);
-      gl_Position = projectionMatrix*viewMatrix*w; }`,
-  fragmentShader: `uniform vec3 uFog; varying vec3 vC; varying vec3 vN; varying vec3 vW; varying float vFade;
-    void main(){ vec3 V = normalize(cameraPosition-vW); float f = pow(1.-abs(dot(normalize(vN),V)),2.);
-      vec3 col = mix(uFog, vC*(.75 + .25*f), vFade);
-      gl_FragColor = vec4(col,1.); }`,
+      float sc = length(instanceMatrix[0].xyz);   // pellet radius (0 = not alive)
+      vFade = 1. - smoothstep(uFar*.55, uFar*.97, ownDist(c));   // orbs fade out softly toward the edge of the food field
+      vec4 mv = viewMatrix*vec4(c, 1.);
+      mv.xy += position.xy * sc * smoothstep(0., .25, vFade);   // billboard: always faces you, like agar's flat pellets
+      vC = instanceColor;
+      gl_Position = projectionMatrix*mv; }`,
+  fragmentShader: `uniform vec3 uFog; varying vec3 vC; varying float vFade;
+    void main(){ gl_FragColor = vec4(mix(uFog, vC, vFade), 1.); }`,
 });
 const food = new THREE.InstancedMesh(foodGeo, foodMat, FOOD_N);
 food.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -668,7 +747,7 @@ function resetWorldFood() {   // new life / new world: start clean
   for (const p of [...pickups]) dropPickup(p); puChunks.clear();
 }
 function refreshChunks(G, radius) {
-  const V = viewRadius(myR()), Lf = Math.log2(V / (5 * C0));
+  const V = foodRadius(myR()), Lf = Math.log2(V / (5 * C0));
   let L = foodLevel; if (L < 0 || Math.abs(Lf - L) > .75) L = clamp(Math.round(Lf), 0, 9);
   if (L !== foodLevel) {
     for (const key of [...chunks.keys()]) unloadChunk(key);   // orbs stay put; the new level's chunks adopt them
@@ -808,6 +887,12 @@ function labelTexture(text) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.wrapS = THREE.RepeatWrapping; return t;
 }
 
+// a ball's design comes from its id, so every player in the lobby sees the same look
+function strHash(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function lookFor(id, hue) {
+  const h = strHash(String(id));
+  return { design: h % 8, alt: hueColor(hue + .3 + ((h >>> 3) % 40) / 100, .9, .6), spin: (((h >>> 9) % 100) / 100 - .5) * .6 };
+}
 class Entity {
   constructor(id, kind, name, hue, owner) {
     this.id = id; this.kind = kind; this.name = cleanName(name) || 'Cell'; this.hue = hue; this.owner = owner;
@@ -815,6 +900,7 @@ class Entity {
     this.cells = []; this.dir = randUnit(); this.throttle = 1; this.color = hueColor(hue, .95, .56); this.deep = hueColor(hue + .08, .9, .12);
     this.labelTex = labelTexture(this.name); this.thinkT = 0; this.wanderDir = randUnit(); this.wanderT = 0; this.lev = false; this.aggr = Math.random() < .6;
     this.lastPacket = performance.now();
+    this.look = lookFor(id, hue);
     entities.set(id, this);
   }
   get mass() { let m = 0; for (const c of this.cells) m += c.mass; return m; }
@@ -822,7 +908,7 @@ class Entity {
 }
 function addCell(ent, pos, mass, id) {
   id = id || `${short()}-${(cellCounter++).toString(36)}`;
-  const mat = cellMaterial(ent.color, ent.deep, Math.random(), 5, ent.labelTex);
+  const mat = cellMaterial(ent.color, ent.deep, Math.random(), 5, ent.labelTex, ent.look);
   if (ent.kind === 'me') mat.uniforms.uOwn.value = 1;
   const mesh = new THREE.Mesh(CELL_GEO, mat);
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ent.labelTex, transparent: true, depthWrite: false, toneMapped: false }));
@@ -945,7 +1031,7 @@ function botThink(E) {
   E.throttle = 1;
   // look for orbs: bots inside a player's food field hunt the nearest pellet (sampled for speed)
   let orb = null;
-  if (!threat && foodInit && playing && me && mainCell && me.cells.length && ownDistJS(m.pos) < viewRadius(myR())) {
+  if (!threat && foodInit && playing && me && mainCell && me.cells.length && ownDistJS(m.pos) < foodRadius(myR())) {
     const lim = m.r * 10 + 300; let bd = lim * lim;
     for (let i = 0; i < FOOD_N; i++) {             // true nearest orb (cheap box reject first)
       if (!foodAlive[i]) continue;
@@ -1135,8 +1221,8 @@ const endStick = e => { if (e.pointerId !== stick.id) return; stick.id = null; s
 stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
 // touch anywhere: the ball steers toward your finger, measured from the center of the screen (small dead zone in the middle)
 function moveStick(e) {
-  const R = Math.min(innerWidth, innerHeight) * .38, x = (e.clientX - innerWidth / 2) / R, y = (e.clientY - innerHeight / 2) / R;
-  const l = Math.hypot(x, y), m = l < .12 ? 0 : Math.min(1, (l - .12) / .88);
+  const R = Math.min(innerWidth, innerHeight) * .44, x = (e.clientX - innerWidth / 2) / R, y = (e.clientY - innerHeight / 2) / R;
+  const l = Math.hypot(x, y), m = l < .2 ? 0 : Math.pow(Math.min(1, (l - .2) / .8), 1.5);   // bigger dead zone, gentle near the middle
   stick.x = l ? x / l * m : 0; stick.y = l ? y / l * m : 0;
 }
 const tap = (id, fn) => document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (!chatOpen && id !== 'tChat') dismissKeyboard(); fn(); });
@@ -1157,11 +1243,15 @@ const tBrake = document.getElementById('tBrake');
 tBrake.addEventListener('pointerdown', e => { e.preventDefault(); brakeHeld = true; tBrake.style.background = 'rgba(57,243,255,.35)'; });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tBrake.addEventListener(ev, () => { brakeHeld = false; tBrake.style.background = ''; }));
 
+const tStick = { x: 0, y: 0 };
 function handleInput() {
   const dt = DT;
   // input -> target turn rate; actual rate eases in/out (no instant snaps = no whiplash)
   let yIn = 0, pIn = 0;
-  if (IS_TOUCH) { yIn = -stick.x; pIn = -stick.y; }
+  if (IS_TOUCH) {   // smoothed and toned down so a thumb doesn't jerk the ball around
+    const k = 1 - Math.exp(-dt * 9); tStick.x += (stick.x - tStick.x) * k; tStick.y += (stick.y - tStick.y) * k;
+    yIn = -tStick.x * .7; pIn = -tStick.y * .7;
+  }
   if (keys.ArrowLeft) yIn += 1; if (keys.ArrowRight) yIn -= 1;
   if (keys.ArrowUp) pIn += 1; if (keys.ArrowDown) pIn -= 1;
   if (opts.mouse && mouse.in && !IS_TOUCH && !chatOpen) {   // mouse: the ball flies toward your cursor (dead zone in the middle)
@@ -1234,7 +1324,7 @@ function updateFood() {
   const on = playing && me && mainCell && me.cells.length;
   food.visible = !!on; for (const cl of clusters) cl.spr.visible = false;
   if (!on) return;
-  const V = viewRadius(myR()), cells = me.cells;
+  const V = foodRadius(myR()), cells = me.cells;
   // bounding sphere of all your balls
   let gx = 0, gy = 0, gz = 0, tm = 0, gR = 0, maxReach = 0;
   const sc = Math.sqrt(V * 2.1 / 750), valK = 1 + myR() / 30;
@@ -1252,7 +1342,7 @@ function updateFood() {
   foodMat.uniforms.uFar.value = V;
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
-  const gRate = (.22 * Math.pow(tm, .7) + 1) * (now < PU.roidsUntil ? 4 : 1);
+  const gRate = (.44 * Math.pow(tm, .7) + 2) * (now < PU.roidsUntil ? 4 : 1);
   me.allow = Math.min((me.allow || 0) + gRate * DT, gRate * 1.5 + 4);
   botGrid.clear();
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < V + bc.r) {
@@ -1277,7 +1367,7 @@ function updateFood() {
     }
     if (hit) {
       if (hd < hit.r + s * .5 && me.allow > 0) {
-        const gain = Math.min(Math.min(foodVal[i] * valK, hit.mass * .05 + .5) * (now < PU.roidsUntil ? 4 : 1), me.allow); me.allow -= gain;   // ≤ ~5–9% per orb when tiny
+        const gain = Math.min(Math.min(foodVal[i] * valK * 2, hit.mass * .1 + 1) * (now < PU.roidsUntil ? 4 : 1), me.allow); me.allow -= gain;   // ≤ ~10–18% per orb when tiny
         hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 12 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
@@ -1501,6 +1591,62 @@ setInterval(() => {   // prune silent peers, keep bot population healthy
   if (playing && !chatOpen && /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) dismissKeyboard();
 }, 1500);
 addEventListener('pagehide', () => { try { net.room?.leave(); } catch { } });
+// who's online: tap the lobby pill (top-left) to expand
+document.getElementById('srvBtn').addEventListener('click', () => { document.getElementById('srv').classList.toggle('open'); updateServerList(); });
+function updateServerList() {
+  const box = document.getElementById('srv'), online = net.status === 'online';
+  const players = [...entities.values()].filter(e => (e.kind === 'me' || e.kind === 'remote') && e.cells.length).sort((a, b) => b.mass - a.mass);
+  const n = online ? net.peers.size + 1 : 1;
+  box.classList.toggle('off', !online);
+  document.getElementById('srvTxt').textContent = online ? `Lobby ${net.lobby} · ${n} online` : 'Offline · you + bots';
+  if (!box.classList.contains('open')) return;
+  let bots = 0; for (const e of entities.values()) if (e.kind === 'bot' && e.cells.length) bots++;
+  const menu = Math.max(0, n - players.length);
+  document.getElementById('srvList').innerHTML = players.map(e => `<li class="${e === me ? 'me' : ''}"><span>${escapeHtml(e.name)}${e === me ? ' (you)' : ''}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
+    + (menu ? `<li><span>${menu} on the menu</span><span class="m"></span></li>` : '') + `<li><span>Bots</span><span class="m">${bots}</span></li>`;
+}
+// globe minimap (top-right): the whole map as a sphere, turned the way your camera faces; you're the bright dot inside
+const globeCv = document.getElementById('globe'), gctx = globeCv.getContext('2d'), _gq = new THREE.Quaternion(), _gv = new V3();
+const GLOBE_LINES = (() => { const L = [], rad = Math.PI / 180;
+  for (const lat of [-60, -30, 0, 30, 60]) { const pts = []; for (let i = 0; i <= 48; i++) { const t = i / 48 * Math.PI * 2; pts.push([Math.cos(lat * rad) * Math.cos(t), Math.sin(lat * rad), Math.cos(lat * rad) * Math.sin(t)]); } L.push(pts); }
+  for (let k = 0; k < 6; k++) { const t = k / 6 * Math.PI, pts = []; for (let i = 0; i <= 32; i++) { const u = i / 32 * Math.PI * 2; pts.push([Math.cos(t) * Math.cos(u), Math.sin(u), Math.sin(t) * Math.cos(u)]); } L.push(pts); }
+  return L; })();
+function drawGlobe() {
+  const g = gctx, W = globeCv.width, C = W / 2, R = C - 10;
+  g.clearRect(0, 0, W, W);
+  if (!mainCell) return;
+  _gq.copy(camera.quaternion).invert();
+  const P = (x, y, z) => _gv.set(x, y, z).applyQuaternion(_gq);
+  const body = g.createRadialGradient(C - R * .35, C - R * .4, R * .1, C, C, R);
+  body.addColorStop(0, 'rgba(90,130,255,.30)'); body.addColorStop(1, 'rgba(8,10,34,.62)');
+  g.fillStyle = body; g.beginPath(); g.arc(C, C, R, 0, 7); g.fill();
+  for (const back of [true, false]) {   // far side faint, near side brighter
+    g.beginPath();
+    for (const pts of GLOBE_LINES) for (let i = 1; i < pts.length; i++) {
+      const a = P(...pts[i - 1]), ax = a.x, ay = a.y, az = a.z, b = P(...pts[i]);
+      if ((az + b.z < 0) !== back) continue;
+      g.moveTo(C + ax * R, C - ay * R); g.lineTo(C + b.x * R, C - b.y * R);
+    }
+    g.strokeStyle = back ? 'rgba(140,170,255,.12)' : 'rgba(140,190,255,.38)'; g.lineWidth = 2; g.stroke();
+  }
+  g.strokeStyle = 'rgba(160,200,255,.55)'; g.lineWidth = 3; g.beginPath(); g.arc(C, C, R, 0, 7); g.stroke();
+  const dot = (pos, col, size, glow) => {
+    const v = P(pos.x / ARENA, pos.y / ARENA, pos.z / ARENA), x = C + v.x * R, y = C - v.y * R, a = v.z < 0 ? .45 : 1;
+    g.globalAlpha = a; if (glow) { g.shadowColor = col; g.shadowBlur = glow; }
+    g.fillStyle = col; g.beginPath(); g.arc(x, y, size, 0, 7); g.fill(); g.shadowBlur = 0; g.globalAlpha = 1; return [x, y];
+  };
+  for (const e of entities.values()) {
+    if (!e.cells.length || e === me) continue;
+    if (e.lev) dot(e.main().pos, '#ffae3f', Math.max(5, e.main().r / ARENA * R), 8);
+    else if (e.kind === 'remote') dot(e.main().pos, '#ff5ca8', 5, 6);
+  }
+  // you: a line from the center (so your depth reads), the dot, and a tick showing where you're heading
+  const v = P(mainCell.pos.x / ARENA, mainCell.pos.y / ARENA, mainCell.pos.z / ARENA), x = C + v.x * R, y = C - v.y * R;
+  g.strokeStyle = 'rgba(57,243,255,.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(C, C); g.lineTo(x, y); g.stroke();
+  const h = P(fwd.x, fwd.y, fwd.z);
+  g.strokeStyle = '#39f3ff'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + h.x * 18, y - h.y * 18); g.stroke();
+  dot(mainCell.pos, '#39f3ff', Math.max(6, mainCell.r / ARENA * R), 14);
+}
 function updateNetUI() {
   const dot = document.getElementById('netDot'), txt = document.getElementById('netText');
   if (net.status === 'offline') { dot.className = 'dot off'; txt.textContent = 'Offline mode — playing with bots'; return; }
@@ -1703,6 +1849,7 @@ function updateVisuals() {
   { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
   const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) : 1e5; if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
   shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr;
+  updateWakes();
   sky.position.copy(camera.position);
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
 }
@@ -2068,7 +2215,7 @@ $('donate').href = $('donate2').href = CFG.DONATE_URL;
 if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden'); $('donate2').classList.add('hidden'); }   // no real link yet
 if (params.has('og')) document.body.classList.add('og');
 if (params.has('clean')) document.body.classList.add('clean');
-if (IS_TOUCH) $('keysHelp').innerHTML = 'Left stick steers · <b>SPLIT</b> to attack · <b>EJECT</b> to feed · <b>CHAT</b> to talk';
+if (IS_TOUCH) $('keysHelp').innerHTML = 'Touch anywhere to steer · <b>SPLIT</b> to attack · <b>SPIT</b> to shoot out mass · <b>CHAT</b> to talk';
 
 /* ============================== MAIN LOOP ============================== */
 let last = performance.now();
@@ -2095,7 +2242,8 @@ function frame(t) {
   updateSparks();
   updateVisuals();
   updateCamera();
-  hudT -= DT; if (hudT <= 0) { hudT = .25; updateHud(); }
+  hudT -= DT; if (hudT <= 0) { hudT = .25; updateHud(); updateServerList(); }
+  if (playing) drawGlobe();
   let p3 = performance.now(); PROF.vis += p3 - p2;
   composer.render();
   PROF.render += performance.now() - p3; PROF.n++;
