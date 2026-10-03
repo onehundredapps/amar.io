@@ -1219,9 +1219,11 @@ stickEl.addEventListener('pointerdown', e => { if (!chatOpen) dismissKeyboard();
 stickEl.addEventListener('pointermove', e => { if (e.pointerId === stick.id) moveStick(e); });
 const endStick = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
 stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
-// touch anywhere: the ball steers toward your finger, measured from the center of the screen (small dead zone in the middle)
+// touch anywhere: the ball steers toward your finger, measured from a point ~3 cm below the screen center (where a
+// resting thumb sits; ~57 css px per cm on phones), with a dead zone around it
 function moveStick(e) {
-  const R = Math.min(innerWidth, innerHeight) * .44, x = (e.clientX - innerWidth / 2) / R, y = (e.clientY - innerHeight / 2) / R;
+  const cy = innerHeight / 2 + Math.min(innerHeight * .2, 170);
+  const R = Math.min(innerWidth, innerHeight) * .44, x = (e.clientX - innerWidth / 2) / R, y = (e.clientY - cy) / R;
   const l = Math.hypot(x, y), m = l < .2 ? 0 : Math.pow(Math.min(1, (l - .2) / .8), 1.5);   // bigger dead zone, gentle near the middle
   stick.x = l ? x / l * m : 0; stick.y = l ? y / l * m : 0;
 }
