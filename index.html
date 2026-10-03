@@ -78,7 +78,7 @@ kbd{font:600 11px Inter,sans-serif;padding:2px 6px;border-radius:5px;background:
 
 /* ---------- HUD ---------- */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:5}
-#stats{position:absolute;left:16px;top:16px;padding:12px 16px;min-width:170px}
+#stats{position:absolute;left:16px;top:16px;padding:12px 16px;min-width:0}
 #mass{font:800 30px Outfit,sans-serif;line-height:1}
 #tier{font-size:11px;letter-spacing:.2em;color:var(--a);margin-top:4px;font-weight:700}
 #sub{font-size:12px;color:var(--muted);margin-top:6px}
@@ -137,8 +137,7 @@ body.touch #chatIn{bottom:auto;top:70px}
 
 /* touch controls */
 #touch{position:fixed;inset:0;z-index:6;pointer-events:none}
-#stick{position:absolute;left:28px;bottom:28px;width:130px;height:130px;border-radius:50%;pointer-events:auto;
-  background:radial-gradient(circle,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--line)}
+#stick{position:absolute;inset:0;pointer-events:auto;opacity:0}
 #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px;border-radius:50%;
   background:radial-gradient(circle at 35% 35%,rgba(57,243,255,.7),rgba(180,92,255,.5));box-shadow:0 0 20px rgba(57,243,255,.5)}
 .tbtns{position:absolute;right:22px;bottom:26px;display:flex;flex-direction:column;gap:12px;align-items:flex-end;pointer-events:auto}
@@ -203,9 +202,9 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 
 <!-- HUD -->
 <div id="hud" class="hidden">
-  <div id="stats" class="glass"><div id="mass">0</div><div id="tier">MICROBE</div><div id="sub"></div>
+  <div id="stats" class="glass"><div id="mass">0</div><div id="tier" style="display:none">MICROBE</div><div id="sub" style="display:none"></div>
     <div class="pu-row" style="display:none"><span class="pu-k">NITRO</span><div class="bar"><i id="boostBar"></i></div></div>
-    <div class="pu-row"><span class="pu-k">CAGE</span><div class="bar cage"><i id="cageBar"></i></div></div>
+    <div class="pu-row" style="display:none"><span class="pu-k">CAGE</span><div class="bar cage"><i id="cageBar"></i></div></div>
     <div id="puTxt"></div>
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
@@ -286,8 +285,8 @@ const params = new URLSearchParams(location.search);
 const V3 = THREE.Vector3;
 const rad = m => 1.5 * Math.sqrt(m);
 // agar.io speed 1:1 — agar moves a cell 2.2·size^-0.439·40 units per tick at 25 ticks/s, with agar size = 10·sqrt(mass);
-// our radius is 1.5·sqrt(mass) (0.15× agar units), so that's 120·mass^-0.2195 of our units per second — plus 10%
-const speedOf = m => 132 * Math.pow(m, -0.2195);
+// our radius is 1.5·sqrt(mass) (0.15× agar units), so that's 120·mass^-0.2195 of our units per second — plus ~20%
+const speedOf = m => 145 * Math.pow(m, -0.2195);
 const BOOST_ON = false, ROCKETS_ON = false;   // nitro + rockets switched off for now
 const viewRadius = r => 560 + r * 14;
 const myR = () => (me && me.cells.length ? rad(me.mass) : 5);   // radius of your TOTAL mass   // fog-of-war: how far you can see, grows with you
@@ -844,17 +843,17 @@ const BOT_NAMES = ['Nucleus', 'Blobfather', 'Mitochondria', 'xX_Orb_Xx', 'Plasma
   'Snacc', 'Void Kid', 'Chonk', 'Zygote', 'Neutrino', 'Glowworm', 'Ooze', 'Pulsar', 'Moonpie', 'Amoeba', 'Sphere Lord', 'Wobble', 'Kraken', 'Protozoa', 'Big Mood', 'Tardigrade'];
 const LEV_NAMES = ['GARGANTUA', 'THE VOID WHALE', 'LEVIATHAN', 'Ω TITAN'];
 let botSeq = 0;
-function spawnBot(lev = false) {
+function spawnBot(lev = false, near = true) {
   const id = `${short()}b${(botSeq++).toString(36)}`;
   const e = new Entity(id, 'bot', lev ? LEV_NAMES[botSeq % LEV_NAMES.length] : BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)], Math.random(), net.selfId);
   e.lev = lev;
   let m;
   if (lev) m = [112000, 80000, 96000][botSeq % 3];
   else { const r = Math.random(); m = r < .55 ? rnd(12, 80) : r < .85 ? rnd(80, 900) : rnd(900, 6000); }
-  let pos = randInSphere(ARENA * (lev ? .55 : .85));
+  let pos = randInSphere(ARENA * (lev ? .55 : .92));
   // agar feel: most bots spawn in view of a real player, some smaller (prey) and many BIGGER (threats)
   const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length);
-  if (!lev && humans.length && Math.random() < .75) {
+  if (!lev && near && humans.length) {
     const h = humans[Math.floor(Math.random() * humans.length)], hm = h.main();
     const k = Math.random(); m = clamp(h.mass * (k < .4 ? rnd(.15, .5) : k < .8 ? rnd(1.4, 3) : rnd(3, 6)), 10, BOT_MAX);
     pos = hm.pos.clone().addScaledVector(randUnit(), viewRadius(hm.r) * 1.15 + rad(m) + rnd(50, 400));
@@ -866,21 +865,25 @@ function spawnBot(lev = false) {
   addCell(e, pos, m);
   return e;
 }
-function botTarget() { const humans = 1 + net.peers.size; return { norm: 60, lev: 2 }; }
+const BOT_NEAR = IS_TOUCH ? 30 : 45;   // how many bots hang around each player; the rest roam the whole map
+function botTarget() { return { norm: IS_TOUCH ? 90 : 140, lev: 3 }; }
+function humanMains() { return [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length).map(h => h.main()); }
+function countNearBots(hs) { let n = 0; for (const e of entities.values()) { if (e.kind !== 'bot' || e.lev || !e.cells.length) continue; const p = e.main().pos; if (hs.some(h => h.pos.distanceTo(p) < viewRadius(h.r) * 2.4)) n++; } return n; }
 function ensureBots() {
   if (!isHost) return;
   let n = 0, l = 0; for (const e of entities.values()) if (e.kind === 'bot') e.lev ? l++ : n++;
   const t = botTarget();
+  const humans = humanMains(); let near = humans.length ? countNearBots(humans) : 0;
   while (l < t.lev) { spawnBot(true); l++; }
-  while (n < t.norm) { spawnBot(false); n++; }
-  // recycle a couple of bots per tick that drifted far from every player, so the action stays around people
-  const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length).map(h => h.main());
+  while (n < t.norm) { const nb = near < BOT_NEAR * humans.length; spawnBot(false, nb); if (nb) near++; n++; }
+  // keep a crowd around every player: pull a few far-roaming bots in per tick while the crowd is thin
   if (!humans.length) return;
   let recycled = 0;
   for (const e of [...entities.values()]) {
-    if (e.kind !== 'bot' || e.lev || recycled >= 8) continue;
+    if (near >= BOT_NEAR * humans.length || recycled >= 8) break;
+    if (e.kind !== 'bot' || e.lev) continue;
     const m = e.main(); if (!m) continue;
-    if (humans.every(h => h.pos.distanceTo(m.pos) > viewRadius(h.r) * 2.4)) { removeEntity(e); spawnBot(false); recycled++; }
+    if (humans.every(h => h.pos.distanceTo(m.pos) > viewRadius(h.r) * 2.4)) { removeEntity(e); spawnBot(false, true); recycled++; near++; }
   }
 }
 // snacks: small local prey that keep spawning around you so split-attacks are always on the menu
@@ -908,8 +911,12 @@ function ensureSnacks() {
 }
 function gatherBots() {   // on (re)spawn: bring the crowd to you, just outside your fog, so they drift into view
   if (!isHost || !mainCell) return;
-  const far = viewRadius(mainCell.r) * 2.4;
-  for (const e of [...entities.values()]) { if (e.kind !== 'bot' || e.lev) continue; const m = e.main(); if (m && m.pos.distanceTo(mainCell.pos) > far) { removeEntity(e); spawnBot(false); } }
+  const far = viewRadius(mainCell.r) * 2.4; let near = countNearBots([mainCell]);
+  for (const e of [...entities.values()]) {
+    if (near >= BOT_NEAR) break;
+    if (e.kind !== 'bot' || e.lev) continue; const m = e.main();
+    if (m && m.pos.distanceTo(mainCell.pos) > far) { removeEntity(e); spawnBot(false, true); near++; }
+  }
 }
 function removeLocalBots() { for (const e of [...entities.values()]) if (e.kind === 'bot') removeEntity(e); }
 
@@ -1126,10 +1133,11 @@ stickEl.addEventListener('pointerdown', e => { if (!chatOpen) dismissKeyboard();
 stickEl.addEventListener('pointermove', e => { if (e.pointerId === stick.id) moveStick(e); });
 const endStick = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
 stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
+// touch anywhere: the ball steers toward your finger, measured from the center of the screen (small dead zone in the middle)
 function moveStick(e) {
-  const r = stickEl.getBoundingClientRect(); let x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2);
-  const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
-  stick.x = x; stick.y = y; knob.style.transform = `translate(${x * 38}px,${y * 38}px)`;
+  const R = Math.min(innerWidth, innerHeight) * .38, x = (e.clientX - innerWidth / 2) / R, y = (e.clientY - innerHeight / 2) / R;
+  const l = Math.hypot(x, y), m = l < .12 ? 0 : Math.min(1, (l - .12) / .88);
+  stick.x = l ? x / l * m : 0; stick.y = l ? y / l * m : 0;
 }
 const tap = (id, fn) => document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (!chatOpen && id !== 'tChat') dismissKeyboard(); fn(); });
 tap('tSplit', () => playing && split(me, fwd, crosshairPoint()));
