@@ -108,6 +108,7 @@ body.touch #boostTip{bottom:auto;top:120px}
 #srvList{list-style:none;display:none;padding:0 12px 10px;max-height:40vh;overflow:auto}
 #srv.open #srvList{display:block}
 #srvList li{display:flex;justify-content:space-between;gap:12px;padding:2px 0;white-space:nowrap}
+#srvList .mute{margin-left:8px;padding:1px 7px;border-radius:8px;border:1px solid var(--line);font-size:10px;color:var(--muted)}
 #srvList li.me{color:var(--a);font-weight:700}
 #srvList li .m{color:var(--muted);font-variant-numeric:tabular-nums}
 #globeWrap{position:absolute;right:16px;top:16px;width:150px;height:150px;pointer-events:none}
@@ -203,6 +204,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
       <label id="optMouseRow"><input type="checkbox" id="optMouse" checked> Mouse steer</label>
       <label><input type="checkbox" id="optInvert" checked> Inverted controls</label>
       <label><input type="checkbox" id="optSound" checked> Sound</label>
+      <label><input type="checkbox" id="optChat" checked> Player chat</label>
     </div>
     <button id="play">PLAY</button>
     <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
@@ -1148,7 +1150,7 @@ function moveEntity(E) {
 let me = null, playing = false, mainCell = null, zoom = 1, fovKick = 0;
 const orient = new THREE.Quaternion();
 const stats = { peak: 0, eaten: 0, start: 0, peakTier: 0, killer: '' };
-const opts = { level: true, invert: true, sound: true, mouse: true };   // inverted (flight-style) up/down by default
+const opts = { level: true, invert: true, sound: true, mouse: true, chat: true };   // inverted (flight-style) up/down by default
 const AX = { X: new V3(1, 0, 0), Y: new V3(0, 1, 0), Z: new V3(0, 0, -1) };
 const _q = new THREE.Quaternion();
 // Heading turns freely about your own axes: no limit up or down, you can loop right over the top. While you're
@@ -1468,8 +1470,13 @@ function chatTexture(text) {
   return { tex, aspect: c.width / c.height };
 }
 function dropChat(E) { const ch = E.chat; if (!ch) return; scene.remove(ch.spr); ch.spr.material.map.dispose(); ch.spr.material.dispose(); E.chat = null; }
+// chat safety: rude words are masked for everyone, and any player can be muted from the lobby list
+const BAD_WORDS = /\b(f+u+c+k+\w*|sh[i1]+t+\w*|b[i1]tch\w*|c+u+n+t+\w*|d[i1]ck\w*|puss(y|ies)|asshole\w*|bastard\w*|wh[o0]re\w*|slut\w*|n[i1]gg\w*|f[a4]gg?\w*|retard\w*|rap(e|ist)\w*|porn\w*|nazi\w*|kys)\b/gi;
+const filterChat = t => t.replace(BAD_WORDS, w => w[0] + '*'.repeat(Math.max(1, w.length - 1)));
+const muted = new Set();
 function showChat(E, text) {
-  text = cleanChat(text); if (!text || !E.cells.length) return;
+  if (E.kind === 'remote' && (!opts.chat || muted.has(E.owner))) return;
+  text = filterChat(cleanChat(text)); if (!text || !E.cells.length) return;
   dropChat(E);
   const { tex, aspect } = chatTexture(text);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, toneMapped: false }));
@@ -1604,6 +1611,11 @@ setInterval(() => {   // prune silent peers, keep bot population healthy
 }, 1500);
 addEventListener('pagehide', () => { try { net.room?.leave(); } catch { } });
 // who's online: tap the lobby pill (top-left) to expand
+document.getElementById('srvList').addEventListener('click', e => {
+  const b = e.target.closest('.mute'); if (!b) return; e.stopPropagation();
+  const p = b.dataset.p; if (muted.has(p)) muted.delete(p); else { muted.add(p); for (const x of entities.values()) if (x.owner === p) dropChat(x); }
+  updateServerList();
+});
 document.getElementById('srvBtn').addEventListener('click', () => { document.getElementById('srv').classList.toggle('open'); updateServerList(); });
 function updateServerList() {
   const box = document.getElementById('srv'), online = net.status === 'online';
@@ -1614,7 +1626,7 @@ function updateServerList() {
   if (!box.classList.contains('open')) return;
   let bots = 0; for (const e of entities.values()) if (e.kind === 'bot' && e.cells.length) bots++;
   const menu = Math.max(0, n - players.length);
-  document.getElementById('srvList').innerHTML = players.map(e => `<li class="${e === me ? 'me' : ''}"><span>${escapeHtml(e.name)}${e === me ? ' (you)' : ''}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
+  document.getElementById('srvList').innerHTML = players.map(e => `<li class="${e === me ? 'me' : ''}"><span>${escapeHtml(e.name)}${e === me ? ' (you)' : ''}</span><span class="m">${fmt(e.mass)}${e.kind === 'remote' ? ` <button class="mute" data-p="${escapeHtml(e.owner)}">${muted.has(e.owner) ? 'unmute' : 'mute'}</button>` : ''}</span></li>`).join('')
     + (menu ? `<li><span>${menu} on the menu</span><span class="m"></span></li>` : '') + `<li><span>Bots</span><span class="m">${bots}</span></li>`;
 }
 // globe minimap (top-right): the whole map as a sphere, turned the way your camera faces; you're the bright dot inside
@@ -1669,7 +1681,15 @@ function updateNetUI() {
 
 /* ============================== AUDIO ============================== */
 let actx = null, lastEat = 0;
+const HAPTIC = { split: 'medium', gulp: 'heavy', tier: 'success', boom: 'heavy', pickup: 'light', death: 'error' };
+let lastHaptic = 0;
+function haptic(kind) {   // the iOS app vibrates on big moments; browsers ignore this
+  const h = window.webkit?.messageHandlers?.haptic; if (!h) return;
+  const t = performance.now(); if (t - lastHaptic < 60) return; lastHaptic = t;
+  try { h.postMessage(kind); } catch { }
+}
 function sfx(type, arg) {
+  if (HAPTIC[type]) haptic(HAPTIC[type]);
   if (!opts.sound) return;
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
   const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(); o.connect(g); g.connect(actx.destination);
@@ -2181,7 +2201,7 @@ document.addEventListener('focusin', e => { if (playing && e.target !== chatIn &
 function startGame() {
   const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
   try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); localStorage.setItem('orb_invert', $('optInvert').checked ? '1' : '0'); } catch { }
-  opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked;
+  opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked; opts.chat = $('optChat').checked;
   sfx('tier');
   dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
   spawnMe(name, chosenHue);
@@ -2197,6 +2217,7 @@ function startGame() {
   toast(tierOf(me.mass), 'grow. split. devour.');
 }
 function onDeath() {
+  haptic('death');
   playing = false; sfx('die');
   const secs = Math.round((performance.now() - stats.start) / 1000);
   const killer = [...entities.values()].find(e => e.name === stats.killer && e.cells.length);
@@ -2268,6 +2289,7 @@ isHost = true; ensureBots();
 for (let i = 0; i < 60; i++) { DT = .05; now += DT; for (const e of entities.values()) if (e.local) { botThink(e); moveEntity(e); } interactions(); }
 requestAnimationFrame(frame);
 if (params.has('offline')) { net.status = 'offline'; updateNetUI(); } else initNet();
+if (params.has('autoplay')) setTimeout(startGame, 800);   // used for App Store screenshots
 window.__orb = { chunks, get foodLevel() { return foodLevel; }, foodAlive, foodPos, FOOD_N, PU, pickups, fireRocket, get rockets() { return rockets; }, worldWon, frame: t => frame(t), PROF, dbg: { bloom, composer, renderer, scene, sky, shell, food, U, camera, offScreen, updateViewPlanes }, entities, net, get me() { return me; }, get mainCell() { return mainCell; }, split: () => split(me, fwd, crosshairPoint()), crosshairPoint, get orphans() { return orphanN; }, get foodK() { return foodK; }, spawnMe };
 </script>
 </body>
