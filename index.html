@@ -113,7 +113,10 @@ body.touch #boostTip{bottom:auto;top:120px}
 #srvList li .m{color:var(--muted);font-variant-numeric:tabular-nums}
 #globeWrap{position:absolute;right:16px;top:16px;width:150px;height:150px;pointer-events:none}
 #globe{width:100%;height:100%;display:block}
-body.touch #srv{left:12px;top:66px}
+body.touch #srv{left:12px;top:calc(66px + env(safe-area-inset-top))}
+body.touch #stats{top:calc(12px + env(safe-area-inset-top))}
+body.touch #globeWrap{top:calc(10px + env(safe-area-inset-top))!important}
+body.touch .tbtns,body.touch .tbtnsL{bottom:calc(20px + env(safe-area-inset-bottom))}
 body.touch #globeWrap{right:10px;top:10px;width:104px;height:104px}
 #lb{position:absolute;right:16px;top:176px;padding:12px 14px;width:220px;font-size:13px}
 #lb h4{font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:var(--muted);margin-bottom:8px}
@@ -163,7 +166,7 @@ body.touch #chatIn{bottom:auto;top:70px}
 .tb.sm{width:56px;height:56px;font-size:10px}
 body.touch #radarWrap{left:auto;right:12px;bottom:auto;top:12px;padding:5px}
 body.touch #radar{width:92px;height:92px}
-body.touch #stats{left:12px;top:12px;padding:10px 12px}
+body.touch #stats{left:12px;top:calc(12px + env(safe-area-inset-top));padding:10px 12px}
 body.touch #lb{display:none}
 body.touch #hint{display:none}
 
@@ -1013,7 +1016,7 @@ function gatherBots() {   // on (re)spawn: bring the crowd to you, just outside 
 }
 function removeLocalBots() { for (const e of [...entities.values()]) if (e.kind === 'bot') removeEntity(e); }
 
-const _t = new V3(), _t2 = new V3(), _flee = new V3();
+const _t = new V3(), _t2 = new V3(), _t3 = new V3(), _flee = new V3();
 function botThink(E) {
   const m = E.main(); if (!m) return;
   E.thinkT -= DT; if (E.thinkT > 0) return; E.thinkT = rnd(.18, .32);
@@ -1025,7 +1028,10 @@ function botThink(E) {
     }
     if (E.wanderT <= 0) {
       E.wanderT = rnd(5, 10); randUnit(E.wanderDir);
-      if (playing && mainCell && !outgrown && Math.random() < .5) E.wanderDir.lerp(_t.subVectors(mainCell.pos, m.pos).normalize(), .6).normalize();
+      if (playing && mainCell && !outgrown && Math.random() < .5) {   // swing PAST you (aim beside you), so it looms close without swallowing a fresh spawn
+        _t2.crossVectors(_t.subVectors(mainCell.pos, m.pos), randUnit(_t3)).normalize().multiplyScalar(m.r * 2.2 + 300);
+        E.wanderDir.lerp(_t.add(_t2).normalize(), .6).normalize();
+      }
     }
     if (m.pos.length() > ARENA * .6) E.wanderDir.lerp(_t.copy(m.pos).negate().normalize(), .5).normalize();
     E.dir.lerp(E.wanderDir, .12).normalize(); return;
@@ -1613,6 +1619,13 @@ addEventListener('pagehide', () => { try { net.room?.leave(); } catch { } });
 // who's online: tap the lobby pill (top-left) to expand
 document.getElementById('srvList').addEventListener('click', e => {
   const b = e.target.closest('.mute'); if (!b) return; e.stopPropagation();
+  if (b.classList.contains('report')) {   // report = block them right away + open the report form with their name filled in
+    const p = b.dataset.p; muted.add(p); for (const x of entities.values()) if (x.owner === p) dropChat(x);
+    const url = 'https://github.com/onehundredapps/amar.io/issues/new?title=' + encodeURIComponent('Report player: ' + b.dataset.n) + '&body=' + encodeURIComponent('What happened (abusive chat, offensive name, cheating):\n\n');
+    feed('<b>Reported & blocked</b> ' + escapeHtml(b.dataset.n));
+    const h = window.webkit?.messageHandlers?.openURL; if (h) h.postMessage(url); else window.open(url, '_blank', 'noopener');
+    updateServerList(); return;
+  }
   const p = b.dataset.p; if (muted.has(p)) muted.delete(p); else { muted.add(p); for (const x of entities.values()) if (x.owner === p) dropChat(x); }
   updateServerList();
 });
@@ -1626,7 +1639,7 @@ function updateServerList() {
   if (!box.classList.contains('open')) return;
   let bots = 0; for (const e of entities.values()) if (e.kind === 'bot' && e.cells.length) bots++;
   const menu = Math.max(0, n - players.length);
-  document.getElementById('srvList').innerHTML = players.map(e => `<li class="${e === me ? 'me' : ''}"><span>${escapeHtml(e.name)}${e === me ? ' (you)' : ''}</span><span class="m">${fmt(e.mass)}${e.kind === 'remote' ? ` <button class="mute" data-p="${escapeHtml(e.owner)}">${muted.has(e.owner) ? 'unmute' : 'mute'}</button>` : ''}</span></li>`).join('')
+  document.getElementById('srvList').innerHTML = players.map(e => `<li class="${e === me ? 'me' : ''}"><span>${escapeHtml(e.name)}${e === me ? ' (you)' : ''}</span><span class="m">${fmt(e.mass)}${e.kind === 'remote' ? ` <button class="mute" data-p="${escapeHtml(e.owner)}">${muted.has(e.owner) ? 'unblock' : 'block'}</button><button class="mute report" data-p="${escapeHtml(e.owner)}" data-n="${escapeHtml(e.name)}">report</button>` : ''}</span></li>`).join('')
     + (menu ? `<li><span>${menu} on the menu</span><span class="m"></span></li>` : '') + `<li><span>Bots</span><span class="m">${bots}</span></li>`;
 }
 // globe minimap (top-right): the whole map as a sphere, turned the way your camera faces; you're the bright dot inside
