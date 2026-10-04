@@ -200,8 +200,8 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <input id="name" type="text" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false">
     <div class="row swatches" id="swatches"></div>
     <div class="opts">
-      <label><input type="checkbox" id="optMouse" checked> Mouse steer</label>
-      <label><input type="checkbox" id="optInvert" checked> Inverted up/down</label>
+      <label id="optMouseRow"><input type="checkbox" id="optMouse" checked> Mouse steer</label>
+      <label><input type="checkbox" id="optInvert" checked> Inverted controls</label>
       <label><input type="checkbox" id="optSound" checked> Sound</label>
     </div>
     <button id="play">PLAY</button>
@@ -306,7 +306,7 @@ const rad = m => 1.5 * Math.sqrt(m);
 // our radius is 1.5·sqrt(mass) (0.15× agar units), so that's 120·mass^-0.2195 of our units per second — plus ~20%
 const speedOf = m => 145 * Math.pow(m, -0.2195);
 const BOOST_ON = false, ROCKETS_ON = false;   // nitro + rockets switched off for now
-const viewRadius = r => 1120 + r * 28;   // how far you can see through the fog of war
+const viewRadius = r => 2240 + r * 56;   // how far you can see through the fog of war
 const foodRadius = r => 560 + r * 14;    // orbs are kept this close to you
 const myR = () => (me && me.cells.length ? rad(me.mass) : 5);   // radius of your TOTAL mass   // fog-of-war: how far you can see, grows with you
 const KILL_BONUS = 1.5;   // players gain 1.5× the mass of any ball they eat (snacks: 1×)
@@ -1270,7 +1270,7 @@ function handleInput() {
     yIn -= curve(mouse.x); pIn -= curve(mouse.y);
   }
   yIn = clamp(yIn, -1, 1); pIn = clamp(pIn, -1, 1);
-  if (opts.invert) pIn = -pIn;
+  if (opts.invert) { pIn = -pIn; yIn = -yIn; }   // inverted: up/down AND left/right flip
   const acc = 1 - Math.exp(-dt * 7);
   yawVel += (yIn * 2.0 - yawVel) * acc;
   pitchVel += (pIn * 1.5 - pitchVel) * acc;
@@ -2229,6 +2229,7 @@ $('donate').href = $('donate2').href = CFG.DONATE_URL;
 if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden'); $('donate2').classList.add('hidden'); }   // no real link yet
 if (params.has('og')) document.body.classList.add('og');
 if (params.has('clean')) document.body.classList.add('clean');
+if (IS_TOUCH) $('optMouseRow').style.display = 'none';
 if (IS_TOUCH) $('keysHelp').innerHTML = 'Touch anywhere to steer · <b>SPLIT</b> to attack · <b>SPIT</b> to shoot out mass · <b>CHAT</b> to talk';
 
 /* ============================== MAIN LOOP ============================== */
