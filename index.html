@@ -223,7 +223,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <button id="play">PLAY</button>
     <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
     <div class="keys" id="keysHelp">
-      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom<br>
+      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back<br>
       <kbd>S</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
     </div>
   </div>
@@ -250,7 +250,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom</div>
+  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
@@ -294,7 +294,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610110600'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610110700'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -595,15 +595,15 @@ const shell = new THREE.Mesh(new THREE.SphereGeometry(ARENA, 96, 64), shellMat);
 shell.frustumCulled = false; scene.add(shell);
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
-const FOOD_N = IS_TOUCH ? 8000 : 22000;
+const FOOD_N = IS_TOUCH ? 9000 : 30000;
 const CL_N = 0;   // clusters disabled: classic evenly-spread agar pellets
 const LOOSE_N = FOOD_N;
 const PER_CL = 0;
 const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
   transparent: true, premultipliedAlpha: true, depthWrite: false,
-  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx;
+  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
+  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
@@ -618,8 +618,8 @@ const foodMat = new THREE.ShaderMaterial({
       float lum = .62 + 2.6*pow(h, 5.);      // a few bright stars, a great many faint ones
       float flux = pow(min(px/1.3, 1.), .5);
       float tw = .88 + .12*sin(uTime*(1.5 + h*3.) + h*40.);
-      vI = mix(1., lum*max(.42, flux)*tw, vStar);
-      vRpx = 2.3 + 2.4*clamp(lum*flux - .5, 0., 1.);   // sprite radius in pixels; bright stars carry a little glare
+      vI = mix(1., lum*max(.42, flux)*tw*uBoost, vStar);   // zoomed out, each star stands for a whole clump of orbs: it shines brighter
+      vRpx = 2.3 + .5*(uBoost - 1.) + 2.4*clamp(lum*flux*uBoost - .5, 0., 1.);   // sprite radius in pixels; bright stars carry a little glare
       float R = sc > 0. ? max(sc*1.9, pix*vRpx*vStar) : 0.;
       vRel = R / max(sc, 1e-6); vRpx = R / pix;
       vUv = position.xy;
@@ -692,7 +692,7 @@ function richness(x, y, z) { let d = .02; for (const [s, w] of RICH_S) d += w * 
    sub-chunks' spots, so growing never moves an orb. Orbs only vanish when eaten: when fewer are needed, the extras
    (orphans) wait until they're off-screen or deep in the fog before they go. Eaten orbs grow back after a while. ---- */
 const C0 = 120, K_PER = IS_TOUCH ? 9 : 16;
-const FOOD_TARGET = Math.round(FOOD_N * .6), K_MIN = 1, K_MAX = 100000;
+const FOOD_TARGET = Math.round(FOOD_N * .7), K_MIN = 1, K_MAX = 100000;
 let foodK = K_PER * 2;                     // orb spots tried per chunk; tuned so the screen always holds ~FOOD_TARGET orbs
 const chunks = new Map();                  // key -> { a, b, c, L, slots: Set, pending: [[k, t]], done, hot, dead }
 const freeSlots = []; for (let i = FOOD_N - 1; i >= 0; i--) freeSlots.push(i);
@@ -1039,7 +1039,7 @@ function ensureBots() {
   if (!humans.length) return;
   for (const e of entities.values()) {
     if (!e.lev || e.col || !e.cells.length) continue; const lm = e.main();
-    if (humans.every(h => h.pos.distanceTo(lm.pos) > 70000)) { const h = humans[Math.floor(Math.random() * humans.length)]; lm.pos.copy(h.pos).addScaledVector(randUnit(), Math.max(viewRadius(h.r) * 1.6 + lm.r, 7000) + rnd(0, 30000)); if (lm.pos.length() > ARENA * .9) lm.pos.setLength(ARENA * .85); lm.tpos && lm.tpos.copy(lm.pos); }
+    if (humans.every(h => h.pos.distanceTo(lm.pos) > 70000)) { const h = humans[Math.floor(Math.random() * humans.length)]; lm.pos.copy(h.pos).addScaledVector(randUnit(), Math.max(viewRadius(h.r) * 1.6 + lm.r, 16000) + rnd(0, 40000)); if (lm.pos.length() > ARENA * .9) lm.pos.setLength(ARENA * .85); lm.tpos && lm.tpos.copy(lm.pos); }
   }
   let recycled = 0;
   for (const e of [...entities.values()]) {
@@ -1247,7 +1247,7 @@ function levelRoll(dt) {   // upside-down (mid-loop) is left alone
 }
 
 // zoom slider (right edge): top = closest, bottom = whole map; position is in zoom-octaves so it feels even
-const ZMIN = .3, zoomTrack = document.getElementById('zoomTrack'), zoomKnob = document.getElementById('zoomKnob');
+const ZMIN = .06, ZFPV = .2, zoomTrack = document.getElementById('zoomTrack'), zoomKnob = document.getElementById('zoomKnob');
 function updateZoomBar() { const p = clamp(Math.log(zoom / ZMIN) / Math.log(zoomMax / ZMIN), 0, 1); zoomKnob.style.top = (p * 100) + '%'; }
 function zoomFromPointer(e) { const r = zoomTrack.getBoundingClientRect(), p = clamp((e.clientY - r.top) / r.height, 0, 1); intro = null; zoomTarget = ZMIN * Math.pow(zoomMax / ZMIN, p); }
 zoomTrack.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); zoomTrack.setPointerCapture(e.pointerId); zoomFromPointer(e); });
@@ -1261,18 +1261,21 @@ function spawnMe(name, hue, forceMass) {
   me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
   let p = new V3();
-  if (levs.length && Math.random() < .92) {       // spawn in view of a giant — instant sense of scale
+  if (false) {
     const L = levs[Math.floor(Math.random() * levs.length)].main();
     for (let k = 0; k < 40; k++) { p.copy(L.pos).addScaledVector(randUnit(), L.r * 1.9 + 160); if (p.length() < ARENA * .9) break; }
     if (p.length() > ARENA * .9) p.setLength(ARENA * .85);
-  } else p = randInSphere(ARENA * .6);
+  } else for (let k = 0; k < 60; k++) {   // anywhere on the map, but never on a giant's doorstep
+    p = randInSphere(ARENA * .85);
+    if (!levs.some(e => { const L = e.main(); return L.pos.distanceTo(p) < L.r * 1.6 + 6000; })) break;
+  }
   const startMass = forceMass || clamp(Number(params.get('mass')) || 12, 12, MAX_CELL_MASS);
   mainCell = addCell(me, p, startMass);
   mainCell.rr = mainCell.r; mainCell.appear = 1;
   const nearL = levs.map(e => e.main()).sort((a, b) => a.pos.distanceTo(p) - b.pos.distanceTo(p))[0];
   // look *past* the giant's edge so it looms beside you instead of auto-flying you into it
   const target = new V3();
-  if (nearL) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
+  if (nearL && nearL.pos.distanceTo(p) < nearL.r * 4 + 20000) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
   const dd = new V3().subVectors(target, p).normalize();
   yaw = Math.atan2(-dd.x, -dd.z); pitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading(); camO.copy(orient);
   Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, roidsReady: 0, boosting: false, used: false });
@@ -1445,7 +1448,7 @@ function updateFood() {
   if (filling) fillChunks(firstFill ? 12 : (intro || Math.abs(zoomTarget - zoom) > zoom * .02) ? 9 : 5);   // load harder while the view is zooming
   const zk = 1;   // true perspective: orbs shrink to star points as you zoom out
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
-  foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
+  foodMat.uniforms.uBoost.value += (1 + .24 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
   const gRate = (1.06 * Math.pow(tm, .7) + 4.8) * (now < PU.roidsUntil ? PU.mult : 1);
@@ -1822,7 +1825,7 @@ function updateHud() {
   $('boostBar').style.width = PU.boost + '%';
   $('cageBar').style.width = Math.min(100, (me.main()?.r || 0) / WIN_R * 100) + '%';
   const rl = Math.max(0, Math.ceil(PU.roidsUntil - now));
-  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em${PU.mult > 4 ? ' style="color:#ff7ae0"' : ''}>${PU.mult > 4 ? '💗' : '📈'} GROWTH ×${PU.mult} · ${rl}s</em>` : '');
+  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em${PU.mult > 4 ? ` style="color:${PU.mult > 8 ? '#6cc0ff' : '#ff7ae0'}"` : ''}>${PU.mult > 8 ? '💎' : PU.mult > 4 ? '💗' : '📈'} GROWTH ×${PU.mult} · ${rl}s</em>` : '');
   const list = [...entities.values()].filter(e => e.cells.length && e.kind !== 'snack').sort((a, b) => b.mass - a.mass);
   const rank = list.indexOf(me) + 1;
   $('lbList').innerHTML = list.slice(0, 10).map((e, i) => `<li class="${e === me ? 'me' : ''}"><span>${i + 1}. ${escapeHtml(e.name)}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
@@ -1919,6 +1922,7 @@ function updateCamera() {
     camO.slerp(orient, ck);
     bank += (clamp(-yawVel * .03, -.06, .06) - bank) * ck;
     _cq.copy(camO).multiply(_bq.setFromAxisAngle(ROLL_AX, bank));
+    if (keys.KeyC || keys.KeyQ) _cq.multiply(_bq.setFromAxisAngle(AX.Y, Math.PI));   // hold C (or Q): look behind you
     const cf = _cf.set(0, 0, -1).applyQuaternion(_cq), cu = _cu.set(0, 1, 0).applyQuaternion(_cq);
     // same camera angle whether you're one ball or split; it only eases back a little so your pieces stay in view
     let spread = 0;
@@ -1932,7 +1936,7 @@ function updateCamera() {
       zoom = zoomTarget = Math.exp(Math.log(zoomMax) * (1 - e) + Math.log(ZSTART) * e);
       if (u >= 1) intro = null;
     } else {
-      zoomTarget = clamp(zoomTarget, .3, zoomMax);
+      zoomTarget = clamp(zoomTarget, ZMIN, zoomMax);
       zoom += (zoomTarget - zoom) * (1 - Math.exp(-DT * 7));
     }
     updateZoomBar();
@@ -1943,10 +1947,12 @@ function updateCamera() {
     camTilt += (.18 + heat * .55 - camTilt) * k2;
     _des.copy(_look).addScaledVector(cf, -dist).addScaledVector(cu, dist * camTilt);
     camPos.copy(_des);
+    { const f = clamp((ZFPV - zoom) / (ZFPV - ZMIN * 1.5), 0, 1), fp = f * f * (3 - 2 * f);   // zoom all the way in: first-person, from the nose of your ball
+      if (fp > 0) { _t.copy(mainCell.pos).addScaledVector(cf, mainCell.rr * 1.04); camPos.lerp(_t, fp); _t.addScaledVector(cf, mainCell.rr * 40 + 400); _look.lerp(_t, fp); } }
     if (heat > .05) camPos.addScaledVector(randUnit(_t), r * .012 * heat);
     _m4.lookAt(camPos, _look, cu); _dq.setFromRotationMatrix(_m4);
     camQ.copy(_dq);
-    camera.near = clamp(Math.max(r * .04, dist * .01), .15, 30000);   // far pull-backs need a deeper near plane to keep depth precise
+    camera.near = clamp(Math.max(r * .04, dist * .01) * (zoom < ZFPV ? .25 : 1), .05, 30000);   // far pull-backs need a deeper near plane to keep depth precise
   } else {
     // attract mode / death cam: slow orbit around the biggest thing in the arena
     if (!attractTarget || attractTarget.dead || Math.random() < .002) {
@@ -2011,13 +2017,14 @@ const puMat = hex => new THREE.ShaderMaterial({
 });
 const PU_TYPES = {
   nitro:  { color: 0xff8a1f, geo: new THREE.OctahedronGeometry(1, 0), w: BOOST_ON ? .5 : 0 },
-  roids:  { color: 0x3dff7a, geo: new THREE.CapsuleGeometry(.42, 1.1, 6, 14), w: BOOST_ON || ROCKETS_ON ? .25 : .86 },
+  roids:  { color: 0x3dff7a, geo: new THREE.CapsuleGeometry(.42, 1.1, 6, 14), w: BOOST_ON || ROCKETS_ON ? .25 : .84 },
   rocket: { color: 0xff3b5c, geo: new THREE.ConeGeometry(.55, 1.6, 14), w: ROCKETS_ON ? .25 : 0 },
-  mega:   { color: 0xff4fd8, geo: new THREE.IcosahedronGeometry(.95, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .14 },   // rare pink GROWTH ×8
+  mega:   { color: 0xff4fd8, geo: new THREE.IcosahedronGeometry(.95, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .11 },   // rare pink GROWTH ×8
+  ultra:  { color: 0x3fa8ff, geo: new THREE.DodecahedronGeometry(1, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .05 },   // rarest: blue GROWTH ×16
 };
 const RING_GEO = new THREE.TorusGeometry(1.55, .07, 8, 40);
 const PU_LABEL = {};
-for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 GROWTH ×4', '#4dff9a'], ['rocket', '🚀 ROCKETS', '#ff5c7a'], ['mega', '💗 GROWTH ×8', '#ff7ae0']]) {
+for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 GROWTH ×4', '#4dff9a'], ['rocket', '🚀 ROCKETS', '#ff5c7a'], ['mega', '💗 GROWTH ×8', '#ff7ae0'], ['ultra', '💎 GROWTH ×16', '#6cc0ff']]) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
   g.font = '900 64px Outfit, Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineWidth = 12; g.strokeStyle = 'rgba(0,0,10,.7)'; g.strokeText(txt, 256, 66); g.fillStyle = col; g.fillText(txt, 256, 66);
@@ -2026,7 +2033,7 @@ for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 
 const pickups = [];                    // active (loaded) power-ups
 const puChunks = new Map();            // chunk key -> pickup
 const puTaken = new Map();             // chunk key -> time the power-up comes back
-const puPool = { nitro: [], roids: [], rocket: [], mega: [] };
+const puPool = { nitro: [], roids: [], rocket: [], mega: [], ultra: [] };
 function pickType(h = Math.random()) { let a = 0; for (const [k, t] of Object.entries(PU_TYPES)) { a += t.w; if (h < a) return k; } return 'nitro'; }
 function makePickup(type = pickType()) {
   const t = PU_TYPES[type], g = new THREE.Group();
@@ -2071,7 +2078,7 @@ function updatePickups() {
     p.ring.rotation.x = now * 1.3 * p.spin; p.ring.rotation.y = now * .7;
     p.label.material.opacity = Math.exp(-pd / (V * .45));
     for (const cell of me.cells) {
-      if ((p.type === 'roids' || p.type === 'mega') && now < PU.roidsReady) break;   // GROWTH ×4: one at a time, then 20 s to recharge (pickups stay put)
+      if ((p.type === 'roids' || p.type === 'mega' || p.type === 'ultra') && now < PU.roidsReady) break;   // GROWTH ×4: one at a time, then 20 s to recharge (pickups stay put)
       if (cell.pos.distanceTo(p.pos) < cell.r + size * 1.2) {
         collect(p.type, cell);
         puTaken.set(p.key, now + rnd(40, 70));   // this spot's power-up comes back later
@@ -2087,6 +2094,7 @@ function collect(type, cell) {
   sfx('pickup');
   if (type === 'nitro') { PU.boost = Math.min(100, PU.boost + 34); feed('<b style="color:#ffae3f">+ NITRO</b>'); }
   else if (type === 'rocket') { PU.ammo = Math.min(9, PU.ammo + 3); feed('<b style="color:#ff5c7a">+3 ROCKETS</b> · press R'); }
+  else if (type === 'ultra') { PU.mult = 16; PU.roidsUntil = now + 12; PU.roidsReady = now + 32; for (const c of me.cells) c.pulse = 1; feed('<b style="color:#6cc0ff">GROWTH ×16</b> · 12s'); }
   else if (type === 'mega') { PU.mult = 8; PU.roidsUntil = now + 12; PU.roidsReady = now + 32; for (const c of me.cells) c.pulse = 1; feed('<b style="color:#ff7ae0">GROWTH ×8</b> · 12s'); }
   else { PU.mult = 4; PU.roidsUntil = now + 12; PU.roidsReady = now + 32; for (const c of me.cells) c.pulse = 1; feed('<b style="color:#4dff9a">GROWTH ×4</b> · 12s'); }
 }
