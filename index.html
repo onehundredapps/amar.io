@@ -99,6 +99,7 @@ body.touch #boostTip{bottom:auto;top:120px}
 #win .by{color:var(--muted);margin-top:8px}
 .tbrow{display:flex;gap:10px}
 #tBoost.on{background:linear-gradient(135deg,rgba(255,122,24,.7),rgba(255,210,63,.5))}
+#warpBanner{position:absolute;left:50%;top:14%;transform:translateX(-50%);font:900 22px Outfit,sans-serif;letter-spacing:.22em;color:#ffe14d;text-shadow:0 0 18px rgba(255,200,60,.9),0 0 4px #000;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
 #youMark{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .4s;pointer-events:none}
 #youMark i{position:absolute;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;border:2px solid #39f3ff;box-shadow:0 0 14px #39f3ff;animation:youPulse 1.2s ease-out infinite}
 #youMark b{position:absolute;left:-30px;width:60px;top:-40px;text-align:center;font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:#39f3ff;text-shadow:0 0 8px #000}
@@ -242,6 +243,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
   <div id="youMark"><i></i><b>YOU</b></div>
+  <div id="warpBanner"></div>
   <div id="zoomBar" class="glass"><span class="lbl">ZOOM</span><button id="zoomIn" aria-label="Zoom in">+</button><div id="zoomTrack"><div id="zoomKnob"></div></div><button id="zoomOut" aria-label="Zoom out">−</button><span class="lbl" style="margin-top:4px">CAM</span><button id="camLock" aria-label="Freeze camera" title="Lock view direction (V)">📌</button></div>
   <div id="srv" class="glass"><button id="srvBtn"><span class="sdot"></span><span id="srvTxt">Lobby</span><span class="car">▾</span></button><ol id="srvList"></ol></div>
   <div id="globeWrap" style="display:none"><canvas id="globe" width="300" height="300"></canvas></div>
@@ -295,7 +297,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610111100'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610111200'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -603,8 +605,8 @@ const PER_CL = 0;
 const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
   transparent: true, premultipliedAlpha: true, depthWrite: false,
-  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; uniform float uFarK;
+  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uWarp: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
+  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; uniform float uFarK; uniform float uWarp;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
@@ -625,6 +627,8 @@ const foodMat = new THREE.ShaderMaterial({
       vRel = R / max(sc, 1e-6); vRpx = R / pix;
       vUv = position.xy;
       mv.xy += position.xy * R;   // billboard: always faces you, like agar's flat pellets
+      if (uWarp > .001) { vec2 rd = mv.xy / max(length(mv.xy), 1e-4); float off = length(mv.xy) / max(-mv.z, 1e-4);   // light speed: everything smears into streaks away from where you're heading
+        mv.xy += rd * dot(position.xy, rd) * R * uWarp * min(off * 5., 3.5); }
       vC = instanceColor;
       gl_Position = projectionMatrix*mv; }`,
   fragmentShader: `varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx;
@@ -1017,7 +1021,9 @@ function spawnBot(lev = false, near = true, col = false) {
     else if (k < .8) { m = h.mass * (k < .62 ? rnd(1.4, 3) : rnd(3, 6)); if (m > BOT_MAX) m = rnd(200, PREY_MAX); }
     else m = rnd(6000, 150000);   // plenty of properly big bots around, whatever your size
     m = clamp(m, 10, BOT_MAX);
-    pos = hm.pos.clone().addScaledVector(randUnit(), viewRadius(hm.r) * 1.15 + rad(m) + rnd(50, 400));
+    const warp = h === me && now < PU.speedUntil;
+    if (warp) { m = clamp(h.mass * rnd(1.6, 8), 200, BOT_MAX); _sd.copy(me.dir).addScaledVector(randUnit(), .3).normalize(); }   // at light speed the traffic is ahead of you, and bigger than you
+    pos = hm.pos.clone().addScaledVector(warp ? _sd : randUnit(), viewRadius(hm.r) * (warp ? rnd(1.15, 2.2) : 1.15) + rad(m) + rnd(50, 400));
     if (pos.length() > ARENA * .95) pos.setLength(ARENA * .9);
     e.anchor = hm;   // drifts toward this player and creeps into view
   }
@@ -1026,8 +1032,8 @@ function spawnBot(lev = false, near = true, col = false) {
   addCell(e, pos, m);
   return e;
 }
-const BOT_NEAR = IS_TOUCH ? 30 : 45;   // how many bots hang around each player; the rest roam the whole map
-function botTarget() { return { norm: IS_TOUCH ? 90 : 150, lev: IS_TOUCH ? 5 : 8 }; }
+const BOT_NEAR = IS_TOUCH ? 38 : 60;   // how many bots hang around each player; the rest roam the whole map
+function botTarget() { return { norm: IS_TOUCH ? 130 : 260, lev: IS_TOUCH ? 5 : 8 }; }
 function humanMains() { return [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length).map(h => h.main()); }
 function countNearBots(hs) { let n = 0; for (const e of entities.values()) { if (e.kind !== 'bot' || e.lev || !e.cells.length) continue; const p = e.main().pos; if (hs.some(h => h.pos.distanceTo(p) < viewRadius(h.r) * 2.4)) n++; } return n; }
 let levNext = 0;
@@ -1047,7 +1053,7 @@ function ensureBots() {
   }
   let recycled = 0;
   for (const e of [...entities.values()]) {
-    if (near >= BOT_NEAR * humans.length || recycled >= 8) break;
+    if (near >= BOT_NEAR * humans.length || recycled >= (me && now < PU.speedUntil ? 20 : 8)) break;
     if (e.kind !== 'bot' || e.lev) continue;
     const m = e.main(); if (!m) continue;
     if (humans.every(h => h.pos.distanceTo(m.pos) > viewRadius(h.r) * 2.4)) { removeEntity(e); spawnBot(false, true); recycled++; near++; }
@@ -1269,6 +1275,7 @@ zoomTrack.addEventListener('pointermove', e => { if (zoomTrack.hasPointerCapture
 for (const [id, f] of [['zoomIn', 1 / 1.6], ['zoomOut', 1.6]]) document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); intro = null; zoomTarget = clamp(zoomTarget * f, ZMIN, zoomMax); });
 const _ymv = new V3();
 const ZSTART = 1.6; let intro = null, zoomMax = 1;
+let warpK = 0;
 let camLock = false;   // freeze the direction the camera looks (V or the pin button); it still follows your ball
 function setCamLock(v) { camLock = v; document.getElementById('camLock').classList.toggle('on', v); }
 document.getElementById('camLock').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); setCamLock(!camLock); });   // intro: every new life opens with a fly-in from the whole map down to your ball
@@ -2004,7 +2011,10 @@ function updateCamera() {
   }
   camera.position.copy(camPos); camera.quaternion.copy(camQ);
   fovKick *= Math.exp(-DT * 3);
-  camera.fov = (IS_TOUCH ? 74 : 66) + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
+  { const w = playing && me && now < PU.speedUntil ? Math.min(1, Math.log2(PU.speedMult) / 4) * Math.min(1, (PU.speedUntil - now) / 1.5) : 0;
+    warpK += (w - warpK) * Math.min(1, DT * 2.5); foodMat.uniforms.uWarp.value = warpK;
+    const wb = document.getElementById('warpBanner'); wb.style.opacity = warpK > .05 ? 1 : 0; if (warpK > .05) wb.textContent = 'LIGHT SPEED ×' + PU.speedMult; }
+  camera.fov = (IS_TOUCH ? 74 : 66) + warpK * 26 + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
   camera.far = ARENA * 8 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
   camera.updateProjectionMatrix();
 }
@@ -2091,7 +2101,7 @@ function refreshPickups(G, radius, L) {
   const P = C0 * 2 ** L * 3.5, rng = Math.ceil(radius / P) + 1, ga = Math.floor(G.x / P), gb = Math.floor(G.y / P), gc = Math.floor(G.z / P);
   const want = new Map(), lo = Math.floor(-ARENA / P) - 1, hi = Math.floor(ARENA / P) + 1;
   for (let a = Math.max(lo, ga - rng); a <= Math.min(hi, ga + rng); a++) for (let b = Math.max(lo, gb - rng); b <= Math.min(hi, gb + rng); b++) for (let c = Math.max(lo, gc - rng); c <= Math.min(hi, gc + rng); c++) {
-    if (hash3(a * 3 + L, b * 5 - L, c * 7 + 11) > (BOOST_ON || ROCKETS_ON ? .45 : .6)) continue;   // twice the spots: half growth, half speed
+    if (hash3(a * 3 + L, b * 5 - L, c * 7 + 11) > (BOOST_ON || ROCKETS_ON ? .45 : .2)) continue;   // half growth, half speed; kept scarce so each one matters
     const x = (a + .15 + .7 * hash3(a, b + 31, c)) * P, y = (b + .15 + .7 * hash3(b, c + 17, a)) * P, z = (c + .15 + .7 * hash3(c, a + 5, b)) * P;
     if (x * x + y * y + z * z > ARENA * ARENA * .9) continue;
     const dx = x - G.x, dy = y - G.y, dz = z - G.z; if (dx * dx + dy * dy + dz * dz > radius * radius) continue;
