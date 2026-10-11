@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>AMAR.IO — 3D Cell Arena</title>
+<title>Galaxy Arena</title>
 <meta name="description" content="Agar-style cell arena in full 3D. Fly any direction, split, devour, and grow into a colossal sphere. Free, instant, multiplayer in the browser.">
-<meta property="og:title" content="AMAR.IO — 3D Cell Arena">
+<meta property="og:title" content="Galaxy Arena">
 <meta property="og:url" content="https://onehundredapps.github.io/amar.io/">
 <meta property="og:description" content="Fly any direction. Split. Devour. Become colossal. Instant browser multiplayer.">
 <meta property="og:image" content="https://onehundredapps.github.io/amar.io/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="AMAR.IO — 3D Cell Arena">
+<meta name="twitter:title" content="Galaxy Arena">
 <meta name="twitter:description" content="Fly any direction. Split. Devour. Become colossal.">
 <meta name="twitter:image" content="https://onehundredapps.github.io/amar.io/og.png">
 <meta name="theme-color" content="#05060f">
@@ -36,8 +36,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .hidden{display:none!important}
 
 /* ---------- HOME ---------- */
-#home{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:22px;padding:16px;
-  background:radial-gradient(ellipse at center,rgba(5,6,15,0) 0%,rgba(5,6,15,.55) 75%);z-index:10;flex-wrap:wrap;overflow-y:auto}
+#home{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;
+  background:radial-gradient(ellipse at center,rgba(5,6,15,0) 0%,rgba(5,6,15,.55) 75%);z-index:10;overflow-y:auto}
 .card{width:min(440px,100%);padding:28px 26px 22px;text-align:center}
 .logo{font-family:Outfit,sans-serif;font-weight:900;font-size:clamp(44px,9vw,68px);letter-spacing:.02em;line-height:.95;
   background:linear-gradient(100deg,var(--a) 0%,var(--b) 50%,var(--c) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
@@ -194,7 +194,7 @@ body.touch #hint{display:none}
 .grid span{font-size:11px;color:var(--muted);letter-spacing:.14em}
 .btnrow{display:flex;gap:10px;margin-top:10px}
 .btnrow a,.btnrow button{flex:1;padding:12px;border-radius:12px;font-weight:700;font-size:14px;background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--text);text-decoration:none;text-align:center}
-@media (max-width:760px){ #home{align-items:flex-start;align-content:flex-start;padding-top:20px} }
+@media (max-width:760px){ #home{justify-content:flex-start;padding-top:20px} }
 @media (max-width:560px){ .card{padding:22px 18px 18px} #lb{width:170px;font-size:12px} #stats{min-width:0} #mass{font-size:24px} }
 body.og #home .side, body.og #home input, body.og #home .row, body.og #home .opts, body.og #play, body.og .status, body.og .keys{display:none!important}
 body.og #home{align-items:center!important;align-content:center!important} body.og .card{background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;width:auto}
@@ -213,8 +213,8 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 <!-- HOME -->
 <div id="home">
   <div class="card glass">
-    <div class="logo">AMAR.IO</div>
-    <div class="tag"><b>3D cell arena.</b> Fly any direction. Split. Devour. Become colossal.</div>
+    <div class="logo" style="font-size:clamp(34px,7.5vw,52px)">GALAXY ARENA</div>
+    <div class="tag"><b>A whole galaxy to devour.</b> Fly any direction. Split. Devour. Become colossal.</div>
     <input id="name" type="text" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false">
     <div class="row swatches" id="swatches"></div>
     <div class="opts">
@@ -297,7 +297,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610111900'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610112000'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -628,7 +628,63 @@ const hazeMat = new THREE.ShaderMaterial({
       col += vec3(1.,.9,.7) * exp(-r*r/.004) * .9;
       gl_FragColor = vec4(col * uShow * .55 * (1. - smoothstep(.85, 1., r)), 1.); }`,
 });
-for (const [yo, k] of [[0, 1], [.012, .5], [-.012, .5]]) { const hz = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * 2, ARENA * 2), hazeMat); hz.rotation.x = -Math.PI / 2; hz.position.y = yo * ARENA; hz.frustumCulled = false; hz.renderOrder = -8; scene.add(hz); }
+for (const [yo, k] of [[0, 1], [.012, .5], [-.012, .5]]) { const hz = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * 2, ARENA * 2), hazeMat); hz.rotation.x = -Math.PI / 2; hz.position.y = yo * ARENA; hz.frustumCulled = false; hz.renderOrder = -8; hz.visible = false; scene.add(hz); }   // (fog sheets retired: the galaxy is drawn star by star below)
+
+/* ---- the galaxy itself, star by star: a fixed cloud of points laid out along the arms, bulge and halo, with dark dust lanes on the
+   inner edge of each arm and pink star-forming knots, the way a spiral looks in a long-exposure telescope image ---- */
+const GSTAR_N = IS_TOUCH ? 60000 : 200000;
+const gstars = (() => {
+  const pos = new Float32Array(GSTAR_N * 3), col = new Float32Array(GSTAR_N * 3), sz = new Float32Array(GSTAR_N);
+  const vn = (x, z) => { const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
+    return (hash3(ix, iz, 7) * (1 - ux) + hash3(ix + 1, iz, 7) * ux) * (1 - uz) + (hash3(ix, iz + 1, 7) * (1 - ux) + hash3(ix + 1, iz + 1, 7) * ux) * uz; };
+  let n = 0, guard = 0;
+  while (n < GSTAR_N && guard++ < GSTAR_N * 60) {
+    let x, y, z; const halo = Math.random() < .07;
+    if (halo) { const v = randInSphere(ARENA * .95); x = v.x; y = v.y * .7; z = v.z; }
+    else { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * ARENA * .92; x = Math.cos(a) * rr; z = Math.sin(a) * rr;
+      const h = (.03 + .11 * Math.exp(-rr / ARENA * 4.5)) * ARENA; y = (Math.random() + Math.random() + Math.random() - 1.5) * h * 1.7; }
+    const r = Math.sqrt(x * x + z * z) / ARENA, g = galaxy(x, y * .5, z);   // a little thicker than the playable disc, so it has body from the side
+    if (!halo) {
+      const ph = 2 * (Math.atan2(z, x) - Math.log(r + .04) * 3.4), nz = vn(x / ARENA * 14 + 40, z / ARENA * 14 + 40) * .6 + vn(x / ARENA * 40, z / ARENA * 40) * .4;
+      const lane = Math.max(0, Math.cos(ph + 1.15)) ** 3 * Math.min(1, r / .12) * (.5 + nz);   // dust hugs the inner edge of each arm
+      if (Math.random() > g * (1 - .92 * Math.min(1, lane)) * (.55 + .9 * nz)) continue;
+      const knot = Math.max(0, Math.cos(ph)) ** 6 * (vn(x / ARENA * 60 + 9, z / ARENA * 60 + 9) > .72 ? 1 : 0) * (r > .12 ? 1 : 0);
+      const t = Math.min(1, Math.max(0, (r - .06) / .3)), k = Math.random();
+      let cr = 1 - .38 * t, cg = .82 - .04 * t, cb = .55 + .45 * t;
+      if (knot && k < .6) { cr = 1; cg = .38; cb = .62; } else if (k < .08) { cr = 1; cg = .55; cb = .35; } else if (k < .45) { cr = (cr + 1) / 2; cg = (cg + 1) / 2; cb = (cb + 1) / 2; }
+      const b = (.35 + .65 * Math.random() ** 3) * (knot ? 1.5 : 1); col[n * 3] = cr * b; col[n * 3 + 1] = cg * b; col[n * 3 + 2] = cb * b; sz[n] = knot ? 2.6 : 1 + 1.6 * Math.random() ** 6;
+    } else { if (Math.random() > .25 + g) continue; const b = .25 + .3 * Math.random(); col[n * 3] = b; col[n * 3 + 1] = b * .9; col[n * 3 + 2] = b * .8; sz[n] = 1; }
+    pos[n * 3] = x; pos[n * 3 + 1] = y; pos[n * 3 + 2] = z; n++;
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aS', new THREE.BufferAttribute(sz, 1)); geo.setDrawRange(0, n);
+  const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uDpr: { value: 1 } },
+    vertexShader: `attribute vec3 color; attribute float aS; uniform float uDpr; varying vec3 vC;
+      void main(){ vec4 mv = viewMatrix*vec4(position, 1.);
+        vC = color * .5 * smoothstep(1500., 9000., -mv.z);   // never a fake orb right beside you
+        gl_PointSize = max(1., aS * uDpr); gl_Position = projectionMatrix*mv; }`,
+    fragmentShader: `varying vec3 vC; void main(){ float d = length(gl_PointCoord - .5)*2.; gl_FragColor = vec4(vC * exp(-d*d*2.2) * (1. - d*d), 1.); }` });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = -7; scene.add(pts); return pts;
+})();
+
+/* ---- other galaxies, far beyond ours: Andromeda and a handful of neighbours hang in the background for scale (not reachable) ---- */
+const farGalMat = (seed, twist, bright) => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  uniforms: { uSeed: { value: seed }, uTw: { value: twist }, uB: { value: bright } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `uniform float uSeed; uniform float uTw; uniform float uB; varying vec2 vUv; ${NOISE}
+    void main(){ vec2 p = vUv*2. - 1.; float r = length(p); if (r > 1.) discard; float th = atan(p.y, p.x);
+      float arm = .5 + .5*cos(2.*(th - log(r + .05)*uTw)), n = fbm(vec3(p*6., uSeed));
+      float disc = exp(-r*3.2)*(.25 + .75*arm*arm)*(.6 + .8*n), core = exp(-r*r/.012);
+      float dust = smoothstep(.45, .7, fbm(vec3(p*11., uSeed + 3.)))*smoothstep(.08, .25, r);
+      vec3 col = mix(vec3(1.,.82,.55), vec3(.5,.65,1.), smoothstep(.05, .45, r))*disc*(1. - .7*dust)*1.6 + vec3(1.,.9,.7)*core;
+      col += vec3(1.,.4,.6)*pow(fbm(vec3(p*24., uSeed + 7.)), 5.)*disc*6.;
+      gl_FragColor = vec4(col*uB*(1. - smoothstep(.8, 1., r)), 1.); }`,
+});
+for (const [dx, dy, dz, size, seed, tw, br] of [[4.6, 2.2, -3.6, 1.7, 1.3, 3.2, .9], [-5.2, -1.6, -2.8, .7, 4.1, 2.6, .7], [-3.2, 3.6, 4.4, .55, 7.7, 4., .6], [2.4, -3.8, 4.6, .8, 2.9, 3.6, .65], [-.6, 4.6, -4.8, .4, 9.2, 2.2, .55], [5.6, -.8, 2.6, .35, 5.5, 4.4, .5]]) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * size * 2, ARENA * size * 2), farGalMat(seed, tw, br));
+  m.position.set(dx * ARENA, dy * ARENA, dz * ARENA); m.rotation.set(seed * 1.3, seed * .7, seed * 2.1); m.frustumCulled = false; m.renderOrder = -9; scene.add(m);
+}
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
 const FOOD_N = IS_TOUCH ? 9000 : 30000;
@@ -2066,7 +2122,7 @@ function updateCamera() {
     warpK += (w - warpK) * Math.min(1, DT * 2.5); foodMat.uniforms.uWarp.value = warpK;
     const wb = document.getElementById('warpBanner'); wb.style.opacity = warpK > .05 ? 1 : 0; if (warpK > .05) wb.textContent = 'LIGHT SPEED ×' + PU.speedMult; }
   camera.fov = (IS_TOUCH ? 74 : 66) + warpK * 26 + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
-  camera.far = ARENA * 8 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
+  camera.far = ARENA * 11 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
   camera.updateProjectionMatrix();
 }
 
@@ -2089,11 +2145,11 @@ const dotMat = new THREE.ShaderMaterial({
 });
 const dots = new THREE.Points(dotGeo, dotMat); dots.frustumCulled = false; dots.renderOrder = 3; scene.add(dots);
 function updateDots() {
-  const show = playing && mainCell ? clamp((zoom - 12) / 18, 0, 1) : 0;   // only from far out, so they are never mistaken for orbs near you
+  const show = playing && mainCell ? clamp((zoom - 5) / 8, 0, 1) : 0;   // only from far out, so they are never mistaken for orbs near you
   dotMat.uniforms.uShow.value = show; dots.visible = show > 0; if (!show) return;
   dotMat.uniforms.uPix.value = foodMat.uniforms.uPix.value; dotMat.uniforms.uDpr.value = renderer.getPixelRatio();
   let n = 0;
-  for (const e of entities.values()) { if (e === me || e.kind === 'snack' || (e.anchor && !e.lev)) continue;   // the crowd that follows you is left out, so beacons never bunch up around you
+  for (const e of entities.values()) { if (e === me || e.kind === 'snack') continue;
     for (const c of e.cells) { if (n >= DOT_N) break; dotPos[n * 3] = c.pos.x; dotPos[n * 3 + 1] = c.pos.y; dotPos[n * 3 + 2] = c.pos.z; dotCol[n * 3] = e.color.r; dotCol[n * 3 + 1] = e.color.g; dotCol[n * 3 + 2] = e.color.b; dotR[n] = c.rr || c.r; n++; } }
   dotGeo.setDrawRange(0, n); dotGeo.attributes.position.needsUpdate = dotGeo.attributes.color.needsUpdate = dotGeo.attributes.aR.needsUpdate = true;
 }
@@ -2119,7 +2175,7 @@ function updateVisuals() {
   }
   { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
   const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) * Math.max(1, zoom) : 1e5;   // zooming out pushes the fog back with it if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
-  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; hazeMat.uniforms.uShow.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .03) / .25, 0, 1) : 0; shellMat.uniforms.uZoom.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .12) / .5, 0, 1) : 0;   // edge grid only once the camera is far back relative to the map
+  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; gstars.material.uniforms.uDpr.value = renderer.getPixelRatio(); hazeMat.uniforms.uShow.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .03) / .25, 0, 1) : 0; shellMat.uniforms.uZoom.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .12) / .5, 0, 1) : 0;   // edge grid only once the camera is far back relative to the map
   updateWakes();
   sky.position.copy(camera.position);
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
@@ -2478,7 +2534,7 @@ function onDeath() {
     $('dPeak').textContent = fmt(stats.peak); $('dTier').textContent = TIERS[stats.peakTier][1];
     $('dEaten').textContent = stats.eaten; $('dTime').textContent = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
     const url = location.href.split(/[?#]/)[0];
-    const txt = `I grew to ${fmt(stats.peak)} mass (${TIERS[stats.peakTier][1]}) in AMAR.IO — agar.io in full 3D, built entirely by Claude Opus 5.5 🪐\n\nCan you get bigger?`;
+    const txt = `I grew to ${fmt(stats.peak)} mass (${TIERS[stats.peakTier][1]}) in Galaxy Arena 🪐\n\nCan you get bigger?`;
     $('shareX').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(txt)}&url=${encodeURIComponent(url)}`;
     death.classList.remove('hidden');
   }, 1400);
