@@ -294,7 +294,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610110700'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610110800'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -1278,7 +1278,7 @@ function spawnMe(name, hue, forceMass) {
   if (nearL && nearL.pos.distanceTo(p) < nearL.r * 4 + 20000) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
   const dd = new V3().subVectors(target, p).normalize();
   yaw = Math.atan2(-dd.x, -dd.z); pitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading(); camO.copy(orient);
-  Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, roidsReady: 0, boosting: false, used: false });
+  Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, roidsReady: 0, speedUntil: 0, speedMult: 1, boosting: false, used: false });
   playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
   foodInit = false; resetWorldFood();
 }
@@ -1378,7 +1378,7 @@ function handleInput() {
   if (PU.boosting) { PU.boost = Math.max(0, PU.boost - 30 * dt); if (!PU.used) { PU.used = true; $('boostTip').classList.add('hidden'); } }
   else if (PU.boost < 40) PU.boost = Math.min(40, PU.boost + 2.5 * dt);   // slow trickle so you always have a little nitro
   const roids = now < PU.roidsUntil ? 1.15 : 1;
-  me.throttle = (keys.KeyS || brakeHeld) ? .12 : (PU.boosting ? 3 : 1) * roids;
+  me.throttle = (keys.KeyS || brakeHeld) ? .12 : (PU.boosting ? 3 : 1) * roids * (now < PU.speedUntil ? PU.speedMult : 1);
 }
 
 /* ============================== INTERACTIONS ============================== */
@@ -1475,8 +1475,8 @@ function updateFood() {
       if (d < rc) { hit = cc; hd = d; hx = dx; hy = dy; hz = dz; reach = rc; break; }
     }
     if (hit) {
-      if (hd < hit.r + s * .5 && me.allow > 0) {
-        const gain = Math.min(Math.min(foodVal[i] * valK * 4.8, hit.mass * .2 + 2) * (now < PU.roidsUntil ? PU.mult : 1), me.allow); me.allow -= gain;   // ≤ ~20–35% per orb when tiny
+      if (hd < hit.r + s * .5) {   // touched by any of your balls = eaten, always
+        const g0 = Math.min(foodVal[i] * valK * 4.8, hit.mass * .2 + 2) * (now < PU.roidsUntil ? PU.mult : 1); const gain = Math.max(0, Math.min(g0, me.allow)); me.allow -= gain;   // ≤ ~20–35% per orb when tiny
         hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 12 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
@@ -1825,7 +1825,8 @@ function updateHud() {
   $('boostBar').style.width = PU.boost + '%';
   $('cageBar').style.width = Math.min(100, (me.main()?.r || 0) / WIN_R * 100) + '%';
   const rl = Math.max(0, Math.ceil(PU.roidsUntil - now));
-  $('puTxt').innerHTML = (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em${PU.mult > 4 ? ` style="color:${PU.mult > 8 ? '#6cc0ff' : '#ff7ae0'}"` : ''}>${PU.mult > 8 ? '💎' : PU.mult > 4 ? '💗' : '📈'} GROWTH ×${PU.mult} · ${rl}s</em>` : '');
+  const sl = Math.max(0, Math.ceil(PU.speedUntil - now));
+  $('puTxt').innerHTML = (sl ? `<em style="color:#ffe14d">⚡ SPEED ×${PU.speedMult} · ${sl}s</em>${rl ? ' · ' : ''}` : '') + (PU.ammo ? `<b>🚀 ×${PU.ammo}</b>` : '') + (PU.ammo && rl ? ' · ' : '') + (rl ? `<em${PU.mult > 4 ? ` style="color:${PU.mult > 8 ? '#6cc0ff' : '#ff7ae0'}"` : ''}>${PU.mult > 8 ? '💎' : PU.mult > 4 ? '💗' : '📈'} GROWTH ×${PU.mult} · ${rl}s</em>` : '');
   const list = [...entities.values()].filter(e => e.cells.length && e.kind !== 'snack').sort((a, b) => b.mass - a.mass);
   const rank = list.indexOf(me) + 1;
   $('lbList').innerHTML = list.slice(0, 10).map((e, i) => `<li class="${e === me ? 'me' : ''}"><span>${i + 1}. ${escapeHtml(e.name)}</span><span class="m">${fmt(e.mass)}</span></li>`).join('')
@@ -2002,7 +2003,7 @@ function updateVisuals() {
 
 
 /* ============================== POWER-UPS (local pickups around you) ============================== */
-const PU = { boost: 0, ammo: 0, roidsUntil: 0, roidsReady: 0, mult: 4, boosting: false };
+const PU = { boost: 0, ammo: 0, roidsUntil: 0, roidsReady: 0, mult: 4, speedUntil: 0, speedMult: 1, boosting: false }, PU_DUR = 36;
 const puMat = hex => new THREE.ShaderMaterial({
   transparent: true, depthWrite: true,
   uniforms: { uC: { value: new THREE.Color(hex) }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uTime: U.time },
@@ -2017,14 +2018,17 @@ const puMat = hex => new THREE.ShaderMaterial({
 });
 const PU_TYPES = {
   nitro:  { color: 0xff8a1f, geo: new THREE.OctahedronGeometry(1, 0), w: BOOST_ON ? .5 : 0 },
-  roids:  { color: 0x3dff7a, geo: new THREE.CapsuleGeometry(.42, 1.1, 6, 14), w: BOOST_ON || ROCKETS_ON ? .25 : .84 },
+  roids:  { color: 0x3dff7a, geo: new THREE.CapsuleGeometry(.42, 1.1, 6, 14), w: BOOST_ON || ROCKETS_ON ? .25 : .42, x: 4 },
   rocket: { color: 0xff3b5c, geo: new THREE.ConeGeometry(.55, 1.6, 14), w: ROCKETS_ON ? .25 : 0 },
-  mega:   { color: 0xff4fd8, geo: new THREE.IcosahedronGeometry(.95, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .11 },   // rare pink GROWTH ×8
-  ultra:  { color: 0x3fa8ff, geo: new THREE.DodecahedronGeometry(1, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .05 },   // rarest: blue GROWTH ×16
+  mega:   { color: 0xff4fd8, geo: new THREE.IcosahedronGeometry(.95, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .055, x: 8 },   // rare pink GROWTH ×8
+  ultra:  { color: 0x3fa8ff, geo: new THREE.DodecahedronGeometry(1, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .025, x: 16 },   // rarest: blue GROWTH ×16
+  speed4:  { color: 0xffe14d, geo: new THREE.OctahedronGeometry(1, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .42, x: 4 },    // speed boosts: same odds and duration as growth
+  speed8:  { color: 0xff8a1f, geo: new THREE.OctahedronGeometry(1, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .055, x: 8 },
+  speed16: { color: 0xff3b3b, geo: new THREE.OctahedronGeometry(1, 0), w: BOOST_ON || ROCKETS_ON ? 0 : .025, x: 16 },
 };
 const RING_GEO = new THREE.TorusGeometry(1.55, .07, 8, 40);
 const PU_LABEL = {};
-for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 GROWTH ×4', '#4dff9a'], ['rocket', '🚀 ROCKETS', '#ff5c7a'], ['mega', '💗 GROWTH ×8', '#ff7ae0'], ['ultra', '💎 GROWTH ×16', '#6cc0ff']]) {
+for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 GROWTH ×4', '#4dff9a'], ['rocket', '🚀 ROCKETS', '#ff5c7a'], ['mega', '💗 GROWTH ×8', '#ff7ae0'], ['ultra', '💎 GROWTH ×16', '#6cc0ff'], ['speed4', '⚡ SPEED ×4', '#ffe14d'], ['speed8', '⚡ SPEED ×8', '#ff9a3f'], ['speed16', '⚡ SPEED ×16', '#ff5a5a']]) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
   g.font = '900 64px Outfit, Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineWidth = 12; g.strokeStyle = 'rgba(0,0,10,.7)'; g.strokeText(txt, 256, 66); g.fillStyle = col; g.fillText(txt, 256, 66);
@@ -2033,7 +2037,7 @@ for (const [k, txt, col] of [['nitro', '⚡ NITRO', '#ffae3f'], ['roids', '📈 
 const pickups = [];                    // active (loaded) power-ups
 const puChunks = new Map();            // chunk key -> pickup
 const puTaken = new Map();             // chunk key -> time the power-up comes back
-const puPool = { nitro: [], roids: [], rocket: [], mega: [], ultra: [] };
+const puPool = { nitro: [], roids: [], rocket: [], mega: [], ultra: [], speed4: [], speed8: [], speed16: [] };
 function pickType(h = Math.random()) { let a = 0; for (const [k, t] of Object.entries(PU_TYPES)) { a += t.w; if (h < a) return k; } return 'nitro'; }
 function makePickup(type = pickType()) {
   const t = PU_TYPES[type], g = new THREE.Group();
@@ -2052,7 +2056,7 @@ function refreshPickups(G, radius, L) {
   const P = C0 * 2 ** L * 3.5, rng = Math.ceil(radius / P) + 1, ga = Math.floor(G.x / P), gb = Math.floor(G.y / P), gc = Math.floor(G.z / P);
   const want = new Map(), lo = Math.floor(-ARENA / P) - 1, hi = Math.floor(ARENA / P) + 1;
   for (let a = Math.max(lo, ga - rng); a <= Math.min(hi, ga + rng); a++) for (let b = Math.max(lo, gb - rng); b <= Math.min(hi, gb + rng); b++) for (let c = Math.max(lo, gc - rng); c <= Math.min(hi, gc + rng); c++) {
-    if (hash3(a * 3 + L, b * 5 - L, c * 7 + 11) > (BOOST_ON || ROCKETS_ON ? .45 : .3)) continue;
+    if (hash3(a * 3 + L, b * 5 - L, c * 7 + 11) > (BOOST_ON || ROCKETS_ON ? .45 : .6)) continue;   // twice the spots: half growth, half speed
     const x = (a + .15 + .7 * hash3(a, b + 31, c)) * P, y = (b + .15 + .7 * hash3(b, c + 17, a)) * P, z = (c + .15 + .7 * hash3(c, a + 5, b)) * P;
     if (x * x + y * y + z * z > ARENA * ARENA * .9) continue;
     const dx = x - G.x, dy = y - G.y, dz = z - G.z; if (dx * dx + dy * dy + dz * dz > radius * radius) continue;
@@ -2078,7 +2082,6 @@ function updatePickups() {
     p.ring.rotation.x = now * 1.3 * p.spin; p.ring.rotation.y = now * .7;
     p.label.material.opacity = Math.exp(-pd / (V * .45));
     for (const cell of me.cells) {
-      if ((p.type === 'roids' || p.type === 'mega' || p.type === 'ultra') && now < PU.roidsReady) break;   // GROWTH ×4: one at a time, then 20 s to recharge (pickups stay put)
       if (cell.pos.distanceTo(p.pos) < cell.r + size * 1.2) {
         collect(p.type, cell);
         puTaken.set(p.key, now + rnd(40, 70));   // this spot's power-up comes back later
@@ -2094,9 +2097,12 @@ function collect(type, cell) {
   sfx('pickup');
   if (type === 'nitro') { PU.boost = Math.min(100, PU.boost + 34); feed('<b style="color:#ffae3f">+ NITRO</b>'); }
   else if (type === 'rocket') { PU.ammo = Math.min(9, PU.ammo + 3); feed('<b style="color:#ff5c7a">+3 ROCKETS</b> · press R'); }
-  else if (type === 'ultra') { PU.mult = 16; PU.roidsUntil = now + 12; PU.roidsReady = now + 32; for (const c of me.cells) c.pulse = 1; feed('<b style="color:#6cc0ff">GROWTH ×16</b> · 12s'); }
-  else if (type === 'mega') { PU.mult = 8; PU.roidsUntil = now + 12; PU.roidsReady = now + 32; for (const c of me.cells) c.pulse = 1; feed('<b style="color:#ff7ae0">GROWTH ×8</b> · 12s'); }
-  else { PU.mult = 4; PU.roidsUntil = now + 12; PU.roidsReady = now + 32; for (const c of me.cells) c.pulse = 1; feed('<b style="color:#4dff9a">GROWTH ×4</b> · 12s'); }
+  else {   // growth / speed multipliers: 36 s each; grabbing another restarts the clock and keeps the stronger one
+    const sp = type.startsWith('speed'), x = PU_TYPES[type].x, col = '#' + PU_TYPES[type].color.toString(16).padStart(6, '0');
+    if (sp) { PU.speedMult = now < PU.speedUntil ? Math.max(PU.speedMult, x) : x; PU.speedUntil = now + PU_DUR; }
+    else { PU.mult = now < PU.roidsUntil ? Math.max(PU.mult, x) : x; PU.roidsUntil = now + PU_DUR; }
+    for (const c of me.cells) c.pulse = 1; feed(`<b style="color:${col}">${sp ? 'SPEED' : 'GROWTH'} ×${x}</b> · ${PU_DUR}s`);
+  }
 }
 
 // rockets: fire forward, shatter whatever they hit
