@@ -321,7 +321,10 @@ const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random(
 const randUnit = (v = new V3()) => { const u = rnd(-1, 1), t = rnd(Math.PI * 2), s = Math.sqrt(1 - u * u); return v.set(s * Math.cos(t), u, s * Math.sin(t)); };
 const randInSphere = (R, v = new V3()) => randUnit(v).multiplyScalar(R * Math.cbrt(Math.random()));
 const fmt = m => m >= 1e6 ? (m / 1e6).toFixed(2) + 'M' : m >= 1e4 ? (m / 1e3).toFixed(1) + 'k' : Math.round(m).toLocaleString();
-const cleanName = s => String(s ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16);
+const BAD_WORDS = /\b(f+u+c+k+\w*|sh[i1]+t+\w*|b[i1]tch\w*|c+u+n+t+\w*|d[i1]ck\w*|puss(y|ies)|asshole\w*|bastard\w*|wh[o0]re\w*|slut\w*|n[i1]gg\w*|f[a4]gg?\w*|retard\w*|rap(e|ist)\w*|porn\w*|nazi\w*|kys)\b/gi;
+const filterChat = t => t.replace(BAD_WORDS, w => w[0] + '*'.repeat(Math.max(1, w.length - 1)));
+const NO_CHAT = params.has('nochat');   // the iOS app ships without player chat (App Store guideline 1.2)
+const cleanName = s => filterChat(String(s ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16));
 const hueColor = (h, s = .9, l = .55) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l);
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const TIERS = [[0, 'MICROBE'], [60, 'CELL'], [300, 'ORGANISM'], [1500, 'BEHEMOTH'], [5000, 'TITAN'], [20000, 'COLOSSUS'], [60000, 'CELESTIAL'], [105000, 'WORLD-EATER'], [300000, 'PLANET'], [900000, 'STAR'], [1600000, 'CAGE-FILLER']];
@@ -563,21 +566,23 @@ const shell = new THREE.Mesh(new THREE.SphereGeometry(ARENA, 96, 64), shellMat);
 shell.frustumCulled = false; scene.add(shell);
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
-const FOOD_N = IS_TOUCH ? 5500 : 12000;
+const FOOD_N = IS_TOUCH ? 6500 : 18000;
 const CL_N = 0;   // clusters disabled: classic evenly-spread agar pellets
 const LOOSE_N = FOOD_N;
 const PER_CL = 0;
 const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: U.time, uFar: { value: 200 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uFar; varying vec3 vC; varying float vFade;
+  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
+  vertexShader: `uniform float uFar; uniform float uPix; varying vec3 vC; varying float vFade;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
       float sc = length(instanceMatrix[0].xyz);   // pellet radius (0 = not alive)
       vFade = 1. - smoothstep(uFar*.55, uFar*.97, ownDist(c));   // orbs fade out softly toward the edge of the food field
       vec4 mv = viewMatrix*vec4(c, 1.);
-      mv.xy += position.xy * sc * smoothstep(0., .25, vFade);   // billboard: always faces you, like agar's flat pellets
+      float rad = sc * smoothstep(0., .25, vFade);
+      if (sc > 0. && vFade > .03) rad = max(rad, .75 * -mv.z * uPix);   // never smaller than about a pixel: far orbs become dots, not nothing
+      mv.xy += position.xy * rad;   // billboard: always faces you, like agar's flat pellets
       vC = instanceColor;
       gl_Position = projectionMatrix*mv; }`,
   fragmentShader: `uniform vec3 uFog; varying vec3 vC; varying float vFade;
@@ -752,7 +757,7 @@ function resetWorldFood() {   // new life / new world: start clean
   for (const p of [...pickups]) dropPickup(p); puChunks.clear();
 }
 function refreshChunks(G, radius) {
-  const V = foodRadius(myR()), Lf = Math.log2(V / (5 * C0));
+  const V = foodRadius(myR()) * Math.max(1, zoom), Lf = Math.log2(V / (5 * C0));
   let L = foodLevel; if (L < 0 || Math.abs(Lf - L) > .75) L = clamp(Math.round(Lf), 0, 9);
   if (L !== foodLevel) {
     for (const key of [...chunks.keys()]) unloadChunk(key);   // orbs stay put; the new level's chunks adopt them
@@ -1153,7 +1158,7 @@ function moveEntity(E) {
 }
 
 /* ============================== LOCAL PLAYER ============================== */
-let me = null, playing = false, mainCell = null, zoom = 1, fovKick = 0;
+let me = null, playing = false, mainCell = null, zoom = 1, zoomTarget = 1, fovKick = 0;   // zoom: 1 = normal chase view; wheel / pinch / +- change it freely
 const orient = new THREE.Quaternion();
 const stats = { peak: 0, eaten: 0, start: 0, peakTier: 0, killer: '' };
 const opts = { level: true, invert: true, sound: true, mouse: true, chat: true };   // inverted (flight-style) up/down by default
@@ -1216,7 +1221,9 @@ addEventListener('keydown', e => {
   }
   if (playing && (e.code === 'Enter' || e.code === 'KeyT')) { e.preventDefault(); openChat(); return; }
   keys[e.code] = true;
-  if (e.code.startsWith('Arrow') && playing) e.preventDefault();
+  if (e.code.startsWith('Arrow') && playing) { e.preventDefault(); mouse.in = false; }   // arrow keys take over until the mouse moves again
+  if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomTarget /= 1.25;
+  if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomTarget *= 1.25;
   if (e.code === 'KeyH') document.getElementById('hud').classList.toggle('clean');
   if (e.code === 'KeyM') { opts.sound = !opts.sound; document.getElementById('optSound').checked = opts.sound; }
   if (!playing) return;
@@ -1225,6 +1232,11 @@ addEventListener('keydown', e => {
   if (ROCKETS_ON && e.code === 'KeyR' && !e.repeat) fireRocket();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('wheel', e => { if (!playing || chatOpen) return; e.preventDefault(); zoomTarget *= Math.exp(clamp(e.deltaY, -120, 120) * .0022); }, { passive: false });
+let pinch = null;   // two-finger pinch zooms on phones
+addEventListener('touchstart', e => { if (playing && e.touches.length === 2) { pinch = { d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1, z: zoomTarget }; stick.x = stick.y = 0; } }, { passive: true });
+addEventListener('touchmove', e => { if (pinch && e.touches.length === 2) zoomTarget = pinch.z * pinch.d / (Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1); }, { passive: true });
+addEventListener('touchend', e => { if (e.touches.length < 2) pinch = null; }, { passive: true });
 addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = e.clientY / innerHeight * 2 - 1; mouse.in = true; });
 document.documentElement.addEventListener('mouseleave', () => { mouse.in = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.in = false; });
@@ -1239,6 +1251,7 @@ stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('point
 // touch anywhere: the ball steers toward your finger, measured from a point ~3 cm below the screen center (where a
 // resting thumb sits; ~57 css px per cm on phones), with a dead zone around it
 function moveStick(e) {
+  if (pinch) { stick.x = stick.y = 0; return; }
   const cy = innerHeight / 2 + Math.min(innerHeight * .2, 170);
   const R = Math.min(innerWidth, innerHeight) * .44, x = (e.clientX - innerWidth / 2) / R, y = (e.clientY - cy) / R;
   const l = Math.hypot(x, y), m = l < .2 ? 0 : Math.pow(Math.min(1, (l - .2) / .8), 1.5);   // bigger dead zone, gentle near the middle
@@ -1344,10 +1357,10 @@ function updateFood() {
   const on = playing && me && mainCell && me.cells.length;
   food.visible = !!on; for (const cl of clusters) cl.spr.visible = false;
   if (!on) return;
-  const V = foodRadius(myR()), cells = me.cells;
+  const V0 = foodRadius(myR()), V = V0 * Math.max(1, zoom), cells = me.cells;
   // bounding sphere of all your balls
   let gx = 0, gy = 0, gz = 0, tm = 0, gR = 0, maxReach = 0;
-  const sc = Math.sqrt(V * 2.1 / 750), valK = 1 + myR() / 30;
+  const sc = Math.sqrt(V0 * 2.1 / 750), valK = 1 + myR() / 30;
   for (const cc of cells) { gx += cc.pos.x * cc.mass; gy += cc.pos.y * cc.mass; gz += cc.pos.z * cc.mass; tm += cc.mass; }
   gx /= tm; gy /= tm; gz /= tm;
   for (const cc of cells) { const dx = cc.pos.x - gx, dy = cc.pos.y - gy, dz = cc.pos.z - gz; gR = Math.max(gR, Math.sqrt(dx * dx + dy * dy + dz * dz) + cc.rr); maxReach = Math.max(maxReach, cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10); }
@@ -1359,7 +1372,7 @@ function updateFood() {
   if (firstFill || chunkT <= 0 || _fq.distanceTo(chunkC) > Cnow * .5) { refreshChunks(_fq, gR + V); chunkT = .25; chunkC.copy(_fq); foodInit = true; }
   if (fillIdx < fillOrder.length) fillChunks(firstFill ? 12 : 2.5);
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
-  foodMat.uniforms.uFar.value = V;
+  foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height;
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
   const gRate = (.88 * Math.pow(tm, .7) + 4) * (now < PU.roidsUntil ? 4 : 1);
@@ -1435,7 +1448,7 @@ const BOT_QUIPS = ['lol', 'come here, snack 😋', 'you look delicious', 'nice t
 const BOT_TAUNTS = ['delicious 😋', 'thanks for the snack', 'gg ez', 'yum', 'should have split', 'nom nom', 'skill issue', 'tasted like victory'];
 let chatOpen = false, lastChatSent = 0, botChatT = 25;
 const chatIn = document.getElementById('chatIn');
-function openChat() { if (!playing || chatOpen) return; chatOpen = true; for (const k in keys) keys[k] = false; chatIn.classList.remove('hidden'); chatIn.value = ''; chatIn.focus(); }
+function openChat() { if (NO_CHAT || !playing || chatOpen) return; chatOpen = true; for (const k in keys) keys[k] = false; chatIn.classList.remove('hidden'); chatIn.value = ''; chatIn.focus(); }
 function closeChat() { chatOpen = false; chatIn.blur(); chatIn.classList.add('hidden'); chatIn.value = ''; }
 chatIn.addEventListener('keydown', e => {
   e.stopPropagation();
@@ -1477,10 +1490,9 @@ function chatTexture(text) {
 }
 function dropChat(E) { const ch = E.chat; if (!ch) return; scene.remove(ch.spr); ch.spr.material.map.dispose(); ch.spr.material.dispose(); E.chat = null; }
 // chat safety: rude words are masked for everyone, and any player can be muted from the lobby list
-const BAD_WORDS = /\b(f+u+c+k+\w*|sh[i1]+t+\w*|b[i1]tch\w*|c+u+n+t+\w*|d[i1]ck\w*|puss(y|ies)|asshole\w*|bastard\w*|wh[o0]re\w*|slut\w*|n[i1]gg\w*|f[a4]gg?\w*|retard\w*|rap(e|ist)\w*|porn\w*|nazi\w*|kys)\b/gi;
-const filterChat = t => t.replace(BAD_WORDS, w => w[0] + '*'.repeat(Math.max(1, w.length - 1)));
 const muted = new Set();
 function showChat(E, text) {
+  if (NO_CHAT) return;
   if (E.kind === 'remote' && (!opts.chat || muted.has(E.owner))) return;
   text = filterChat(cleanChat(text)); if (!text || !E.cells.length) return;
   dropChat(E);
@@ -1639,7 +1651,7 @@ function updateServerList() {
   if (!box.classList.contains('open')) return;
   let bots = 0; for (const e of entities.values()) if (e.kind === 'bot' && e.cells.length) bots++;
   const menu = Math.max(0, n - players.length);
-  document.getElementById('srvList').innerHTML = players.map(e => `<li class="${e === me ? 'me' : ''}"><span>${escapeHtml(e.name)}${e === me ? ' (you)' : ''}</span><span class="m">${fmt(e.mass)}${e.kind === 'remote' ? ` <button class="mute" data-p="${escapeHtml(e.owner)}">${muted.has(e.owner) ? 'unblock' : 'block'}</button><button class="mute report" data-p="${escapeHtml(e.owner)}" data-n="${escapeHtml(e.name)}">report</button>` : ''}</span></li>`).join('')
+  document.getElementById('srvList').innerHTML = players.map(e => `<li class="${e === me ? 'me' : ''}"><span>${escapeHtml(e.name)}${e === me ? ' (you)' : ''}</span><span class="m">${fmt(e.mass)}${e.kind === 'remote' && !NO_CHAT ? ` <button class="mute" data-p="${escapeHtml(e.owner)}">${muted.has(e.owner) ? 'unblock' : 'block'}</button><button class="mute report" data-p="${escapeHtml(e.owner)}" data-n="${escapeHtml(e.name)}">report</button>` : ''}</span></li>`).join('')
     + (menu ? `<li><span>${menu} on the menu</span><span class="m"></span></li>` : '') + `<li><span>Bots</span><span class="m">${bots}</span></li>`;
 }
 // globe minimap (top-right): the whole map as a sphere, turned the way your camera faces; you're the bright dot inside
@@ -1841,6 +1853,8 @@ function updateCamera() {
     const tanH = Math.tan(camera.fov * Math.PI / 360) * Math.min(1, camera.aspect);
     const needDist = spread > 0 ? spread * 1.25 / tanH : 0;
     const k2 = 1 - Math.exp(-DT * 3);
+    zoomTarget = clamp(zoomTarget, .3, Math.max(1, ARENA * 2.15 / (r * 6.8 + 30)));
+    zoom += (zoomTarget - zoom) * (1 - Math.exp(-DT * 7));
     camExtra += (Math.max(0, needDist - (r * 6.8 + 30) * zoom) - camExtra) * k2;
     camLook.set(0, 0, 0);
     const dist = (r * 6.8 + 30) * zoom + camExtra;
@@ -1868,7 +1882,7 @@ function updateCamera() {
   camera.position.copy(camPos); camera.quaternion.copy(camQ);
   fovKick *= Math.exp(-DT * 3);
   camera.fov = (IS_TOUCH ? 74 : 66) + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
-  camera.far = ARENA * 3 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
+  camera.far = ARENA * 8 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
   camera.updateProjectionMatrix();
 }
 
@@ -1892,7 +1906,7 @@ function updateVisuals() {
     }
   }
   { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
-  const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) : 1e5; if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
+  const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) * Math.max(1, zoom) : 1e5;   // zooming out pushes the fog back with it if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
   shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr;
   updateWakes();
   sky.position.copy(camera.position);
@@ -2264,7 +2278,8 @@ if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden')
 if (params.has('og')) document.body.classList.add('og');
 if (params.has('clean')) document.body.classList.add('clean');
 if (IS_TOUCH) $('optMouseRow').style.display = 'none';
-if (IS_TOUCH) $('keysHelp').innerHTML = 'Touch anywhere to steer · <b>SPLIT</b> to attack · <b>SPIT</b> to shoot out mass · <b>CHAT</b> to talk';
+if (IS_TOUCH) $('keysHelp').innerHTML = 'Touch anywhere to steer · <b>SPLIT</b> to attack · <b>SPIT</b> to shoot out mass' + (NO_CHAT ? '' : ' · <b>CHAT</b> to talk');
+if (NO_CHAT) { $('tChat').style.display = 'none'; $('optChat').parentElement.style.display = 'none'; }
 
 /* ============================== MAIN LOOP ============================== */
 let last = performance.now();
@@ -2303,6 +2318,22 @@ for (let i = 0; i < 60; i++) { DT = .05; now += DT; for (const e of entities.val
 requestAnimationFrame(frame);
 if (params.has('offline')) { net.status = 'offline'; updateNetUI(); } else initNet();
 if (params.has('autoplay')) setTimeout(startGame, 800);   // used for App Store screenshots
+// scripted walkthrough for the App Review demo video: play, steer, split, chat, lobby list, block, report
+if (params.has('demo')) {
+  const at = (sec, fn) => setTimeout(() => { try { fn(); } catch (e) { console.warn(e); } }, sec * 1000);
+  const steer = (x, y) => { stick.x = x; stick.y = y; };
+  const typeChat = text => { openChat(); let i = 0; const iv = setInterval(() => { chatIn.value = text.slice(0, ++i); if (i >= text.length) { clearInterval(iv); setTimeout(() => { sendChat(chatIn.value); closeChat(); }, 900); } }, 70); };
+  at(3, () => { $('name').value = 'Reviewer'; });
+  at(5, startGame);
+  at(8, () => steer(.55, 0)); at(11, () => steer(0, -.5)); at(14, () => steer(-.5, .2)); at(17, () => steer(0, 0));
+  at(19, () => { if (mainCell && mainCell.mass < 80) mainCell.mass = 80; });
+  at(21, () => split(me, fwd, crosshairPoint()));
+  at(25, () => typeChat('hello everyone!'));
+  at(31, () => $('srvBtn').click());
+  at(35, () => document.querySelector('#srvList .mute:not(.report)')?.click());
+  at(39, () => document.querySelector('#srvList .mute:not(.report)')?.click());
+  at(43, () => document.querySelector('#srvList .mute.report')?.click());
+}
 window.__orb = { chunks, get foodLevel() { return foodLevel; }, foodAlive, foodPos, FOOD_N, PU, pickups, fireRocket, get rockets() { return rockets; }, worldWon, frame: t => frame(t), PROF, dbg: { bloom, composer, renderer, scene, sky, shell, food, U, camera, offScreen, updateViewPlanes }, entities, net, get me() { return me; }, get mainCell() { return mainCell; }, split: () => split(me, fwd, crosshairPoint()), crosshairPoint, get orphans() { return orphanN; }, get foodK() { return foodK; }, spawnMe };
 </script>
 </body>
