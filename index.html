@@ -105,6 +105,7 @@ body.touch #boostTip{bottom:auto;top:120px}
 @keyframes youPulse{0%{transform:scale(.45);opacity:1}100%{transform:scale(1.5);opacity:0}}
 #zoomBar{position:absolute;left:16px;top:54%;transform:translateY(-50%);width:44px;padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:auto;border-radius:22px;touch-action:none;user-select:none}
 #zoomBar button{width:30px;height:30px;border-radius:50%;font:800 18px Outfit,sans-serif;color:var(--text);background:rgba(255,255,255,.08);border:1px solid var(--line);line-height:1}
+#camLock{font-size:14px!important;opacity:.55}#camLock.on{opacity:1;background:rgba(120,220,255,.35)!important;border-color:#7fe0ff!important}
 #zoomBar .lbl{font:800 9px Outfit,sans-serif;letter-spacing:.14em;color:var(--muted)}
 #zoomTrack{position:relative;width:6px;height:170px;border-radius:3px;background:rgba(255,255,255,.14);cursor:pointer}
 #zoomTrack::before{content:'';position:absolute;left:-19px;right:-19px;top:-6px;bottom:-6px}
@@ -241,7 +242,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
   <div id="youMark"><i></i><b>YOU</b></div>
-  <div id="zoomBar" class="glass"><span class="lbl">ZOOM</span><button id="zoomIn" aria-label="Zoom in">+</button><div id="zoomTrack"><div id="zoomKnob"></div></div><button id="zoomOut" aria-label="Zoom out">−</button></div>
+  <div id="zoomBar" class="glass"><span class="lbl">ZOOM</span><button id="zoomIn" aria-label="Zoom in">+</button><div id="zoomTrack"><div id="zoomKnob"></div></div><button id="zoomOut" aria-label="Zoom out">−</button><span class="lbl" style="margin-top:4px">CAM</span><button id="camLock" aria-label="Freeze camera" title="Freeze camera (V)">📌</button></div>
   <div id="srv" class="glass"><button id="srvBtn"><span class="sdot"></span><span id="srvTxt">Lobby</span><span class="car">▾</span></button><ol id="srvList"></ol></div>
   <div id="globeWrap" style="display:none"><canvas id="globe" width="300" height="300"></canvas></div>
   <div id="radarWrap" class="glass" style="display:none"><canvas id="radar" width="300" height="300"></canvas></div>
@@ -250,7 +251,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back</div>
+  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back · <kbd>V</kbd> freeze cam</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
@@ -294,7 +295,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610110800'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610110900'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -1254,9 +1255,12 @@ zoomTrack.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropa
 zoomTrack.addEventListener('pointermove', e => { if (zoomTrack.hasPointerCapture(e.pointerId)) zoomFromPointer(e); });
 for (const [id, f] of [['zoomIn', 1 / 1.6], ['zoomOut', 1.6]]) document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); intro = null; zoomTarget = clamp(zoomTarget * f, ZMIN, zoomMax); });
 const _ymv = new V3();
-const ZSTART = 1.6; let intro = null, zoomMax = 1;   // intro: every new life opens with a fly-in from the whole map down to your ball
+const ZSTART = 1.6; let intro = null, zoomMax = 1;
+let camLock = false;   // freeze the camera where it is while your ball flies on (V or the pin button)
+function setCamLock(v) { camLock = v; document.getElementById('camLock').classList.toggle('on', v); }
+document.getElementById('camLock').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); setCamLock(!camLock); });   // intro: every new life opens with a fly-in from the whole map down to your ball
 function spawnMe(name, hue, forceMass) {
-  camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 11 }; if (intro) zoom = zoomTarget = ARENA * 2.15 / 60; else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
+  setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 11 }; if (intro) zoom = zoomTarget = ARENA * 2.15 / 60; else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
@@ -1299,6 +1303,7 @@ addEventListener('keydown', e => {
   if (e.code.startsWith('Arrow') && playing) { e.preventDefault(); mouse.in = false; }   // arrow keys take over until the mouse moves again
   if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomTarget /= 1.25;
   if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomTarget *= 1.25;
+  if (e.code === 'KeyV' && !e.repeat) setCamLock(!camLock);
   if (e.code === 'KeyH') document.getElementById('hud').classList.toggle('clean');
   if (e.code === 'KeyM') { opts.sound = !opts.sound; document.getElementById('optSound').checked = opts.sound; }
   if (!playing) return;
@@ -1953,6 +1958,7 @@ function updateCamera() {
     if (heat > .05) camPos.addScaledVector(randUnit(_t), r * .012 * heat);
     _m4.lookAt(camPos, _look, cu); _dq.setFromRotationMatrix(_m4);
     camQ.copy(_dq);
+    if (camLock && !intro) { camPos.copy(camera.position); camQ.copy(camera.quaternion); }   // frozen: stay exactly where the camera was
     camera.near = clamp(Math.max(r * .04, dist * .01) * (zoom < ZFPV ? .25 : 1), .05, 30000);   // far pull-backs need a deeper near plane to keep depth precise
   } else {
     // attract mode / death cam: slow orbit around the biggest thing in the arena
@@ -2074,7 +2080,7 @@ function updatePickups() {
   for (const p of pickups) p.g.visible = !!on;
   if (!on) return;
   const V = viewRadius(myR());
-  const size = Math.max(4.5, mainCell.r * .24 + 3, ((camR || myR()) * 6.8 + 30) * .012);
+  const size = 3.2 * Math.max(Math.sqrt(foodRadius(myR()) * 2.1 / 750), ((camR || myR()) * 6.8 + 30) * .003);   // power-ups stay orb-sized: they scale exactly as the orbs do, not with your ball
   for (const p of [...pickups]) {
     const pd = ownDistJS(p.pos);
     p.g.position.copy(p.pos); p.g.position.y += Math.sin(now * 2 + p.spin * 9) * size * .15;
