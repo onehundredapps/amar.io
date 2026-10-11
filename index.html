@@ -297,7 +297,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610112100'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610112200'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -549,8 +549,9 @@ void main(){
   col *= 1. + uPulse*.4;
   col += vec3(1., .55, .2) * uEngine.w * pow(max(dot(N, uEngine.xyz), 0.), 2.5) * .9;
   float lum = dot(col, vec3(.3,.55,.15));
-  col = mix(col, vec3(lum)*vec3(.5,.6,.9), fow*.6);   // distance drains color toward cold blue: far balls read as far
-  col = mix(col, uFog, fow*.9);
+  float fw = fow * (1. - .75*emis);   // stars burn through the haze instead of turning into black discs with a glowing rim
+  col = mix(col, vec3(lum)*vec3(.5,.6,.9), fw*.6);   // distance drains color toward cold blue: far balls read as far
+  col = mix(col, uFog, fw*.9);
   float edge = smoothstep(0., .04 + fow*.4, ndv);
   gl_FragColor = vec4(col, (1. - fow*.75) * cutoff * edge * uAppear);
 }`;
@@ -857,6 +858,7 @@ function freeSlot(i) {
   if (slotId[i] >= 0 && idSlot.get(slotId[i]) === i) idSlot.delete(slotId[i]);
   foodAlive[i] = 0; foodPos[i * 3] = foodPos[i * 3 + 1] = foodPos[i * 3 + 2] = 1e9; slotCh[i] = null; slotK[i] = -1; slotId[i] = -1; freeSlots.push(i);
 }
+let noPop = false, popV2 = 0, levelFill = true;
 const orphanT = new Float32Array(FOOD_N); let fillDoneT = 0, levelDir = -1;
 function orphanSlot(i) { slotCh[i] = null; slotK[i] = -1; if (!orphan[i]) { orphan[i] = 1; orphanN++; orphanT[i] = now; } }
 // the hot-spots that can reach a chunk, gathered once so testing each orb spot is cheap
@@ -911,6 +913,10 @@ function tryCandidate(ch, k) {
     if (slotCh[i] && slotCh[i] !== ch) slotCh[i].slots.delete(i);
     if (orphan[i]) { orphan[i] = 0; orphanN--; }
   } else {
+    // up close, a brand-new orb is never born where you can see it: it waits until that spot is off-screen or out in the haze at the
+    // edge of your view, so orbs only ever drift into sight as you fly (the first load after a zoom change is exempt and fades in)
+    if (noPop && mainCell) { const dx = x - mainCell.pos.x, dy = y - mainCell.pos.y, dz = z - mainCell.pos.z;
+      if (dx * dx + dy * dy + dz * dz < popV2 && !offScreen(x, y, z, 10)) { ch.pending.push([k, now + .7]); return true; } }
     if (!freeSlots.length) return false;
     i = freeSlots.pop(); idSlot.set(id, i); slotId[i] = id;
     foodPos[i * 3] = x; foodPos[i * 3 + 1] = y; foodPos[i * 3 + 2] = z; foodAlive[i] = 1; foodBorn[i] = now;
@@ -955,7 +961,8 @@ function setFoodK(nk) {
   foodK = nk; fillIdx = 0, fillCap = 0;
 }
 function tuneFoodK(filled) {
-  const owned = FOOD_N - freeSlots.length - orphanN, T = foodTarget();
+  let waiting = 0; for (const ch of chunks.values()) waiting += ch.pending.length;   // orbs waiting to regrow / to appear out of sight still count
+  const owned = FOOD_N - freeSlots.length - orphanN + waiting, T = foodTarget();
   if (filled && owned < T * .85 && foodK < K_MAX) setFoodK(Math.min(K_MAX, Math.ceil(foodK * clamp(T / Math.max(owned, 1), 1.1, 8))));
   else if (owned > T * 1.2 && foodK > K_MIN) setFoodK(Math.max(K_MIN, Math.floor(foodK * clamp(T / owned, .4, .9))));
 }
@@ -972,7 +979,7 @@ function refreshChunks(G, radius) {
   const levelChanged = L !== foodLevel;
   if (levelChanged) {
     for (const key of [...chunks.keys()]) unloadChunk(key);   // orbs stay put; the new level's chunks adopt them
-    levelDir = L > foodLevel ? 1 : -1;
+    levelDir = L > foodLevel ? 1 : -1; levelFill = true;
     if (foodLevel >= 0) foodK = clamp(Math.round(foodK * 8 ** (L - foodLevel)), K_MIN, K_MAX);   // same orbs, grouped into bigger/smaller chunks
     foodLevel = L;
   }
@@ -1655,12 +1662,15 @@ function updateFood() {
   const Cnow = C0 * 2 ** Math.max(0, foodLevel);
   chunkT -= DT;
   const firstFill = foodLevel < 0;
+  if (firstFill) levelFill = true;
   updateViewPlanes();
   if (firstFill || chunkT <= 0 || _fq.distanceTo(chunkC) > Cnow * .5) { refreshChunks(_fq, gR + V); chunkT = .25; chunkC.copy(_fq); foodInit = true; }
   const filling = fillIdx < fillOrder.length;
   if (filling) fillChunks(firstFill ? 12 : (intro || Math.abs(zoomTarget - zoom) > zoom * .02) ? 9 : 5);   // load harder while the view is zooming
   // leftover orbs from the previous zoom level are held on screen only while zooming IN (so the view never empties) and only while the pool
   // has room; zooming OUT they dim away at once, otherwise they sit around you as a dense ball and starve the wider view of orbs
+  if (!filling) levelFill = false;
+  noPop = !levelFill && !intro && zoom <= 2.5; popV2 = (V * .86) ** 2;
   const holdOrph = filling && levelDir < 0 && freeSlots.length >= 600;
   if (holdOrph) fillDoneT = now;
   const fadeIn = intro ? .9 : zoom > 1.6 ? 1.4 : 2.2;
