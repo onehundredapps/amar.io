@@ -100,8 +100,6 @@ body.touch #boostTip{bottom:auto;top:120px}
 .tbrow{display:flex;gap:10px}
 #tBoost.on{background:linear-gradient(135deg,rgba(255,122,24,.7),rgba(255,210,63,.5))}
 #warpBanner{position:absolute;left:50%;top:14%;transform:translateX(-50%);font:900 22px Outfit,sans-serif;letter-spacing:.22em;color:#ffe14d;text-shadow:0 0 18px rgba(255,200,60,.9),0 0 4px #000;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
-#galTxt{position:absolute;left:50%;top:10px;transform:translateX(-50%);font:700 12px Outfit,sans-serif;letter-spacing:.06em;color:#cfd8ff;text-shadow:0 0 6px #000,0 0 2px #000;pointer-events:none;white-space:nowrap;text-align:center;opacity:.9}
-body.touch #galTxt{top:auto;bottom:6px;font-size:10px}
 #youMark{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .4s;pointer-events:none}
 #youMark i{position:absolute;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;border:2px solid #39f3ff;box-shadow:0 0 14px #39f3ff;animation:youPulse 1.2s ease-out infinite}
 #youMark b{position:absolute;left:-30px;width:60px;top:-40px;text-align:center;font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:#39f3ff;text-shadow:0 0 8px #000}
@@ -246,7 +244,6 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
   <div id="youMark"><i></i><b>YOU</b></div>
   <div id="warpBanner"></div>
-  <div id="galTxt"></div>
   <div id="zoomBar" class="glass"><span class="lbl">ZOOM</span><button id="zoomIn" aria-label="Zoom in">+</button><div id="zoomTrack"><div id="zoomKnob"></div></div><button id="zoomOut" aria-label="Zoom out">−</button><span class="lbl" style="margin-top:4px">CAM</span><button id="camLock" aria-label="Freeze camera" title="Lock view direction (V)">📌</button></div>
   <div id="srv" class="glass"><button id="srvBtn"><span class="sdot"></span><span id="srvTxt">Lobby</span><span class="car">▾</span></button><ol id="srvList"></ol></div>
   <div id="globeWrap" style="display:none"><canvas id="globe" width="300" height="300"></canvas></div>
@@ -300,7 +297,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610111600'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610111700'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -347,35 +344,18 @@ const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random(
 const randUnit = (v = new V3()) => { const u = rnd(-1, 1), t = rnd(Math.PI * 2), s = Math.sqrt(1 - u * u); return v.set(s * Math.cos(t), u, s * Math.sin(t)); };
 // THE MAP IS A SPIRAL GALAXY: a flat disc of stars (the x-z plane) with a bright central bulge and two winding arms.
 // 0..1 = how star-rich a spot is.
-// Scale: the arena's radius is 60,000 light-years, so the star disc (50,000 ly radius) and its halo both fit. Measured Milky Way structure:
-// thin disc ~1,000 ly thick, thick disc ~3,000 ly, a central bar ~13,000 ly long tilted 27 degrees to the Sun's line, four log-spiral
-// arms (pitch ~12.5 degrees, two of them dominant), the Sun 26,000 ly out, and a faint round halo. Brightness falls off more gently
-// than the real thing so the outer disc is still playable.
-const LY = ARENA / 60000, SUN_R = 26000 * LY, BAR_A = 27 * Math.PI / 180, BAR_C = Math.cos(BAR_A), BAR_S = Math.sin(BAR_A);
-function galArms(r, th) { const ph = th - Math.log(r + .02) * 4.51; return .62 * (.5 + .5 * Math.cos(2 * ph)) ** 2 + .38 * (.5 + .5 * Math.cos(4 * ph)) ** 2; }
 function galaxy(x, y, z) {
-  const X = x / ARENA, Y = y / ARENA, Z = z / ARENA, r = Math.sqrt(X * X + Z * Z), th = Math.atan2(Z, X);
-  const disc = (Math.exp(-(Y * Y) / .00056) + .22 * Math.exp(-(Y * Y) / .005)) * Math.exp(-r / .3) * 1.7 * (.18 + .82 * galArms(r, th)) * (r < .83 ? 1 : Math.max(0, 1 - (r - .83) / .05)) * Math.min(1, r / .12);
-  const bx = X * BAR_C + Z * BAR_S, bz = -X * BAR_S + Z * BAR_C, bar = Math.exp(-(bx * bx / .036 + bz * bz / .0052 + Y * Y / .0032));
-  return Math.min(1, disc + bar + .05 * Math.exp(-Math.sqrt(r * r + Y * Y) / .3));
+  const r = Math.sqrt(x * x + z * z) / ARENA, yy = y / ARENA, h = .035 + .11 * Math.exp(-r * 4.5);
+  const arm = .5 + .5 * Math.cos(2 * (Math.atan2(z, x) - Math.log(r + .04) * 3.4));
+  const disc = Math.exp(-(yy * yy) / (h * h)) * Math.exp(-r * 2.1) * 1.9 * (.22 + .78 * arm * arm);
+  const bulge = Math.exp(-(r * r + yy * yy * 3) / .014);
+  return Math.min(1, disc + bulge);
 }
-const GAL_GLSL = `float galaxy(vec3 p){ vec3 q = p/${ARENA.toFixed(1)}; float r = length(q.xz), th = atan(q.z, q.x), ph = th - log(r + .02)*4.51;
-  float a2 = .5 + .5*cos(2.*ph), a4 = .5 + .5*cos(4.*ph), arm = .62*a2*a2 + .38*a4*a4;
-  float disc = (exp(-(q.y*q.y)/.00056) + .22*exp(-(q.y*q.y)/.005))*exp(-r/.3)*1.7*(.18 + .82*arm)*(1. - smoothstep(.83, .88, r))*min(1., r/.12);
-  float bx = q.x*${BAR_C.toFixed(4)} + q.z*${BAR_S.toFixed(4)}, bz = -q.x*${BAR_S.toFixed(4)} + q.z*${BAR_C.toFixed(4)};
-  return min(1., disc + exp(-(bx*bx/.036 + bz*bz/.0052 + q.y*q.y/.0032)) + .05*exp(-length(vec3(r, q.y, 0.))/.3)); }`;
-const ARM_NAMES = ['Perseus Arm', 'Sagittarius–Carina Arm', 'Scutum–Centaurus Arm', 'Norma–Outer Arm'];
-function galRegion(x, y, z) {   // where in the Milky Way is this? (arm naming is approximate)
-  const X = x / ARENA, Y = y / ARENA, Z = z / ARENA, r = Math.sqrt(X * X + Z * Z), ly = r * 60000;
-  const bx = X * BAR_C + Z * BAR_S, bz = -X * BAR_S + Z * BAR_C;
-  if (ly < 2500 && Math.abs(Y) < .03) return 'Galactic Centre';
-  if (bx * bx / .036 + bz * bz / .0052 + Y * Y / .0032 < 1.6) return 'Central Bar';
-  if (ly > 50000 || Math.abs(Y) * 60000 > 3500) return 'Galactic Halo';
-  const ph = ((Math.atan2(Z, X) - Math.log(r + .02) * 4.51) / (Math.PI * 2) % 1 + 1) % 1, k = Math.round(ph * 4) % 4;
-  if (Math.abs(ph * 4 - Math.round(ph * 4)) > .3) return Math.abs(Math.sqrt((x - SUN_R) ** 2 + z * z)) < 3000 * LY ? 'Orion Spur' : 'between the arms';
-  return ARM_NAMES[k];
-}
-const randInGalaxy = (R, v = new V3()) => { for (let k = 0; k < 80; k++) { randInSphere(R, v); v.y *= .12; if (galaxy(v.x, v.y, v.z) > .12 + Math.random() * .5) break; } return v; };
+const GAL_GLSL = `float galaxy(vec3 p){ float r = length(p.xz)/${ARENA.toFixed(1)}, yy = p.y/${ARENA.toFixed(1)}, h = .035 + .11*exp(-r*4.5);
+  float arm = .5 + .5*cos(2.*(atan(p.z, p.x) - log(r + .04)*3.4));
+  float disc = exp(-(yy*yy)/(h*h))*exp(-r*2.1)*1.9*(.22 + .78*arm*arm);
+  return min(1., disc + exp(-(r*r + yy*yy*3.)/.014)); }`;
+const randInGalaxy = (R, v = new V3()) => { for (let k = 0; k < 80; k++) { randInSphere(R, v); v.y *= .3; if (galaxy(v.x, v.y, v.z) > .12 + Math.random() * .5) break; } return v; };
 const randInSphere = (R, v = new V3()) => randUnit(v).multiplyScalar(R * Math.cbrt(Math.random()));
 const fmt = m => m >= 1e6 ? (m / 1e6).toFixed(2) + 'M' : m >= 1e4 ? (m / 1e3).toFixed(1) + 'k' : Math.round(m).toLocaleString();
 const BAD_WORDS = /\b(f+u+c+k+\w*|sh[i1]+t+\w*|b[i1]tch\w*|c+u+n+t+\w*|d[i1]ck\w*|puss(y|ies)|asshole\w*|bastard\w*|wh[o0]re\w*|slut\w*|n[i1]gg\w*|f[a4]gg?\w*|retard\w*|rap(e|ist)\w*|porn\w*|nazi\w*|kys)\b/gi;
@@ -472,68 +452,17 @@ ${NOISE}
 float spots(vec3 x){ vec3 p=floor(x-.5), f=x-p; float d1=8.;
   for(int k=0;k<=1;k++) for(int j=0;j<=1;j++) for(int i=0;i<=1;i++){ vec3 b=vec3(i,j,k); vec3 r=b-f+hash33(p+b); d1=min(d1,dot(r,r)); }
   return sqrt(d1); }
-// every ball is a world: one of 10 planets / moons / stars (picked per player), painted procedurally so it stays sharp at any size
-vec3 design(vec3 o, out float gloss, out float emis, out vec3 atmo){
-  gloss = .12; emis = 0.; atmo = vec3(0.);
-  vec3 s = o + uSeed*13.;
-  if (uDesign < .5) {   // cratered rock: the Moon, Mercury
-    float n = fbm(s*2.2), n2 = fbm(s*7.), cr = spots(s*2.6), cr2 = spots(s*6.5 + 4.);
-    vec3 c = mix(vec3(.30,.29,.28), vec3(.64,.62,.58), n*.7 + n2*.3);
-    c = mix(c, vec3(.17,.17,.19), smoothstep(.55,.7,fbm(s*1.1 + 3.))*.65);
-    c *= .72 + .28*smoothstep(.14,.3,cr); c += .14*smoothstep(.34,.29,cr)*smoothstep(.22,.29,cr);
-    c *= .84 + .16*smoothstep(.08,.2,cr2); return c;
-  }
-  if (uDesign < 1.5) {   // living world: oceans, continents, ice caps, drifting cloud
-    float h = fbm(s*1.6)*.75 + fbm(s*4.5)*.25, lat = abs(o.y);
-    vec3 sea = mix(vec3(.01,.05,.22), vec3(.04,.24,.46), smoothstep(.3,.5,h));
-    vec3 land = mix(vec3(.10,.28,.08), vec3(.58,.47,.28), smoothstep(.56,.74,h)); land = mix(land, vec3(.5,.42,.25), smoothstep(.25,.05,lat)*.35);
-    vec3 c = mix(sea, land, smoothstep(.5,.52,h)); gloss = h < .5 ? .85 : .05;
-    c = mix(c, vec3(.95,.97,1.), smoothstep(.74,.84,lat + .1*fbm(s*5.)));
-    float cl = fbm(vec3(o.x*2.2 + uTime*.012, o.y*4.5, o.z*2.2) + uSeed*3.); c = mix(c, vec3(1.), smoothstep(.54,.74,cl)*.88);
-    atmo = vec3(.3,.55,1.); return c;
-  }
-  if (uDesign < 2.5) {   // rust desert: Mars
-    float n = fbm(s*2.), n2 = fbm(s*6.), cr = spots(s*4.);
-    vec3 c = mix(vec3(.52,.22,.09), vec3(.84,.5,.3), n); c = mix(c, vec3(.27,.12,.07), smoothstep(.55,.75,fbm(s*1.3 + 7.))*.75);
-    c *= (.84 + .32*n2) * (.8 + .2*smoothstep(.1,.25,cr)); c = mix(c, vec3(.96,.93,.9), smoothstep(.8,.88,abs(o.y) + .06*n2));
-    atmo = vec3(.9,.5,.3)*.5; return c;
-  }
-  if (uDesign < 3.5) {   // banded gas giant with a great storm: Jupiter
-    float t = fbm(vec3(o.x*1.5 + uTime*.015, o.y*6., o.z*1.5) + uSeed), y = o.y + .06*(t - .5), b = sin(y*17.) + .5*sin(y*41. + 2.);
-    vec3 c = mix(vec3(.84,.73,.58), vec3(.55,.32,.19), smoothstep(-.6,.8,b)); c = mix(c, vec3(.94,.89,.8), smoothstep(.5,1.2,-b));
-    c *= .86 + .28*fbm(vec3(o.x*4., o.y*30., o.z*4.) + uSeed);
-    float e = length((o - normalize(vec3(.75,-.32,.58)))*vec3(1.,2.2,1.)); c = mix(vec3(.74,.22,.11)*(.8 + .4*t), c, smoothstep(.11,.2,e));
-    atmo = vec3(.8,.7,.6)*.45; return c;
-  }
-  if (uDesign < 4.5) {   // pale gold giant: Saturn
-    float t = fbm(vec3(o.x, o.y*5., o.z) + uSeed), b = sin((o.y + .03*t)*22.);
-    vec3 c = mix(vec3(.87,.77,.54), vec3(.70,.57,.37), smoothstep(-.5,.7,b))*(.9 + .2*t); atmo = vec3(.9,.8,.6)*.45; return c;
-  }
-  if (uDesign < 5.5) {   // ice giant with a great dark spot: Neptune / Uranus
-    vec3 base = uSeed > .5 ? vec3(.16,.32,.86) : vec3(.48,.82,.86);
-    float t = fbm(vec3(o.x*1.5, o.y*7., o.z*1.5) + uSeed); vec3 c = base*(.82 + .36*t);
-    c = mix(c, vec3(1.), smoothstep(.7,.85,fbm(vec3(o.x*3. + uTime*.02, o.y*14., o.z*3.) + 9.))*.5);
-    float e = length((o - normalize(vec3(.6,-.35,.72)))*vec3(1.,1.9,1.)); c = mix(base*.25, c, smoothstep(.15,.3,e));
-    atmo = vec3(.4,.6,1.); gloss = .3; return c;
-  }
-  if (uDesign < 6.5) {   // molten world: black crust split by glowing rivers
-    float e = voro(s*4.), n = fbm(s*3.), crack = 1. - smoothstep(0.,.09,e);
-    vec3 crust = mix(vec3(.05,.04,.04), vec3(.2,.16,.14), n), glow = mix(vec3(1.,.25,.02), vec3(1.,.8,.3), crack)*(.8 + .2*sin(uTime*2. + n*9.));
-    emis = crack*.92; atmo = vec3(1.,.35,.1)*.6; return mix(crust, glow*1.5, crack);
-  }
-  if (uDesign < 7.5) {   // a star: boiling granules, sunspots; red dwarf, yellow sun or blue giant
-    vec3 sc = uSeed < .33 ? vec3(1.,.40,.16) : uSeed < .75 ? vec3(1.,.80,.42) : vec3(.62,.78,1.);
-    float g = voro(s*9. + uTime*.05), n = fbm(s*2.5 + uTime*.03), ss = fbm(s*1.4 + 5.);
-    vec3 c = sc*(1.05 + .5*n)*(.8 + .35*smoothstep(0.,.15,g)); c *= 1. - .78*smoothstep(.68,.76,ss)*step(abs(o.y), .5);
-    emis = 1.; atmo = sc; return c*1.25;
-  }
-  if (uDesign < 8.5) {   // ice moon scored with rust-brown fractures: Europa
-    float n = fbm(s*2.), e = voro(s*3.5 + n), e2 = voro(s*8.);
-    vec3 c = mix(vec3(.8,.78,.72), vec3(.95,.95,.98), n); c = mix(vec3(.5,.27,.15), c, smoothstep(0.,.05,e)); c = mix(vec3(.6,.4,.28), c, .6 + .4*smoothstep(0.,.04,e2));
-    gloss = .7; return c;
-  }
-  float t = fbm(vec3(o.x*2. + o.y*1.5 + uTime*.02, o.y*5., o.z*2.) + uSeed);   // shrouded in sulphur cloud: Venus
-  atmo = vec3(1.,.85,.5)*.7; return mix(vec3(.84,.68,.38), vec3(.98,.91,.72), t);
+// every ball gets one of 8 looks (picked per player), painted in its own two colors
+vec3 design(vec3 o, out float gloss){
+  vec3 a = uColor, b = uAlt; gloss = .55;
+  if (uDesign < .5) { float e = voro(o*uVein + vec3(uSeed*7., uTime*.12, 0.)); return mix(a, mix(a, b, .55)*1.25, 1. - smoothstep(0., .12, e)); }   // living cell veins
+  if (uDesign < 1.5) { float st = sin((o.y + .12*sin(o.x*3. + uSeed*5.))*9.); gloss = .8; return mix(a, b, smoothstep(-.12, .12, st)); }   // candy stripes
+  if (uDesign < 2.5) { float d = spots(o*3.4 + uSeed*3.); return mix(b, a, smoothstep(.28, .36, d)); }   // polka spots
+  if (uDesign < 3.5) { float n = fbm(o*1.7 + uSeed*4.); gloss = .95; return mix(a, b, smoothstep(-.4, .7, sin(o.x*4. + o.y*2. + n*8.))); }   // marble
+  if (uDesign < 4.5) { float e = voro(o*10. + uSeed*3.); return mix(b*.55, a, smoothstep(.03, .1, e)); }   // reptile scales
+  if (uDesign < 5.5) { float n = fbm(vec3(o.y*5., o.x*.7 + uTime*.02, o.z*.7) + uSeed); return mix(a, b, .5 + .5*sin(o.y*13. + n*5.)); }   // gas-giant bands
+  if (uDesign < 6.5) { float n = fbm(o*2.3 + uSeed*9.); return n > .56 ? b : n > .44 ? mix(a, uDeep*2.2, .55) : a; }   // camo
+  gloss = 1.; return mix(a, b, smoothstep(-.2, .2, o.y + .25*o.x));   // glossy two-tone
 }
 void main(){
   vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW);
@@ -544,16 +473,18 @@ void main(){
   float cutoff = mix(1. - smoothstep(uViewR*.75, uViewR, dp), 1., uOwn);
   float ang = uTime*uSpin, cs = cos(ang), sn = sin(ang);
   vec3 o = vec3(cs*vO.x + sn*vO.z, vO.y, -sn*vO.x + cs*vO.z);   // the pattern slowly spins, so you can read motion
-  float gloss, emis; vec3 atmo; vec3 alb = design(o, gloss, emis, atmo);
+  float gloss; vec3 alb = design(o, gloss);
   // lighting: soft wrapped key light (squishy, subsurface feel), cool fill, sky-tinted fresnel rim, clear-coat highlight
   vec3 L = normalize(vec3(.5,.9,.35)), L2 = normalize(vec3(-.6,-.35,-.5));
-  float wrap = max((dot(N,L) + .3) / 1.3, 0.);
-  vec3 col = alb * (.1 + 1.02*wrap) + alb * max(dot(N,L2), 0.) * vec3(.10,.12,.2);   // sunlit side, soft night side
+  float wrap = max((dot(N,L) + .4) / 1.4, 0.);
+  vec3 col = alb * (.2 + .9*wrap) + alb * max(dot(N,L2), 0.) * vec3(.25,.3,.45);
+  col = mix(uDeep*.7 + alb*.12, col, .3 + .7*pow(ndv, .55));
   float fr = pow(1. - ndv, 3.);
-  col += atmo * fr * (.3 + .9*wrap);                          // thin glowing atmosphere on the limb
-  col = mix(col, alb * (.72 + .4*pow(ndv, .45)), emis);       // stars and lava shine by themselves (darker at the limb)
+  vec3 R = reflect(-V, N);
+  col += mix(vec3(.22,.4,1.), alb, .35) * fr * .85;
+  col += vec3(.4,.3,.7) * smoothstep(-.1, .9, R.y) * fr * .45 * gloss;
   vec3 H = normalize(L + V);
-  float spec = pow(max(dot(N,H),0.), mix(36., 220., gloss)) * mix(.0, 1.1, gloss) * (1. - fow) * (1. - emis);
+  float spec = pow(max(dot(N,H),0.), mix(36., 220., gloss)) * mix(.3, 1.1, gloss) * (1. - fow);
   // painted name: wraps around the middle of the ball twice, lit and fogged like the surface itself
   if (uNameOn > .5) {
     vec3 on = normalize(o);
@@ -645,12 +576,6 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.Shader
     col += vec3(.10,.03,.06)*pow(n,4.)*.35;
     col += vec3(.01,.05,.09)*pow(n2,3.4)*.4;
     col += vec3(.25,.07,.10)*pow(max(0.,fbm(d*1.3-4.)-.42),2.)*.5;
-    for (int i = 0; i < 2; i++) {   // other galaxies, impossibly far away: small tilted smudges of light
-      vec3 g = d*(i == 0 ? 7. : 13.) + float(i)*5.1, id = floor(g), f = fract(g) - .5;
-      float hh = fract(sin(dot(id, vec3(41.3,289.1,97.7)))*43758.5453);
-      if (hh > .93) { vec3 ax = normalize(vec3(fract(hh*17.) - .5, fract(hh*31.) - .5, fract(hh*53.) - .5)); vec3 q = f - (vec3(fract(hh*7.), fract(hh*11.), fract(hh*13.)) - .5)*.4;
-        float al = dot(q, ax), e = dot(q, q) - al*al*.86; col += mix(vec3(.9,.75,.55), vec3(.55,.65,1.), fract(hh*3.7)) * exp(-e*(i == 0 ? 2600. : 1800.)) * .16; }
-    }
     col *= uDim;
     for (int i = 0; i < 3; i++) {   // far background stars, in layers: endless depth behind the arena
       float fq = i == 0 ? 90. : i == 1 ? 210. : 460.;
@@ -691,21 +616,19 @@ shell.frustumCulled = false; scene.add(shell);
 /* ---- galaxy haze: from far out, the billions of stars too faint to draw blur into the galaxy's glow, cut by dark dust lanes ---- */
 const hazeMat = new THREE.ShaderMaterial({
   transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-  uniforms: { uShow: { value: 0 }, uK: { value: .2 } },
+  uniforms: { uShow: { value: 0 } },
   vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
-  fragmentShader: `uniform float uShow; uniform float uK; varying vec3 vW; ${NOISE} ${GAL_GLSL}
-    void main(){ vec3 p = vW; float r = length(p.xz)/${ARENA.toFixed(1)}; if (r > 1.) discard;
-      float g = min(1., galaxy(p)*1.6), th = atan(p.z, p.x);
+  fragmentShader: `uniform float uShow; varying vec3 vW; ${NOISE} ${GAL_GLSL}
+    void main(){ vec3 p = vec3(vW.x, 0., vW.z); float r = length(p.xz)/${ARENA.toFixed(1)}; if (r > 1.) discard;
+      float g = galaxy(p), th = atan(p.z, p.x);
       float dust = smoothstep(.35, .7, fbm(vec3(p.xz/${ARENA.toFixed(1)}*9., 1.7))) * smoothstep(.05, .2, r);
       float knots = pow(fbm(vec3(p.xz/${ARENA.toFixed(1)}*26., 5.)), 4.) * g * 3.;
       vec3 col = mix(vec3(1.,.8,.5), vec3(.45,.6,1.), smoothstep(.06, .38, r)) * g * (1. - .75*dust);
       col += vec3(1.,.35,.6) * knots * smoothstep(.12, .3, r);
       col += vec3(1.,.9,.7) * exp(-r*r/.004) * .9;
-      gl_FragColor = vec4(col * uShow * uK * (1. - smoothstep(.85, 1., r)), 1.); }`,
+      gl_FragColor = vec4(col * uShow * .55 * (1. - smoothstep(.85, 1., r)), 1.); }`,
 });
-const HAZE_N = IS_TOUCH ? 5 : 11; hazeMat.uniforms.uK.value = 2.4 / HAZE_N;
-for (let i = 0; i < HAZE_N; i++) { const hz = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * 2, ARENA * 2), hazeMat); hz.rotation.x = -Math.PI / 2; hz.position.y = (i / (HAZE_N - 1) - .5) * .11 * ARENA; hz.frustumCulled = false; hz.renderOrder = -8; scene.add(hz); }
-const galGlow = [[.3, 0xffd9a0, .6], [1.7, 0x8fa8ff, .12]].map(([sz, colr, op]) => { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: null, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, color: colr, opacity: 0, toneMapped: false })); g.scale.setScalar(ARENA * sz); g.renderOrder = -9; g.userData.op = op; scene.add(g); return g; });
+for (const [yo, k] of [[0, 1], [.012, .5], [-.012, .5]]) { const hz = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * 2, ARENA * 2), hazeMat); hz.rotation.x = -Math.PI / 2; hz.position.y = yo * ARENA; hz.frustumCulled = false; hz.renderOrder = -8; scene.add(hz); }
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
 const FOOD_N = IS_TOUCH ? 9000 : 30000;
@@ -1076,61 +999,35 @@ function labelTexture(text) {
 function strHash(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function lookFor(id, hue) {
   const h = strHash(String(id));
-  const design = h % 10, seed = ((h >>> 5) % 1000) / 1000;
-  return { design, seed, alt: hueColor(hue + .3, .9, .6), spin: (.08 + ((h >>> 9) % 100) / 100 * .22) * ((h >>> 4) & 1 ? 1 : -1),
-    ring: design === 4 || ((design === 3 || design === 5 || design === 9) && (h >>> 13) % 3 === 0), ringTilt: .25 + ((h >>> 15) % 100) / 100 * .5,
-    moon: design !== 7 && (h >>> 17) % 4 === 0, star: design === 7 ? (seed < .33 ? 0xff7a40 : seed < .75 ? 0xffd27a : 0xa8c8ff) : 0 };
+  return { design: h % 8, alt: hueColor(hue + .3 + ((h >>> 3) % 40) / 100, .9, .6), spin: (((h >>> 9) % 100) / 100 - .5) * .6 };
 }
 class Entity {
-  constructor(id, kind, name, hue, owner, lookKey) {
+  constructor(id, kind, name, hue, owner) {
     this.id = id; this.kind = kind; this.name = cleanName(name) || 'Cell'; this.hue = hue; this.owner = owner;
     this.local = kind === 'me' || kind === 'bot' || kind === 'snack';
     this.cells = []; this.dir = randUnit(); this.throttle = 1; this.color = hueColor(hue, .95, .56); this.deep = hueColor(hue + .08, .9, .12);
     this.labelTex = labelTexture(this.name); this.thinkT = 0; this.wanderDir = randUnit(); this.wanderT = 0; this.lev = false; this.aggr = Math.random() < .6;
     this.lastPacket = performance.now();
-    this.lookKey = lookKey || String(id); this.look = lookFor(this.lookKey, hue);
+    this.look = lookFor(id, hue);
     entities.set(id, this);
   }
   get mass() { let m = 0; for (const c of this.cells) m += c.mass; return m; }
   main() { let b = null; for (const c of this.cells) if (!b || c.mass > b.mass) b = c; return b; }
 }
-const RING_GEO2 = new THREE.RingGeometry(1.32, 2.35, 128, 1);
-const ringMat = (seed, own) => new THREE.ShaderMaterial({
-  transparent: true, depthWrite: false, side: THREE.DoubleSide,
-  uniforms: { uSeed: { value: seed }, uOwn: { value: own ? 1 : 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR },
-  vertexShader: `varying vec3 vP; varying vec3 vW; void main(){ vP = position; vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
-  fragmentShader: `uniform float uSeed; uniform float uOwn; uniform float uViewR; uniform vec3 uPP; varying vec3 vP; varying vec3 vW; ${OWN_GLSL}
-    float h1(float x){ return fract(sin(x*127.1 + uSeed*311.7)*43758.5453); }
-    void main(){ float r = (length(vP.xy) - 1.32)/1.03;   // 0 inner edge .. 1 outer edge
-      float b = mix(h1(floor(r*26.)), h1(floor(r*26.) + 1.), smoothstep(.3,.7,fract(r*26.)))*.6 + h1(floor(r*90.))*.4;
-      float gap = smoothstep(.02,.05,abs(r - .58))*smoothstep(.0,.03,abs(r - .2 - .1*uSeed));   // Cassini-style divisions
-      float a = (.25 + .75*b) * gap * smoothstep(0.,.04,r) * smoothstep(1.,.93,r);
-      float d = ownDist(vW); float fade = mix(exp(-d/(uViewR*.6))*(1. - smoothstep(uViewR*.8, uViewR, d)), 1., uOwn);
-      vec3 col = mix(vec3(.62,.52,.4), vec3(.95,.88,.74), b);
-      gl_FragColor = vec4(col*(.75 + .3*b), a*.85*fade); }`,
-});
-function dressCell(ent, mesh) {   // rings, a circling moon, or a star's corona, depending on the world this player rolled
-  const L = ent.look; if (!L) return null; let moon = null;
-  if (L.ring) { const ring = new THREE.Mesh(RING_GEO2, ringMat(L.seed, ent.kind === 'me')); ring.rotation.x = Math.PI / 2 + L.ringTilt; ring.rotation.y = L.seed * 2; ring.renderOrder = 1; mesh.add(ring); }
-  if (L.moon) { const mm = cellMaterial(ent.color, ent.deep, L.seed * 7 % 1, 5, null, { design: L.seed > .5 ? 0 : 8, seed: L.seed * 3 % 1, alt: ent.color, spin: .2 }); if (ent.kind === 'me') mm.uniforms.uOwn.value = 1;
-    moon = new THREE.Mesh(CELL_GEO, mm); moon.scale.setScalar(.2); mesh.add(moon); }
-  if (L.star) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: L.star, opacity: .55, toneMapped: false })); g.scale.setScalar(3.4); mesh.add(g); }
-  return moon;
-}
 function addCell(ent, pos, mass, id) {
   id = id || `${short()}-${(cellCounter++).toString(36)}`;
-  const mat = cellMaterial(ent.color, ent.deep, ent.look ? ent.look.seed : Math.random(), 5, ent.labelTex, ent.look);
+  const mat = cellMaterial(ent.color, ent.deep, Math.random(), 5, ent.labelTex, ent.look);
   if (ent.kind === 'me') mat.uniforms.uOwn.value = 1;
-  const mesh = new THREE.Mesh(CELL_GEO, mat); const moon = dressCell(ent, mesh);
+  const mesh = new THREE.Mesh(CELL_GEO, mat);
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ent.labelTex, transparent: true, depthWrite: false, toneMapped: false }));
   label.material.color.setScalar(.78);
-  const c = { id, ent, pos: pos.clone(), tpos: pos.clone(), vel: new V3(), mass, r: rad(mass), rr: rad(mass) * .6, appear: 0, mergeAt: 0, noCollide: 0, mesh, label, moon, pulse: 0, born: now };
+  const c = { id, ent, pos: pos.clone(), tpos: pos.clone(), vel: new V3(), mass, r: rad(mass), rr: rad(mass) * .6, appear: 0, mergeAt: 0, noCollide: 0, mesh, label, pulse: 0, born: now };
   scene.add(mesh); scene.add(label);
   ent.cells.push(c); cellById.set(id, c);
   return c;
 }
 function removeCell(c) {
-  c.dead = true; scene.remove(c.mesh); scene.remove(c.label); c.mesh.material.dispose(); c.label.material.dispose(); for (const k of c.mesh.children) k.material && k.material.dispose();
+  c.dead = true; scene.remove(c.mesh); scene.remove(c.label); c.mesh.material.dispose(); c.label.material.dispose();
   const a = c.ent.cells; const i = a.indexOf(c); if (i >= 0) a.splice(i, 1); cellById.delete(c.id);
 }
 function removeEntity(e) { for (const c of [...e.cells]) removeCell(c); e.labelTex.dispose(); dropChat(e); entities.delete(e.id); }
@@ -1421,7 +1318,7 @@ document.getElementById('camLock').addEventListener('pointerdown', e => { e.prev
 function spawnMe(name, hue, forceMass) {
   setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 11 }; if (intro) { zoom = zoomTarget = ARENA * 2.15 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
-  me = new Entity(net.selfId, 'me', name, hue, net.selfId, short() + Math.random().toString(36).slice(2, 8));   // a fresh random world every life
+  me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
   let p = new V3();
   if (false) {
@@ -1781,7 +1678,7 @@ const r1 = v => Math.round(v * 10) / 10;
 function packCells(e) { return e.cells.map(c => [c.id, r1(c.pos.x), r1(c.pos.y), r1(c.pos.z), Math.round(c.mass)]); }
 function sendState() {
   if (!act || !net.peers.size) return;
-  const d = { n: me && playing ? me.name : '', k: me ? me.lookKey : '', h: me ? r1(me.hue * 100) / 100 : 0, c: me && playing ? packCells(me) : [] };
+  const d = { n: me && playing ? me.name : '', h: me ? r1(me.hue * 100) / 100 : 0, c: me && playing ? packCells(me) : [] };
   if (false) d.b = [...entities.values()].filter(e => e.kind === 'bot').map(e => [e.id, e.name, Math.round(e.hue * 1000) / 1000, packCells(e), e.lev ? 1 : 0]);
   try { act.state.send(d); } catch { }
 }
@@ -1801,16 +1698,16 @@ function syncCells(ent, arr) {
   for (const c of [...ent.cells]) if (!seen.has(c.id)) removeCell(c);
   ent.lastPacket = performance.now();
 }
-function getRemote(id, kind, name, hue, owner, lk) {
+function getRemote(id, kind, name, hue, owner) {
   let e = entities.get(id);
   if (e && e.local) return null;
-  if (!e || cleanName(name) !== e.name || (lk && e.lookKey !== lk)) { if (e) removeEntity(e); e = new Entity(id, kind, name, num(hue) ? hue : 0, owner, lk); }
+  if (!e || cleanName(name) !== e.name) { if (e) removeEntity(e); e = new Entity(id, kind, name, num(hue) ? hue : 0, owner); }
   return e;
 }
 function onState(d, pid) {
   if (!d || typeof d !== 'object' || !net.peers.has(pid)) return;
   net.lastSeen.set(pid, performance.now());
-  if (d.n && Array.isArray(d.c) && d.c.length) { const e = getRemote('p:' + pid, 'remote', d.n, d.h, pid, typeof d.k === 'string' ? d.k.slice(0, 24) : ''); if (e) syncCells(e, d.c); }
+  if (d.n && Array.isArray(d.c) && d.c.length) { const e = getRemote('p:' + pid, 'remote', d.n, d.h, pid); if (e) syncCells(e, d.c); }
   else { const e = entities.get('p:' + pid); if (e) removeEntity(e); }
   if (false && Array.isArray(d.b)) {
     const seen = new Set();
@@ -2166,7 +2063,7 @@ dotGeo.setAttribute('position', new THREE.BufferAttribute(dotPos, 3).setUsage(TH
 dotGeo.setAttribute('color', new THREE.BufferAttribute(dotCol, 3).setUsage(THREE.DynamicDrawUsage));
 dotGeo.setAttribute('aR', new THREE.BufferAttribute(dotR, 1).setUsage(THREE.DynamicDrawUsage));
 const dotMat = new THREE.ShaderMaterial({
-  transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   uniforms: { uPix: { value: .001 }, uDpr: { value: 1 }, uShow: { value: 0 }, uTime: U.time },
   vertexShader: `attribute vec3 color; attribute float aR; uniform float uPix; uniform float uDpr; uniform float uShow; uniform float uTime; varying vec3 vC; varying float vA;
     void main(){ vec4 mv = viewMatrix*vec4(position, 1.); float px = aR / (max(-mv.z, 1e-4)*uPix);
@@ -2177,23 +2074,6 @@ const dotMat = new THREE.ShaderMaterial({
       gl_FragColor = vec4(mix(vC, vec3(1.), .2)*g*vA*1.3, 1.); }`,
 });
 const dots = new THREE.Points(dotGeo, dotMat); dots.frustumCulled = false; dots.renderOrder = 3; scene.add(dots);
-const fmtLy = v => v >= 1000 ? (Math.round(v / 100) / 10).toLocaleString() + 'k ly' : Math.round(v).toLocaleString() + ' ly';
-function landmark(txt, col, x, y, z) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
-  g.font = '800 54px Outfit, Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 10; g.strokeStyle = 'rgba(0,0,10,.75)'; g.strokeText(txt, 256, 66); g.fillStyle = col; g.fillText(txt, 256, 66);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false, toneMapped: false })); sp.position.set(x, y, z); sp.renderOrder = 6; sp.visible = false; scene.add(sp); return sp;
-}
-const LANDMARKS = [landmark('● Sagittarius A*', '#ffd9a0', 0, 0, 0), landmark('☉ Sol · Earth', '#9fd0ff', SUN_R, 85 * LY, 0)];
-let galT = 0;
-function updateGalaxyHud() {
-  const on = playing && mainCell;
-  for (const m of LANDMARKS) { m.visible = !!on; if (on) { const d = camera.position.distanceTo(m.position); m.scale.set(d * .16, d * .04, 1); m.material.opacity = clamp(d / (ARENA * .02), 0, 1) * .9; } }
-  galT -= DT; if (galT > 0) return; galT = .4;
-  const el = document.getElementById('galTxt'); if (!on) { el.textContent = ''; return; }
-  const p = mainCell.pos, rc = Math.sqrt(p.x * p.x + p.z * p.z) / LY, hy = p.y / LY, ds = Math.sqrt((p.x - SUN_R) ** 2 + (p.y - 85 * LY) ** 2 + p.z * p.z) / LY;
-  el.textContent = `${galRegion(p.x, p.y, p.z)} · ${fmtLy(rc)} from the centre · ${fmtLy(Math.abs(hy))} ${hy >= 0 ? 'above' : 'below'} the disc · ${fmtLy(ds)} from Earth`;
-}
 function updateDots() {
   const show = playing && mainCell ? clamp((zoom - 2.5) / 4, 0, 1) : 0;
   dotMat.uniforms.uShow.value = show; dots.visible = show > 0; if (!show) return;
@@ -2213,7 +2093,6 @@ function updateVisuals() {
       c.rr += (c.r - c.rr) * Math.min(1, DT * 4);
       c.pulse *= Math.exp(-DT * 4);
       c.mesh.position.copy(c.pos); c.mesh.scale.setScalar(c.rr);
-      if (c.moon) { const a = now * .35 + c.born; c.moon.position.set(Math.cos(a) * 1.75, Math.sin(a * .7) * .35, Math.sin(a) * 1.75); }
       c.appear = Math.min(1, c.appear + DT * .8); const u = c.mesh.material.uniforms; u.uAppear.value = c.appear; u.uR.value = c.rr; u.uPulse.value = c.pulse * .5; u.uWobble.value = .022;
       const hideLabel = true;   // names are painted on the ball surface now
       c.label.visible = !hideLabel;
@@ -2226,8 +2105,7 @@ function updateVisuals() {
   }
   { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
   const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) * Math.max(1, zoom) : 1e5;   // zooming out pushes the fog back with it if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
-  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; for (const g of galGlow) { if (!g.material.map) { g.material.map = glowTex; g.material.needsUpdate = true; } g.material.opacity = g.userData.op * hazeMat.uniforms.uShow.value; }
-  hazeMat.uniforms.uShow.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .1) / .35, 0, 1) : 0; shellMat.uniforms.uZoom.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .12) / .5, 0, 1) : 0;   // edge grid only once the camera is far back relative to the map
+  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; hazeMat.uniforms.uShow.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .03) / .25, 0, 1) : 0; shellMat.uniforms.uZoom.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .12) / .5, 0, 1) : 0;   // edge grid only once the camera is far back relative to the map
   updateWakes();
   sky.position.copy(camera.position);
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
@@ -2634,7 +2512,7 @@ function frame(t) {
   updateRockets(); updateBoostFx(); updateChats();
   let p2 = performance.now(); PROF.food += p2 - p1;
   updateSparks();
-  updateVisuals(); updateDots(); updateGalaxyHud();
+  updateVisuals(); updateDots();
   updateCamera();
   { const ym = $('youMark'); if (playing && mainCell && (intro || zoom > 6)) { camera.updateMatrixWorld(); _ymv.copy(mainCell.pos).project(camera); ym.style.transform = `translate(${(_ymv.x * .5 + .5) * innerWidth}px,${(-_ymv.y * .5 + .5) * innerHeight}px)`; ym.style.opacity = _ymv.z < 1 ? 1 : 0; } else ym.style.opacity = 0; }
   hudT -= DT; if (hudT <= 0) { hudT = .25; updateHud(); updateServerList(); }
