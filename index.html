@@ -297,7 +297,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610111700'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610111800'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -611,7 +611,7 @@ const shellMat = new THREE.ShaderMaterial({
   }`,
 });
 const shell = new THREE.Mesh(new THREE.SphereGeometry(ARENA, 96, 64), shellMat);
-shell.frustumCulled = false; scene.add(shell);
+shell.frustumCulled = false; shell.visible = false; scene.add(shell);   // no visible border: space just goes on
 
 /* ---- galaxy haze: from far out, the billions of stars too faint to draw blur into the galaxy's glow, cut by dark dust lanes ---- */
 const hazeMat = new THREE.ShaderMaterial({
@@ -639,13 +639,14 @@ const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
   transparent: true, premultipliedAlpha: true, depthWrite: false,
   uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uWarp: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; uniform float uFarK; uniform float uWarp;
+  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; varying float vDim; uniform float uFarK; uniform float uWarp;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
       float sc = length(instanceMatrix[0].xyz);   // pellet radius (0 = not alive)
       vFade = (1. - smoothstep(uFar*.55, uFar*.97, ownDist(c))) * instanceMatrix[1].x;   // orbs fade out softly toward the edge of the food field
       vec4 mv = viewMatrix*vec4(c, 1.);
+      vDim = 1. - .6*smoothstep(uFar*.08, uFar*.85, ownDist(c));   // depth cue: the farther an orb is from you, the dimmer it reads
       float pix = max(-mv.z, 1e-4) * uPix;   // world size of one CSS pixel at this depth
       float px = sc / pix;                   // the orb's true on-screen radius, in pixels
       // like real stars: once an orb is smaller than a pixel it stays a pin-point and only gets fainter with distance
@@ -667,7 +668,7 @@ const foodMat = new THREE.ShaderMaterial({
         float h2 = fract(h*7.31); sc2 = h2 < .1 ? vec3(1.,.5,.35) : h2 < .16 ? vec3(1.,.45,.7) : h2 < .5 ? mix(sc2, vec3(1.), .55) : sc2;
         vC = mix(instanceColor, sc2, vStar*.92); }
       gl_Position = projectionMatrix*mv; }`,
-  fragmentShader: `varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx;
+  fragmentShader: `varying float vDim; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx;
     void main(){
       float d = length(vUv), win = (1. - d*d); win *= win;
       float rr = d*vRel, aa = max(fwidth(rr), 1e-4);
@@ -675,7 +676,8 @@ const foodMat = new THREE.ShaderMaterial({
       float halo = .22*exp(-max(rr - 1., 0.)*3.2) * (1. - disc) * (1. - vStar);
       float dp = d*vRpx;
       float psf = exp(-dp*dp*.75) + .2*exp(-dp*dp*.13);   // tight core + faint glare
-      vec3 col = vC*(disc + halo*win) + mix(vC, vec3(1.), .22)*psf*win*vI*vStar;
+      vec3 dc = mix(vec3(dot(vC, vec3(.3,.55,.15)))*vec3(.6,.7,1.), vC, .45 + .55*vDim) * vDim;   // far discs: dimmer and cooler
+      vec3 col = dc*(disc + halo*win) + mix(vC, vec3(1.), .22)*psf*win*vI*vStar*(.55 + .45*vDim);
       gl_FragColor = vec4(col*vFade, disc*vFade);
     }`,
 });
@@ -743,7 +745,7 @@ const slotCh = new Array(FOOD_N).fill(null), slotK = new Int32Array(FOOD_N).fill
 const orphan = new Uint8Array(FOOD_N); let orphanN = 0;
 const idSlot = new Map();                  // orb id -> slot of the live orb
 const eatenUntil = new Map();              // orb id -> time it grows back
-let foodLevel = -1, chunkT = 0, fillOrder = [], fillIdx = 0; const chunkC = new V3(1e9, 1e9, 1e9);
+let foodLevel = -1, chunkT = 0, fillOrder = [], fillIdx = 0, fillCap = 0; const chunkC = new V3(1e9, 1e9, 1e9);
 const hash4 = (a, b, c, k) => hash3(a + k * 7919, b - k * 104729, c + k * 1299709);
 function freeSlot(i) {
   if (orphan[i]) { orphan[i] = 0; orphanN--; }
@@ -821,14 +823,22 @@ function eatPellet(i) {
   freeSlot(i);
 }
 // fill loaded chunks with their orbs, nearest chunks first, a few ms per frame at most (no hitches)
+// Orbs load in sweeps across EVERY chunk in view (a few spots per chunk each sweep), never one chunk to the brim before the next:
+// however full the pool gets, what you see is spread evenly over the whole view instead of piled up around you.
 function fillChunks(ms) {
-  const t0 = performance.now(); let n = 0;
-  while (fillIdx < fillOrder.length) {
-    const ch = fillOrder[fillIdx];
-    if (ch.dead || ch.done >= foodK) { fillIdx++; continue; }
-    if (!tryCandidate(ch, ch.done)) return;   // no free slot yet: orphans free up as they leave the screen
-    ch.done++;
-    if ((++n & 15) === 0 && performance.now() - t0 > ms) return;
+  const t0 = performance.now(), step = Math.max(1, Math.ceil(foodK / 10)); let n = 0;
+  if (fillCap <= 0) fillCap = Math.min(foodK, step);
+  for (;;) {
+    const cap = Math.min(foodK, fillCap);
+    while (fillIdx < fillOrder.length) {
+      const ch = fillOrder[fillIdx];
+      if (ch.dead || ch.done >= cap) { fillIdx++; continue; }
+      if (!tryCandidate(ch, ch.done)) return;   // no free slot yet: orphans free up as they fade or leave the screen
+      ch.done++;
+      if ((++n & 15) === 0 && performance.now() - t0 > ms) return;
+    }
+    if (cap >= foodK) return;
+    fillCap = cap + step; fillIdx = 0;
   }
 }
 // orb spots k < foodK exist in every chunk: raising foodK adds orbs everywhere evenly; lowering it orphans the extras
@@ -837,7 +847,7 @@ function setFoodK(nk) {
     for (const i of [...ch.slots]) if (slotK[i] >= nk) { ch.slots.delete(i); orphanSlot(i); }
     ch.pending = ch.pending.filter(q => q[0] < nk); ch.done = Math.min(ch.done, nk);
   }
-  foodK = nk; fillIdx = 0;
+  foodK = nk; fillIdx = 0, fillCap = 0;
 }
 function tuneFoodK(filled) {
   const owned = FOOD_N - freeSlots.length - orphanN, T = foodTarget();
@@ -847,7 +857,7 @@ function tuneFoodK(filled) {
 function resetWorldFood() {   // new life / new world: start clean
   for (let i = 0; i < FOOD_N; i++) if (foodAlive[i]) freeSlot(i);
   for (const ch of chunks.values()) ch.dead = true;
-  chunks.clear(); idSlot.clear(); fillOrder = []; fillIdx = 0; orphan.fill(0); orphanN = 0;
+  chunks.clear(); idSlot.clear(); fillOrder = []; fillIdx = 0, fillCap = 0; orphan.fill(0); orphanN = 0;
   foodLevel = -1; foodK = K_PER * 2; chunkC.set(1e9, 1e9, 1e9);
   for (const p of [...pickups]) dropPickup(p); puChunks.clear();
 }
@@ -873,7 +883,7 @@ function refreshChunks(G, radius) {
   for (const key of [...chunks.keys()]) if (!keep.has(key)) unloadChunk(key);
   fillOrder = [];
   for (const [, a, b, c] of want) { const key = L + '|' + a + ',' + b + ',' + c; fillOrder.push(chunks.get(key) || makeChunk(L, a, b, c, key)); }
-  fillIdx = 0;
+  fillIdx = 0, fillCap = 0;
   if (levelChanged) foodK = clamp(Math.ceil(foodTarget() / Math.max(1, want.length) / (L >= 6 ? .05 : .08)), K_MIN, K_MAX);   // jump straight to about the right density for this zoom level
   { const cap = Math.max(K_MIN, Math.ceil(foodTarget() / Math.max(1, want.length) / .012)); if (foodK > cap) setFoodK(cap); }   // spread the budget over every chunk in view
   // regrow eaten orbs whose timer is up
@@ -1316,7 +1326,7 @@ let camLock = false;   // freeze the direction the camera looks (V or the pin bu
 function setCamLock(v) { camLock = v; document.getElementById('camLock').classList.toggle('on', v); }
 document.getElementById('camLock').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); setCamLock(!camLock); });   // intro: every new life opens with a fly-in from the whole map down to your ball
 function spawnMe(name, hue, forceMass) {
-  setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 11 }; if (intro) { zoom = zoomTarget = ARENA * 2.15 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
+  setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 11 }; if (intro) { zoom = zoomTarget = ARENA * 1.0 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
@@ -2010,7 +2020,7 @@ function updateCamera() {
     const tanH = Math.tan(camera.fov * Math.PI / 360) * Math.min(1, camera.aspect);
     const needDist = spread > 0 ? spread * 1.25 / tanH : 0;
     const k2 = 1 - Math.exp(-DT * 3);
-    zoomMax = Math.max(1, ARENA * 2.15 / (r * 6.8 + 30));
+    zoomMax = Math.max(1, ARENA * 1.0 / (r * 6.8 + 30));   // the farthest view still has stars past every edge of the screen, so the world reads as endless
     if (intro) {   // cinematic: hold the full map for a beat, then glide in (eased, in zoom-octaves so the pace feels even)
       intro.t += DT; const u = clamp((intro.t - 1.6) / intro.dur, 0, 1), e = u * u * (3 - 2 * u);
       zoom = zoomTarget = Math.exp(Math.log(zoomMax) * (1 - e) + Math.log(ZSTART) * e);
@@ -2068,18 +2078,18 @@ const dotMat = new THREE.ShaderMaterial({
   vertexShader: `attribute vec3 color; attribute float aR; uniform float uPix; uniform float uDpr; uniform float uShow; uniform float uTime; varying vec3 vC; varying float vA;
     void main(){ vec4 mv = viewMatrix*vec4(position, 1.); float px = aR / (max(-mv.z, 1e-4)*uPix);
       vA = uShow * (1. - smoothstep(2.5, 6., px)) * (.8 + .2*sin(uTime*2. + position.x*.01));
-      vC = color; gl_PointSize = (14. + 7.*smoothstep(.3, 2.5, px)) * uDpr; gl_Position = projectionMatrix*mv; }`,
+      vC = color; gl_PointSize = (9. + 5.*smoothstep(.3, 2.5, px)) * uDpr; gl_Position = projectionMatrix*mv; }`,
   fragmentShader: `varying vec3 vC; varying float vA;
     void main(){ float d = length(gl_PointCoord - .5)*2.; float g = exp(-d*d*14.) + .45*exp(-d*d*2.4); g *= (1. - d*d);
       gl_FragColor = vec4(mix(vC, vec3(1.), .2)*g*vA*1.3, 1.); }`,
 });
 const dots = new THREE.Points(dotGeo, dotMat); dots.frustumCulled = false; dots.renderOrder = 3; scene.add(dots);
 function updateDots() {
-  const show = playing && mainCell ? clamp((zoom - 2.5) / 4, 0, 1) : 0;
+  const show = playing && mainCell ? clamp((zoom - 12) / 18, 0, 1) : 0;   // only from far out, so they are never mistaken for orbs near you
   dotMat.uniforms.uShow.value = show; dots.visible = show > 0; if (!show) return;
   dotMat.uniforms.uPix.value = foodMat.uniforms.uPix.value; dotMat.uniforms.uDpr.value = renderer.getPixelRatio();
   let n = 0;
-  for (const e of entities.values()) { if (e === me || e.kind === 'snack') continue;
+  for (const e of entities.values()) { if (e === me || e.kind === 'snack' || (e.anchor && !e.lev)) continue;   // the crowd that follows you is left out, so beacons never bunch up around you
     for (const c of e.cells) { if (n >= DOT_N) break; dotPos[n * 3] = c.pos.x; dotPos[n * 3 + 1] = c.pos.y; dotPos[n * 3 + 2] = c.pos.z; dotCol[n * 3] = e.color.r; dotCol[n * 3 + 1] = e.color.g; dotCol[n * 3 + 2] = e.color.b; dotR[n] = c.rr || c.r; n++; } }
   dotGeo.setDrawRange(0, n); dotGeo.attributes.position.needsUpdate = dotGeo.attributes.color.needsUpdate = dotGeo.attributes.aR.needsUpdate = true;
 }
