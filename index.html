@@ -257,7 +257,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 
 <div id="touch" class="hidden">
   <div id="stick"><div id="knob"></div></div>
-  <div class="tbtnsL"><button class="tb sm" id="tChat">CHAT</button><button class="tb sm" id="tBrake">BRAKE</button><button class="tb sm" id="tEject">SPIT</button></div>
+  <div class="tbtnsL"><button class="tb sm" id="tChat">CHAT</button><button class="tb sm" id="tBack">BACK</button><button class="tb sm" id="tBrake">BRAKE</button><button class="tb sm" id="tEject">SPIT</button></div>
   <div class="tbtns">
     <div class="tbrow" style="display:none"><button class="tb" id="tFire">FIRE</button><button class="tb" id="tBoost">BOOST</button></div>
     <button class="tb big" id="tSplit">SPLIT</button>
@@ -295,7 +295,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610110900'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610111000'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -603,13 +603,13 @@ const PER_CL = 0;
 const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
   transparent: true, premultipliedAlpha: true, depthWrite: false,
-  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx;
+  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
+  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; uniform float uFarK;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
       float sc = length(instanceMatrix[0].xyz);   // pellet radius (0 = not alive)
-      vFade = 1. - smoothstep(uFar*.55, uFar*.97, ownDist(c));   // orbs fade out softly toward the edge of the food field
+      vFade = (1. - smoothstep(uFar*.55, uFar*.97, ownDist(c))) * instanceMatrix[1].x;   // orbs fade out softly toward the edge of the food field
       vec4 mv = viewMatrix*vec4(c, 1.);
       float pix = max(-mv.z, 1e-4) * uPix;   // world size of one CSS pixel at this depth
       float px = sc / pix;                   // the orb's true on-screen radius, in pixels
@@ -620,7 +620,7 @@ const foodMat = new THREE.ShaderMaterial({
       float flux = pow(min(px/1.3, 1.), .5);
       float tw = .88 + .12*sin(uTime*(1.5 + h*3.) + h*40.);
       vI = mix(1., lum*max(.42, flux)*tw*uBoost, vStar);   // zoomed out, each star stands for a whole clump of orbs: it shines brighter
-      vRpx = 2.3 + .5*(uBoost - 1.) + 2.4*clamp(lum*flux*uBoost - .5, 0., 1.);   // sprite radius in pixels; bright stars carry a little glare
+      vRpx = mix(2.3, 1.25, uFarK) + mix(2.4, .7, uFarK)*clamp(lum*flux - .5, 0., 1.);   // the farther you pull back, the finer the points   // sprite radius in pixels; bright stars carry a little glare
       float R = sc > 0. ? max(sc*1.9, pix*vRpx*vStar) : 0.;
       vRel = R / max(sc, 1e-6); vRpx = R / pix;
       vUv = position.xy;
@@ -694,6 +694,8 @@ function richness(x, y, z) { let d = .02; for (const [s, w] of RICH_S) d += w * 
    (orphans) wait until they're off-screen or deep in the fog before they go. Eaten orbs grow back after a while. ---- */
 const C0 = 120, K_PER = IS_TOUCH ? 9 : 16;
 const FOOD_TARGET = Math.round(FOOD_N * .7), K_MIN = 1, K_MAX = 100000;
+// how many orbs to hold: the same orbs-per-volume at every zoom up to ZREF (zooming in can't conjure extra food); past that the pool thins out
+const ZREF = 1.6, foodTarget = () => FOOD_TARGET * Math.min(1, (Math.max(1, zoom) / ZREF) ** 3);
 let foodK = K_PER * 2;                     // orb spots tried per chunk; tuned so the screen always holds ~FOOD_TARGET orbs
 const chunks = new Map();                  // key -> { a, b, c, L, slots: Set, pending: [[k, t]], done, hot, dead }
 const freeSlots = []; for (let i = FOOD_N - 1; i >= 0; i--) freeSlots.push(i);
@@ -708,7 +710,8 @@ function freeSlot(i) {
   if (slotId[i] >= 0 && idSlot.get(slotId[i]) === i) idSlot.delete(slotId[i]);
   foodAlive[i] = 0; foodPos[i * 3] = foodPos[i * 3 + 1] = foodPos[i * 3 + 2] = 1e9; slotCh[i] = null; slotK[i] = -1; slotId[i] = -1; freeSlots.push(i);
 }
-function orphanSlot(i) { slotCh[i] = null; slotK[i] = -1; if (!orphan[i]) { orphan[i] = 1; orphanN++; } }
+const orphanT = new Float32Array(FOOD_N);
+function orphanSlot(i) { slotCh[i] = null; slotK[i] = -1; if (!orphan[i]) { orphan[i] = 1; orphanN++; orphanT[i] = now; } }
 // the hot-spots that can reach a chunk, gathered once so testing each orb spot is cheap
 function chunkHot(L, a, b, c) {
   const C = C0 * 2 ** L, x0 = a * C, y0 = b * C, z0 = c * C, hot = [], slow = [];
@@ -797,9 +800,9 @@ function setFoodK(nk) {
   foodK = nk; fillIdx = 0;
 }
 function tuneFoodK(filled) {
-  const owned = FOOD_N - freeSlots.length - orphanN;
-  if (filled && owned < FOOD_TARGET * .7 && foodK < K_MAX) setFoodK(Math.min(K_MAX, Math.ceil(foodK * clamp(FOOD_TARGET / Math.max(owned, 1), 1.2, 8))));
-  else if (owned > FOOD_TARGET * 1.5 && foodK > K_MIN) setFoodK(Math.max(K_MIN, Math.floor(foodK * clamp(FOOD_TARGET / owned, .4, .85))));
+  const owned = FOOD_N - freeSlots.length - orphanN, T = foodTarget();
+  if (filled && owned < T * .85 && foodK < K_MAX) setFoodK(Math.min(K_MAX, Math.ceil(foodK * clamp(T / Math.max(owned, 1), 1.1, 8))));
+  else if (owned > T * 1.2 && foodK > K_MIN) setFoodK(Math.max(K_MIN, Math.floor(foodK * clamp(T / owned, .4, .9))));
 }
 function resetWorldFood() {   // new life / new world: start clean
   for (let i = 0; i < FOOD_N; i++) if (foodAlive[i]) freeSlot(i);
@@ -831,8 +834,8 @@ function refreshChunks(G, radius) {
   fillOrder = [];
   for (const [, a, b, c] of want) { const key = L + '|' + a + ',' + b + ',' + c; fillOrder.push(chunks.get(key) || makeChunk(L, a, b, c, key)); }
   fillIdx = 0;
-  if (levelChanged) foodK = clamp(Math.ceil(FOOD_TARGET / Math.max(1, want.length) / (L >= 6 ? .2 : .1)), K_MIN, K_MAX);   // jump straight to about the right density for this zoom level
-  { const cap = Math.max(K_MIN, Math.ceil(FOOD_TARGET / Math.max(1, want.length) / .04)); if (foodK > cap) setFoodK(cap); }   // spread the budget over every chunk in view
+  if (levelChanged) foodK = clamp(Math.ceil(foodTarget() / Math.max(1, want.length) / (L >= 6 ? .2 : .1)), K_MIN, K_MAX);   // jump straight to about the right density for this zoom level
+  { const cap = Math.max(K_MIN, Math.ceil(foodTarget() / Math.max(1, want.length) / .04)); if (foodK > cap) setFoodK(cap); }   // spread the budget over every chunk in view
   // regrow eaten orbs whose timer is up
   for (const ch of chunks.values()) if (ch.pending.length) {
     const still = [];
@@ -841,7 +844,7 @@ function refreshChunks(G, radius) {
   }
   let filled = true; for (const ch of fillOrder) if (ch.done < foodK) { filled = false; break; }
   tuneFoodK(filled);
-  refreshPickups(G, radius * 1.1, L);
+  refreshPickups(G, radius * 1.1, clamp(Math.round(Math.log2(foodRadius(myR()) / (5 * C0))), 0, 3));   // power-up spacing follows your size only, never the zoom
   if (eatenUntil.size > 30000) for (const [k, t] of eatenUntil) if (t < now) eatenUntil.delete(k);   // tidy long sessions
 }
 // what the camera can see right now (unneeded orbs / power-ups only leave when they're outside it)
@@ -1291,7 +1294,7 @@ function spawnMe(name, hue, forceMass) {
 const keys = {};
 let locked = false, mouseX = innerWidth / 2, mouseY = innerHeight / 2;
 const stick = { x: 0, y: 0, id: null };
-let brakeHeld = false;
+let brakeHeld = false, rearHeld = false;
 addEventListener('keydown', e => {
   if (chatOpen) return;   // typing a chat message: keys don't steer
   if (document.activeElement?.tagName === 'INPUT') {
@@ -1352,6 +1355,8 @@ document.addEventListener('touchmove', e => { if (e.touches.length > 1 || playin
 let lastTouchEnd = 0;
 document.addEventListener('touchend', e => { const t = Date.now(); if (t - lastTouchEnd < 350) e.preventDefault(); lastTouchEnd = t; }, { passive: false });
 const tBrake = document.getElementById('tBrake');
+{ const tBack = document.getElementById('tBack'); tBack.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); rearHeld = true; tBack.style.background = 'rgba(57,243,255,.35)'; });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tBack.addEventListener(ev, () => { rearHeld = false; tBack.style.background = ''; })); }
 tBrake.addEventListener('pointerdown', e => { e.preventDefault(); brakeHeld = true; tBrake.style.background = 'rgba(57,243,255,.35)'; });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tBrake.addEventListener(ev, () => { brakeHeld = false; tBrake.style.background = ''; }));
 
@@ -1451,9 +1456,10 @@ function updateFood() {
   if (firstFill || chunkT <= 0 || _fq.distanceTo(chunkC) > Cnow * .5) { refreshChunks(_fq, gR + V); chunkT = .25; chunkC.copy(_fq); foodInit = true; }
   const filling = fillIdx < fillOrder.length;
   if (filling) fillChunks(firstFill ? 12 : (intro || Math.abs(zoomTarget - zoom) > zoom * .02) ? 9 : 5);   // load harder while the view is zooming
+  const fadeIn = intro ? 2.2 : zoom > 1.6 ? 1.4 : .6;
   const zk = 1;   // true perspective: orbs shrink to star points as you zoom out
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
-  foodMat.uniforms.uBoost.value += (1 + .24 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
+  foodMat.uniforms.uBoost.value += (1 + .1 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFarK.value = clamp(Math.log(Math.max(1, zoom)) / Math.log(Math.max(2, zoomMax)), 0, 1); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
   const gRate = (1.06 * Math.pow(tm, .7) + 4.8) * (now < PU.roidsUntil ? PU.mult : 1);
@@ -1471,9 +1477,13 @@ function updateFood() {
     const j = i * 3, o = i * 16;
     if (!foodAlive[i]) { if (arr[o] !== 0) { arr[o] = arr[o + 5] = arr[o + 10] = 0; } continue; }
     let x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
+    let fd = Math.min(1, (now - foodBorn[i]) / fadeIn); fd *= fd * (3 - 2 * fd);   // every orb eases into view, never pops
     let s = foodSize[i] * pk * Math.min(1, (now - foodBorn[i]) / .6), hit = null, hd = 0, hx = 0, hy = 0, hz = 0, reach = 0;
     const ex = x - gx, ey = y - gy, ez = z - gz, dG = Math.sqrt(ex * ex + ey * ey + ez * ez);
-    if (orphan[i] && ((zoom > 1.6 && !filling) || freeSlots.length < 200 || dG - gR > V || offScreen(x, y, z, s * 3 + 1))) { freeSlot(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; }   // an unneeded orb leaves only once you can't see it
+    if (orphan[i]) {
+      if (zoom > 1.6) { const fo = 1 - (now - orphanT[i]) / 1.4; if (fo <= 0) { freeSlot(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; } fd *= fo; }   // zoomed out: unneeded stars dim away while the new ones brighten
+      else if (freeSlots.length < 200 || dG - gR > V || offScreen(x, y, z, s * 3 + 1)) { freeSlot(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; }   // up close an unneeded orb leaves only once you can't see it
+    }
     if (dG < gR + maxReach) for (let k = 0; k < cells.length; k++) {
       const cc = cells[k], dx = cc.pos.x - x, dy = cc.pos.y - y, dz = cc.pos.z - z, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       const rc = cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10;
@@ -1504,7 +1514,7 @@ function updateFood() {
       }
     }
     if (botAte) { arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; }
-    const sv = s * zk; arr[o] = sv; arr[o + 5] = sv; arr[o + 10] = sv; arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
+    const sv = s * zk; arr[o + 4] = fd; arr[o] = sv; arr[o + 5] = sv; arr[o + 10] = sv; arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
   }
   food.instanceMatrix.needsUpdate = true;
   if (ate) {
@@ -1928,7 +1938,7 @@ function updateCamera() {
     camO.slerp(orient, ck);
     bank += (clamp(-yawVel * .03, -.06, .06) - bank) * ck;
     _cq.copy(camO).multiply(_bq.setFromAxisAngle(ROLL_AX, bank));
-    if (keys.KeyC || keys.KeyQ) _cq.multiply(_bq.setFromAxisAngle(AX.Y, Math.PI));   // hold C (or Q): look behind you
+    if (keys.KeyC || keys.KeyQ || rearHeld) _cq.multiply(_bq.setFromAxisAngle(AX.Y, Math.PI));   // hold C (or Q): look behind you
     const cf = _cf.set(0, 0, -1).applyQuaternion(_cq), cu = _cu.set(0, 1, 0).applyQuaternion(_cq);
     // same camera angle whether you're one ball or split; it only eases back a little so your pieces stay in view
     let spread = 0;
