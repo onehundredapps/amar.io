@@ -297,7 +297,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610112000'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610112100'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -452,17 +452,68 @@ ${NOISE}
 float spots(vec3 x){ vec3 p=floor(x-.5), f=x-p; float d1=8.;
   for(int k=0;k<=1;k++) for(int j=0;j<=1;j++) for(int i=0;i<=1;i++){ vec3 b=vec3(i,j,k); vec3 r=b-f+hash33(p+b); d1=min(d1,dot(r,r)); }
   return sqrt(d1); }
-// every ball gets one of 8 looks (picked per player), painted in its own two colors
-vec3 design(vec3 o, out float gloss){
-  vec3 a = uColor, b = uAlt; gloss = .55;
-  if (uDesign < .5) { float e = voro(o*uVein + vec3(uSeed*7., uTime*.12, 0.)); return mix(a, mix(a, b, .55)*1.25, 1. - smoothstep(0., .12, e)); }   // living cell veins
-  if (uDesign < 1.5) { float st = sin((o.y + .12*sin(o.x*3. + uSeed*5.))*9.); gloss = .8; return mix(a, b, smoothstep(-.12, .12, st)); }   // candy stripes
-  if (uDesign < 2.5) { float d = spots(o*3.4 + uSeed*3.); return mix(b, a, smoothstep(.28, .36, d)); }   // polka spots
-  if (uDesign < 3.5) { float n = fbm(o*1.7 + uSeed*4.); gloss = .95; return mix(a, b, smoothstep(-.4, .7, sin(o.x*4. + o.y*2. + n*8.))); }   // marble
-  if (uDesign < 4.5) { float e = voro(o*10. + uSeed*3.); return mix(b*.55, a, smoothstep(.03, .1, e)); }   // reptile scales
-  if (uDesign < 5.5) { float n = fbm(vec3(o.y*5., o.x*.7 + uTime*.02, o.z*.7) + uSeed); return mix(a, b, .5 + .5*sin(o.y*13. + n*5.)); }   // gas-giant bands
-  if (uDesign < 6.5) { float n = fbm(o*2.3 + uSeed*9.); return n > .56 ? b : n > .44 ? mix(a, uDeep*2.2, .55) : a; }   // camo
-  gloss = 1.; return mix(a, b, smoothstep(-.2, .2, o.y + .25*o.x));   // glossy two-tone
+// every ball is a world: one of 10 planets / moons / stars (picked per player), painted procedurally so it stays sharp at any size
+vec3 design(vec3 o, out float gloss, out float emis, out vec3 atmo){
+  gloss = .12; emis = 0.; atmo = vec3(0.);
+  vec3 s = o + uSeed*13.;
+  if (uDesign < .5) {   // cratered rock: the Moon, Mercury
+    float n = fbm(s*2.2), n2 = fbm(s*7.), cr = spots(s*2.6), cr2 = spots(s*6.5 + 4.);
+    vec3 c = mix(vec3(.30,.29,.28), vec3(.64,.62,.58), n*.7 + n2*.3);
+    c = mix(c, vec3(.17,.17,.19), smoothstep(.55,.7,fbm(s*1.1 + 3.))*.65);
+    c *= .72 + .28*smoothstep(.14,.3,cr); c += .14*smoothstep(.34,.29,cr)*smoothstep(.22,.29,cr);
+    c *= .84 + .16*smoothstep(.08,.2,cr2); return c;
+  }
+  if (uDesign < 1.5) {   // living world: oceans, continents, ice caps, drifting cloud
+    float h = fbm(s*1.6)*.75 + fbm(s*4.5)*.25, lat = abs(o.y);
+    vec3 sea = mix(vec3(.01,.05,.22), vec3(.04,.24,.46), smoothstep(.3,.5,h));
+    vec3 land = mix(vec3(.10,.28,.08), vec3(.58,.47,.28), smoothstep(.56,.74,h)); land = mix(land, vec3(.5,.42,.25), smoothstep(.25,.05,lat)*.35);
+    vec3 c = mix(sea, land, smoothstep(.5,.52,h)); gloss = h < .5 ? .85 : .05;
+    c = mix(c, vec3(.95,.97,1.), smoothstep(.74,.84,lat + .1*fbm(s*5.)));
+    float cl = fbm(vec3(o.x*2.2 + uTime*.012, o.y*4.5, o.z*2.2) + uSeed*3.); c = mix(c, vec3(1.), smoothstep(.54,.74,cl)*.88);
+    atmo = vec3(.3,.55,1.); return c;
+  }
+  if (uDesign < 2.5) {   // rust desert: Mars
+    float n = fbm(s*2.), n2 = fbm(s*6.), cr = spots(s*4.);
+    vec3 c = mix(vec3(.52,.22,.09), vec3(.84,.5,.3), n); c = mix(c, vec3(.27,.12,.07), smoothstep(.55,.75,fbm(s*1.3 + 7.))*.75);
+    c *= (.84 + .32*n2) * (.8 + .2*smoothstep(.1,.25,cr)); c = mix(c, vec3(.96,.93,.9), smoothstep(.8,.88,abs(o.y) + .06*n2));
+    atmo = vec3(.9,.5,.3)*.5; return c;
+  }
+  if (uDesign < 3.5) {   // banded gas giant with a great storm: Jupiter
+    float t = fbm(vec3(o.x*1.5 + uTime*.015, o.y*6., o.z*1.5) + uSeed), y = o.y + .06*(t - .5), b = sin(y*17.) + .5*sin(y*41. + 2.);
+    vec3 c = mix(vec3(.84,.73,.58), vec3(.55,.32,.19), smoothstep(-.6,.8,b)); c = mix(c, vec3(.94,.89,.8), smoothstep(.5,1.2,-b));
+    c *= .86 + .28*fbm(vec3(o.x*4., o.y*30., o.z*4.) + uSeed);
+    float e = length((o - normalize(vec3(.75,-.32,.58)))*vec3(1.,2.2,1.)); c = mix(vec3(.74,.22,.11)*(.8 + .4*t), c, smoothstep(.11,.2,e));
+    atmo = vec3(.8,.7,.6)*.45; return c;
+  }
+  if (uDesign < 4.5) {   // pale gold giant: Saturn
+    float t = fbm(vec3(o.x, o.y*5., o.z) + uSeed), b = sin((o.y + .03*t)*22.);
+    vec3 c = mix(vec3(.87,.77,.54), vec3(.70,.57,.37), smoothstep(-.5,.7,b))*(.9 + .2*t); atmo = vec3(.9,.8,.6)*.45; return c;
+  }
+  if (uDesign < 5.5) {   // ice giant with a great dark spot: Neptune / Uranus
+    vec3 base = uSeed > .5 ? vec3(.16,.32,.86) : vec3(.48,.82,.86);
+    float t = fbm(vec3(o.x*1.5, o.y*7., o.z*1.5) + uSeed); vec3 c = base*(.82 + .36*t);
+    c = mix(c, vec3(1.), smoothstep(.7,.85,fbm(vec3(o.x*3. + uTime*.02, o.y*14., o.z*3.) + 9.))*.5);
+    float e = length((o - normalize(vec3(.6,-.35,.72)))*vec3(1.,1.9,1.)); c = mix(base*.25, c, smoothstep(.15,.3,e));
+    atmo = vec3(.4,.6,1.); gloss = .3; return c;
+  }
+  if (uDesign < 6.5) {   // molten world: black crust split by glowing rivers
+    float e = voro(s*4.), n = fbm(s*3.), crack = 1. - smoothstep(0.,.09,e);
+    vec3 crust = mix(vec3(.05,.04,.04), vec3(.2,.16,.14), n), glow = mix(vec3(1.,.25,.02), vec3(1.,.8,.3), crack)*(.8 + .2*sin(uTime*2. + n*9.));
+    emis = crack*.92; atmo = vec3(1.,.35,.1)*.6; return mix(crust, glow*1.5, crack);
+  }
+  if (uDesign < 7.5) {   // a star: boiling granules, sunspots; red dwarf, yellow sun or blue giant
+    vec3 sc = uSeed < .33 ? vec3(1.,.40,.16) : uSeed < .75 ? vec3(1.,.80,.42) : vec3(.62,.78,1.);
+    float g = voro(s*9. + uTime*.05), n = fbm(s*2.5 + uTime*.03), ss = fbm(s*1.4 + 5.);
+    vec3 c = sc*(1.05 + .5*n)*(.8 + .35*smoothstep(0.,.15,g)); c *= 1. - .78*smoothstep(.68,.76,ss)*step(abs(o.y), .5);
+    emis = 1.; atmo = sc; return c*1.25;
+  }
+  if (uDesign < 8.5) {   // ice moon scored with rust-brown fractures: Europa
+    float n = fbm(s*2.), e = voro(s*3.5 + n), e2 = voro(s*8.);
+    vec3 c = mix(vec3(.8,.78,.72), vec3(.95,.95,.98), n); c = mix(vec3(.5,.27,.15), c, smoothstep(0.,.05,e)); c = mix(vec3(.6,.4,.28), c, .6 + .4*smoothstep(0.,.04,e2));
+    gloss = .7; return c;
+  }
+  float t = fbm(vec3(o.x*2. + o.y*1.5 + uTime*.02, o.y*5., o.z*2.) + uSeed);   // shrouded in sulphur cloud: Venus
+  atmo = vec3(1.,.85,.5)*.7; return mix(vec3(.84,.68,.38), vec3(.98,.91,.72), t);
 }
 void main(){
   vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW);
@@ -473,18 +524,16 @@ void main(){
   float cutoff = mix(1. - smoothstep(uViewR*.75, uViewR, dp), 1., uOwn);
   float ang = uTime*uSpin, cs = cos(ang), sn = sin(ang);
   vec3 o = vec3(cs*vO.x + sn*vO.z, vO.y, -sn*vO.x + cs*vO.z);   // the pattern slowly spins, so you can read motion
-  float gloss; vec3 alb = design(o, gloss);
+  float gloss, emis; vec3 atmo; vec3 alb = design(o, gloss, emis, atmo);
   // lighting: soft wrapped key light (squishy, subsurface feel), cool fill, sky-tinted fresnel rim, clear-coat highlight
   vec3 L = normalize(vec3(.5,.9,.35)), L2 = normalize(vec3(-.6,-.35,-.5));
-  float wrap = max((dot(N,L) + .4) / 1.4, 0.);
-  vec3 col = alb * (.2 + .9*wrap) + alb * max(dot(N,L2), 0.) * vec3(.25,.3,.45);
-  col = mix(uDeep*.7 + alb*.12, col, .3 + .7*pow(ndv, .55));
+  float wrap = max((dot(N,L) + .3) / 1.3, 0.);
+  vec3 col = alb * (.1 + 1.02*wrap) + alb * max(dot(N,L2), 0.) * vec3(.10,.12,.2);   // sunlit side, soft night side
   float fr = pow(1. - ndv, 3.);
-  vec3 R = reflect(-V, N);
-  col += mix(vec3(.22,.4,1.), alb, .35) * fr * .85;
-  col += vec3(.4,.3,.7) * smoothstep(-.1, .9, R.y) * fr * .45 * gloss;
+  col += atmo * fr * (.3 + .9*wrap);                          // thin glowing atmosphere on the limb
+  col = mix(col, alb * (.72 + .4*pow(ndv, .45)), emis);       // stars and lava shine by themselves (darker at the limb)
   vec3 H = normalize(L + V);
-  float spec = pow(max(dot(N,H),0.), mix(36., 220., gloss)) * mix(.3, 1.1, gloss) * (1. - fow);
+  float spec = pow(max(dot(N,H),0.), mix(36., 220., gloss)) * mix(.0, 1.1, gloss) * (1. - fow) * (1. - emis);
   // painted name: wraps around the middle of the ball twice, lit and fogged like the surface itself
   if (uNameOn > .5) {
     vec3 on = normalize(o);
@@ -694,8 +743,8 @@ const PER_CL = 0;
 const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
   transparent: true, premultipliedAlpha: true, depthWrite: false,
-  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uWarp: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; varying float vDim; uniform float uFarK; uniform float uWarp;
+  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uFarK2: { value: 0 }, uWarp: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
+  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; varying float vDim; uniform float uFarK; uniform float uFarK2; uniform float uWarp;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
@@ -711,8 +760,8 @@ const foodMat = new THREE.ShaderMaterial({
       float lum = .62 + 2.6*pow(h, 5.);      // a few bright stars, a great many faint ones
       float flux = pow(min(px/1.3, 1.), .5);
       float tw = .88 + .12*sin(uTime*(1.5 + h*3.) + h*40.);
-      vI = mix(1., lum*max(.42, flux)*tw*uBoost, vStar);   // zoomed out, each star stands for a whole clump of orbs: it shines brighter
-      vRpx = mix(2.3, 1.25, uFarK) + mix(2.4, .7, uFarK)*clamp(lum*flux - .5, 0., 1.);   // the farther you pull back, the finer the points   // sprite radius in pixels; bright stars carry a little glare
+      vI = mix(1., lum*max(.42, flux)*tw*uBoost, vStar) * mix(1., .4, uFarK2);   // pulled back, the orbs around you match the galaxy's own stars instead of standing out as a bright clump   // zoomed out, each star stands for a whole clump of orbs: it shines brighter
+      vRpx = mix(mix(2.3, 1.25, uFarK), 1.3, uFarK2) + mix(mix(2.4, .7, uFarK), .5, uFarK2)*clamp(lum*flux - .5, 0., 1.);   // the farther you pull back, the finer the points   // sprite radius in pixels; bright stars carry a little glare
       float R = sc > 0. ? max(sc*1.9, pix*vRpx*vStar) : 0.;
       vRel = R / max(sc, 1e-6); vRpx = R / pix;
       vUv = position.xy;
@@ -1066,35 +1115,61 @@ function labelTexture(text) {
 function strHash(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function lookFor(id, hue) {
   const h = strHash(String(id));
-  return { design: h % 8, alt: hueColor(hue + .3 + ((h >>> 3) % 40) / 100, .9, .6), spin: (((h >>> 9) % 100) / 100 - .5) * .6 };
+  const design = h % 10, seed = ((h >>> 5) % 1000) / 1000;
+  return { design, seed, alt: hueColor(hue + .3, .9, .6), spin: (.08 + ((h >>> 9) % 100) / 100 * .22) * ((h >>> 4) & 1 ? 1 : -1),
+    ring: design === 4 || ((design === 3 || design === 5 || design === 9) && (h >>> 13) % 3 === 0), ringTilt: .25 + ((h >>> 15) % 100) / 100 * .5,
+    moon: design !== 7 && (h >>> 17) % 4 === 0, star: design === 7 ? (seed < .33 ? 0xff7a40 : seed < .75 ? 0xffd27a : 0xa8c8ff) : 0 };
 }
 class Entity {
-  constructor(id, kind, name, hue, owner) {
+  constructor(id, kind, name, hue, owner, lookKey) {
     this.id = id; this.kind = kind; this.name = cleanName(name) || 'Cell'; this.hue = hue; this.owner = owner;
     this.local = kind === 'me' || kind === 'bot' || kind === 'snack';
     this.cells = []; this.dir = randUnit(); this.throttle = 1; this.color = hueColor(hue, .95, .56); this.deep = hueColor(hue + .08, .9, .12);
     this.labelTex = labelTexture(this.name); this.thinkT = 0; this.wanderDir = randUnit(); this.wanderT = 0; this.lev = false; this.aggr = Math.random() < .6;
     this.lastPacket = performance.now();
-    this.look = lookFor(id, hue);
+    this.lookKey = lookKey || String(id); this.look = lookFor(this.lookKey, hue);
     entities.set(id, this);
   }
   get mass() { let m = 0; for (const c of this.cells) m += c.mass; return m; }
   main() { let b = null; for (const c of this.cells) if (!b || c.mass > b.mass) b = c; return b; }
 }
+const RING_GEO2 = new THREE.RingGeometry(1.32, 2.35, 128, 1);
+const ringMat = (seed, own) => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  uniforms: { uSeed: { value: seed }, uOwn: { value: own ? 1 : 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR },
+  vertexShader: `varying vec3 vP; varying vec3 vW; void main(){ vP = position; vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader: `uniform float uSeed; uniform float uOwn; uniform float uViewR; uniform vec3 uPP; varying vec3 vP; varying vec3 vW; ${OWN_GLSL}
+    float h1(float x){ return fract(sin(x*127.1 + uSeed*311.7)*43758.5453); }
+    void main(){ float r = (length(vP.xy) - 1.32)/1.03;   // 0 inner edge .. 1 outer edge
+      float b = mix(h1(floor(r*26.)), h1(floor(r*26.) + 1.), smoothstep(.3,.7,fract(r*26.)))*.6 + h1(floor(r*90.))*.4;
+      float gap = smoothstep(.02,.05,abs(r - .58))*smoothstep(.0,.03,abs(r - .2 - .1*uSeed));   // Cassini-style divisions
+      float a = (.25 + .75*b) * gap * smoothstep(0.,.04,r) * smoothstep(1.,.93,r);
+      float d = ownDist(vW); float fade = mix(exp(-d/(uViewR*.6))*(1. - smoothstep(uViewR*.8, uViewR, d)), 1., uOwn);
+      vec3 col = mix(vec3(.62,.52,.4), vec3(.95,.88,.74), b);
+      gl_FragColor = vec4(col*(.75 + .3*b), a*.85*fade); }`,
+});
+function dressCell(ent, mesh) {   // rings, a circling moon, or a star's corona, depending on the world this player rolled
+  const L = ent.look; if (!L) return null; let moon = null;
+  if (L.ring) { const ring = new THREE.Mesh(RING_GEO2, ringMat(L.seed, ent.kind === 'me')); ring.rotation.x = Math.PI / 2 + L.ringTilt; ring.rotation.y = L.seed * 2; ring.renderOrder = 1; mesh.add(ring); }
+  if (L.moon) { const mm = cellMaterial(ent.color, ent.deep, L.seed * 7 % 1, 5, null, { design: L.seed > .5 ? 0 : 8, seed: L.seed * 3 % 1, alt: ent.color, spin: .2 }); if (ent.kind === 'me') mm.uniforms.uOwn.value = 1;
+    moon = new THREE.Mesh(CELL_GEO, mm); moon.scale.setScalar(.2); mesh.add(moon); }
+  if (L.star) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: L.star, opacity: .55, toneMapped: false })); g.scale.setScalar(3.4); mesh.add(g); }
+  return moon;
+}
 function addCell(ent, pos, mass, id) {
   id = id || `${short()}-${(cellCounter++).toString(36)}`;
-  const mat = cellMaterial(ent.color, ent.deep, Math.random(), 5, ent.labelTex, ent.look);
+  const mat = cellMaterial(ent.color, ent.deep, ent.look ? ent.look.seed : Math.random(), 5, ent.labelTex, ent.look);
   if (ent.kind === 'me') mat.uniforms.uOwn.value = 1;
-  const mesh = new THREE.Mesh(CELL_GEO, mat);
+  const mesh = new THREE.Mesh(CELL_GEO, mat); const moon = dressCell(ent, mesh);
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ent.labelTex, transparent: true, depthWrite: false, toneMapped: false }));
   label.material.color.setScalar(.78);
-  const c = { id, ent, pos: pos.clone(), tpos: pos.clone(), vel: new V3(), mass, r: rad(mass), rr: rad(mass) * .6, appear: 0, mergeAt: 0, noCollide: 0, mesh, label, pulse: 0, born: now };
+  const c = { id, ent, pos: pos.clone(), tpos: pos.clone(), vel: new V3(), mass, r: rad(mass), rr: rad(mass) * .6, appear: 0, mergeAt: 0, noCollide: 0, mesh, label, moon, pulse: 0, born: now };
   scene.add(mesh); scene.add(label);
   ent.cells.push(c); cellById.set(id, c);
   return c;
 }
 function removeCell(c) {
-  c.dead = true; scene.remove(c.mesh); scene.remove(c.label); c.mesh.material.dispose(); c.label.material.dispose();
+  c.dead = true; scene.remove(c.mesh); scene.remove(c.label); c.mesh.material.dispose(); c.label.material.dispose(); for (const k of c.mesh.children) k.material && k.material.dispose();
   const a = c.ent.cells; const i = a.indexOf(c); if (i >= 0) a.splice(i, 1); cellById.delete(c.id);
 }
 function removeEntity(e) { for (const c of [...e.cells]) removeCell(c); e.labelTex.dispose(); dropChat(e); entities.delete(e.id); }
@@ -1113,7 +1188,7 @@ function spawnBot(lev = false, near = true, col = false) {
   if (lev) m = [112000, 420000, 96000, 1500000, 250000, 80000, 800000, 3000000][botSeq % 8];
   else { const r = Math.random(); m = r < .62 ? rnd(12, 80) : r < .8 ? rnd(80, 900) : r < .92 ? rnd(900, 8000) : rnd(8000, 150000); }
   if (col) { m = COL_MASS * rnd(.6, 1.1); }
-  let pos = randInGalaxy(ARENA * (col ? .7 : lev ? .55 : .92));
+  let pos = lev || Math.random() < .4 ? randInSphere(ARENA * (col ? .8 : lev ? .75 : .9)) : randInGalaxy(ARENA * .92);   // giants (and many roamers) fill the whole volume around the galaxy, above and below the disc too
   // agar feel: most bots spawn in view of a real player, some smaller (prey) and many BIGGER (threats)
   const humans = [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length);
   if (!lev && near && humans.length) {
@@ -1385,7 +1460,7 @@ document.getElementById('camLock').addEventListener('pointerdown', e => { e.prev
 function spawnMe(name, hue, forceMass) {
   setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 11 }; if (intro) { zoom = zoomTarget = ARENA * 1.0 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
-  me = new Entity(net.selfId, 'me', name, hue, net.selfId);
+  me = new Entity(net.selfId, 'me', name, hue, net.selfId, short() + Math.random().toString(36).slice(2, 8));   // a fresh random world every life
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
   let p = new V3();
   if (false) {
@@ -1588,10 +1663,10 @@ function updateFood() {
   // has room; zooming OUT they dim away at once, otherwise they sit around you as a dense ball and starve the wider view of orbs
   const holdOrph = filling && levelDir < 0 && freeSlots.length >= 600;
   if (holdOrph) fillDoneT = now;
-  const fadeIn = intro ? .9 : zoom > 1.6 ? 1.4 : .6;
+  const fadeIn = intro ? .9 : zoom > 1.6 ? 1.4 : 2.2;
   const zk = 1;   // true perspective: orbs shrink to star points as you zoom out
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
-  foodMat.uniforms.uBoost.value += (1 + .1 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFarK.value = clamp(Math.log(Math.max(1, zoom)) / Math.log(Math.max(2, zoomMax)), 0, 1); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
+  foodMat.uniforms.uBoost.value += (1 + .1 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFarK2.value = clamp((zoom - 2.5) / 5, 0, 1); foodMat.uniforms.uFarK.value = clamp(Math.log(Math.max(1, zoom)) / Math.log(Math.max(2, zoomMax)), 0, 1); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
   const gRate = (1.06 * Math.pow(tm, .7) + 4.8) * (now < PU.roidsUntil ? PU.mult : 1);
@@ -1610,7 +1685,7 @@ function updateFood() {
     if (!foodAlive[i]) { if (arr[o] !== 0) { arr[o] = arr[o + 5] = arr[o + 10] = 0; } continue; }
     let x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
     let fd = Math.min(1, (now - foodBorn[i]) / fadeIn); fd *= fd * (3 - 2 * fd);   // every orb eases into view, never pops
-    let s = foodSize[i] * pk * Math.min(1, (now - foodBorn[i]) / .6), hit = null, hd = 0, hx = 0, hy = 0, hz = 0, reach = 0;
+    let s = foodSize[i] * pk, hit = null, hd = 0, hx = 0, hy = 0, hz = 0, reach = 0;
     const ex = x - gx, ey = y - gy, ez = z - gz, dG = Math.sqrt(ex * ex + ey * ey + ez * ez);
     if (orphan[i]) {
       if (zoom > 1.6) { const fo = holdOrph ? 1 : 1 - (now - Math.max(orphanT[i], fillDoneT)) / (levelDir > 0 ? .7 : 1.4); if (fo <= 0) { freeSlot(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; } fd *= fo; }   // zoomed out: unneeded stars dim away while the new ones brighten
@@ -1748,7 +1823,7 @@ const r1 = v => Math.round(v * 10) / 10;
 function packCells(e) { return e.cells.map(c => [c.id, r1(c.pos.x), r1(c.pos.y), r1(c.pos.z), Math.round(c.mass)]); }
 function sendState() {
   if (!act || !net.peers.size) return;
-  const d = { n: me && playing ? me.name : '', h: me ? r1(me.hue * 100) / 100 : 0, c: me && playing ? packCells(me) : [] };
+  const d = { n: me && playing ? me.name : '', k: me ? me.lookKey : '', h: me ? r1(me.hue * 100) / 100 : 0, c: me && playing ? packCells(me) : [] };
   if (false) d.b = [...entities.values()].filter(e => e.kind === 'bot').map(e => [e.id, e.name, Math.round(e.hue * 1000) / 1000, packCells(e), e.lev ? 1 : 0]);
   try { act.state.send(d); } catch { }
 }
@@ -1768,16 +1843,16 @@ function syncCells(ent, arr) {
   for (const c of [...ent.cells]) if (!seen.has(c.id)) removeCell(c);
   ent.lastPacket = performance.now();
 }
-function getRemote(id, kind, name, hue, owner) {
+function getRemote(id, kind, name, hue, owner, lk) {
   let e = entities.get(id);
   if (e && e.local) return null;
-  if (!e || cleanName(name) !== e.name) { if (e) removeEntity(e); e = new Entity(id, kind, name, num(hue) ? hue : 0, owner); }
+  if (!e || cleanName(name) !== e.name || (lk && e.lookKey !== lk)) { if (e) removeEntity(e); e = new Entity(id, kind, name, num(hue) ? hue : 0, owner, lk); }
   return e;
 }
 function onState(d, pid) {
   if (!d || typeof d !== 'object' || !net.peers.has(pid)) return;
   net.lastSeen.set(pid, performance.now());
-  if (d.n && Array.isArray(d.c) && d.c.length) { const e = getRemote('p:' + pid, 'remote', d.n, d.h, pid); if (e) syncCells(e, d.c); }
+  if (d.n && Array.isArray(d.c) && d.c.length) { const e = getRemote('p:' + pid, 'remote', d.n, d.h, pid, typeof d.k === 'string' ? d.k.slice(0, 24) : ''); if (e) syncCells(e, d.c); }
   else { const e = entities.get('p:' + pid); if (e) removeEntity(e); }
   if (false && Array.isArray(d.b)) {
     const seen = new Set();
@@ -2149,7 +2224,7 @@ function updateDots() {
   dotMat.uniforms.uShow.value = show; dots.visible = show > 0; if (!show) return;
   dotMat.uniforms.uPix.value = foodMat.uniforms.uPix.value; dotMat.uniforms.uDpr.value = renderer.getPixelRatio();
   let n = 0;
-  for (const e of entities.values()) { if (e === me || e.kind === 'snack') continue;
+  for (const e of entities.values()) { if (e === me || e.kind === 'snack' || (e.anchor && !e.lev)) continue;   // the little crowd that trails you gets no beacon: it read as an out-of-place clump of coloured orbs around your ball
     for (const c of e.cells) { if (n >= DOT_N) break; dotPos[n * 3] = c.pos.x; dotPos[n * 3 + 1] = c.pos.y; dotPos[n * 3 + 2] = c.pos.z; dotCol[n * 3] = e.color.r; dotCol[n * 3 + 1] = e.color.g; dotCol[n * 3 + 2] = e.color.b; dotR[n] = c.rr || c.r; n++; } }
   dotGeo.setDrawRange(0, n); dotGeo.attributes.position.needsUpdate = dotGeo.attributes.color.needsUpdate = dotGeo.attributes.aR.needsUpdate = true;
 }
@@ -2163,6 +2238,7 @@ function updateVisuals() {
       c.rr += (c.r - c.rr) * Math.min(1, DT * 4);
       c.pulse *= Math.exp(-DT * 4);
       c.mesh.position.copy(c.pos); c.mesh.scale.setScalar(c.rr);
+      if (c.moon) { const a = now * .35 + c.born; c.moon.position.set(Math.cos(a) * 1.75, Math.sin(a * .7) * .35, Math.sin(a) * 1.75); }
       c.appear = Math.min(1, c.appear + DT * .8); const u = c.mesh.material.uniforms; u.uAppear.value = c.appear; u.uR.value = c.rr; u.uPulse.value = c.pulse * .5; u.uWobble.value = .022;
       const hideLabel = true;   // names are painted on the ball surface now
       c.label.visible = !hideLabel;
