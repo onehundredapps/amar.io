@@ -99,6 +99,10 @@ body.touch #boostTip{bottom:auto;top:120px}
 #win .by{color:var(--muted);margin-top:8px}
 .tbrow{display:flex;gap:10px}
 #tBoost.on{background:linear-gradient(135deg,rgba(255,122,24,.7),rgba(255,210,63,.5))}
+#youMark{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .4s;pointer-events:none}
+#youMark i{position:absolute;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;border:2px solid #39f3ff;box-shadow:0 0 14px #39f3ff;animation:youPulse 1.2s ease-out infinite}
+#youMark b{position:absolute;left:-30px;width:60px;top:-40px;text-align:center;font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:#39f3ff;text-shadow:0 0 8px #000}
+@keyframes youPulse{0%{transform:scale(.45);opacity:1}100%{transform:scale(1.5);opacity:0}}
 #zoomBar{position:absolute;left:16px;top:54%;transform:translateY(-50%);width:44px;padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:auto;border-radius:22px;touch-action:none;user-select:none}
 #zoomBar button{width:30px;height:30px;border-radius:50%;font:800 18px Outfit,sans-serif;color:var(--text);background:rgba(255,255,255,.08);border:1px solid var(--line);line-height:1}
 #zoomBar .lbl{font:800 9px Outfit,sans-serif;letter-spacing:.14em;color:var(--muted)}
@@ -236,6 +240,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <div id="puTxt"></div>
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
+  <div id="youMark"><i></i><b>YOU</b></div>
   <div id="zoomBar" class="glass"><span class="lbl">ZOOM</span><button id="zoomIn" aria-label="Zoom in">+</button><div id="zoomTrack"><div id="zoomKnob"></div></div><button id="zoomOut" aria-label="Zoom out">−</button></div>
   <div id="srv" class="glass"><button id="srvBtn"><span class="sdot"></span><span id="srvTxt">Lobby</span><span class="car">▾</span></button><ol id="srvList"></ol></div>
   <div id="globeWrap" style="display:none"><canvas id="globe" width="300" height="300"></canvas></div>
@@ -288,6 +293,12 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   </div>
 </div>
 
+<script>
+(function () { var BUILD = '202610110344'; if (location.protocol.indexOf('http') !== 0) return;
+  fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
+    v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
+  }).catch(function () {}); })();
+</script>
 <script type="module">
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -306,8 +317,8 @@ const CFG = {
   APP_ID: 'orbivore-3d-opus55-v2',
   ROOM_CAP: 10,
 };
-const ARENA = 96000;   // agar.io-style proportions: max ball ≈21% of map width
-const MAX_CELL_MASS = 4e9, MAX_CELLS = 64;   // split down to tiny pieces   // a single ball can grow to fill the whole cage
+const ARENA = 192000;   // agar.io-style proportions: max ball ≈21% of map width
+const MAX_CELL_MASS = 1.6e10, MAX_CELLS = 64;   // split down to tiny pieces   // a single ball can grow to fill the whole cage
 const BOT_MAX = 90000;
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches;   // real phones/tablets only
 const params = new URLSearchParams(location.search);
@@ -574,7 +585,7 @@ const shell = new THREE.Mesh(new THREE.SphereGeometry(ARENA, 96, 64), shellMat);
 shell.frustumCulled = false; scene.add(shell);
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
-const FOOD_N = IS_TOUCH ? 6500 : 18000;
+const FOOD_N = IS_TOUCH ? 8000 : 26000;
 const CL_N = 0;   // clusters disabled: classic evenly-spread agar pellets
 const LOOSE_N = FOOD_N;
 const PER_CL = 0;
@@ -1199,9 +1210,10 @@ function zoomFromPointer(e) { const r = zoomTrack.getBoundingClientRect(), p = c
 zoomTrack.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); zoomTrack.setPointerCapture(e.pointerId); zoomFromPointer(e); });
 zoomTrack.addEventListener('pointermove', e => { if (zoomTrack.hasPointerCapture(e.pointerId)) zoomFromPointer(e); });
 for (const [id, f] of [['zoomIn', 1 / 1.6], ['zoomOut', 1.6]]) document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); intro = null; zoomTarget = clamp(zoomTarget * f, ZMIN, zoomMax); });
+const _ymv = new V3();
 let intro = null, zoomMax = 1;   // intro: every new life opens with a fly-in from the whole map down to your ball
 function spawnMe(name, hue, forceMass) {
-  camR = 0; intro = { t: 0, dur: 6 };
+  camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 6 }; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
@@ -1249,7 +1261,7 @@ addEventListener('keydown', e => {
   if (ROCKETS_ON && e.code === 'KeyR' && !e.repeat) fireRocket();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('wheel', e => { if (!playing || chatOpen) return; e.preventDefault(); intro = null; zoomTarget *= Math.exp(clamp(e.deltaY, -120, 120) * .0022); }, { passive: false });
+addEventListener('wheel', e => { if (!playing || chatOpen) return; e.preventDefault(); if (intro) { if (intro.t > 2.5) { intro = null; zoomTarget = 1; } return; } zoomTarget *= Math.exp(clamp(e.deltaY, -120, 120) * .0022); }, { passive: false });
 let pinch = null;   // two-finger pinch zooms on phones
 addEventListener('touchstart', e => { if (playing && e.touches.length === 2) { pinch = { d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1, z: zoomTarget }; stick.x = stick.y = 0; } }, { passive: true });
 addEventListener('touchmove', e => { if (pinch && e.touches.length === 2) zoomTarget = pinch.z * pinch.d / (Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1); }, { passive: true });
@@ -1387,6 +1399,7 @@ function updateFood() {
   updateViewPlanes();
   if (firstFill || chunkT <= 0 || _fq.distanceTo(chunkC) > Cnow * .5) { refreshChunks(_fq, gR + V); chunkT = .25; chunkC.copy(_fq); foodInit = true; }
   if (fillIdx < fillOrder.length) fillChunks(firstFill ? 12 : 2.5);
+  const zk = Math.pow(Math.max(1, zoom), .82);   // drawn size grows with zoom-out, but slower than the view does
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
   foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
@@ -1397,7 +1410,7 @@ function updateFood() {
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < V + bc.r) {
     bc.fg = 0; const br = bc.r * 1.4 + 6, p = bc.pos;
     for (let ix = Math.floor((p.x - br) / BG); ix <= Math.floor((p.x + br) / BG); ix++) for (let iy = Math.floor((p.y - br) / BG); iy <= Math.floor((p.y + br) / BG); iy++) for (let iz = Math.floor((p.z - br) / BG); iz <= Math.floor((p.z + br) / BG); iz++) {
-      const gk = (ix + 512) * 1048576 + (iy + 512) * 1024 + iz + 512; let l = botGrid.get(gk); if (!l) botGrid.set(gk, l = []); l.push(bc);
+      const gk = (ix + 2048) * 16777216 + (iy + 2048) * 4096 + iz + 2048; let l = botGrid.get(gk); if (!l) botGrid.set(gk, l = []); l.push(bc);
     }
   }
   const arr = food.instanceMatrix.array;
@@ -1429,7 +1442,7 @@ function updateFood() {
       }
     }
     let botAte = false;
-    const bl = botGrid.size ? botGrid.get((Math.floor(x / BG) + 512) * 1048576 + (Math.floor(y / BG) + 512) * 1024 + Math.floor(z / BG) + 512) : undefined;
+    const bl = botGrid.size ? botGrid.get((Math.floor(x / BG) + 2048) * 16777216 + (Math.floor(y / BG) + 2048) * 4096 + Math.floor(z / BG) + 2048) : undefined;
     if (bl) for (let b = 0; b < bl.length; b++) {
       const bc = bl[b], dx = bc.pos.x - x, dy = bc.pos.y - y, dz = bc.pos.z - z;
       const br = bc.r * 1.4 + 6;   // bots get a small pickup reach
@@ -1439,7 +1452,7 @@ function updateFood() {
       }
     }
     if (botAte) { arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; }
-    arr[o] = s; arr[o + 5] = s; arr[o + 10] = s; arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
+    const sv = s * zk; arr[o] = sv; arr[o + 5] = sv; arr[o + 10] = sv; arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
   }
   food.instanceMatrix.needsUpdate = true;
   if (ate) {
@@ -1931,7 +1944,7 @@ function updateVisuals() {
   }
   { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
   const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) * Math.max(1, zoom) : 1e5;   // zooming out pushes the fog back with it if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
-  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; shellMat.uniforms.uZoom.value = clamp((zoom - 2) / 6, 0, 1);
+  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; shellMat.uniforms.uZoom.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .12) / .5, 0, 1) : 0;   // edge grid only once the camera is far back relative to the map
   updateWakes();
   sky.position.copy(camera.position);
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
@@ -2331,6 +2344,7 @@ function frame(t) {
   updateSparks();
   updateVisuals();
   updateCamera();
+  { const ym = $('youMark'); if (playing && mainCell && (intro || zoom > 6)) { camera.updateMatrixWorld(); _ymv.copy(mainCell.pos).project(camera); ym.style.transform = `translate(${(_ymv.x * .5 + .5) * innerWidth}px,${(-_ymv.y * .5 + .5) * innerHeight}px)`; ym.style.opacity = _ymv.z < 1 ? 1 : 0; } else ym.style.opacity = 0; }
   hudT -= DT; if (hudT <= 0) { hudT = .25; updateHud(); updateServerList(); }
   let p3 = performance.now(); PROF.vis += p3 - p2;
   composer.render();
