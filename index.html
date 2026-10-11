@@ -99,6 +99,14 @@ body.touch #boostTip{bottom:auto;top:120px}
 #win .by{color:var(--muted);margin-top:8px}
 .tbrow{display:flex;gap:10px}
 #tBoost.on{background:linear-gradient(135deg,rgba(255,122,24,.7),rgba(255,210,63,.5))}
+#zoomBar{position:absolute;left:16px;top:54%;transform:translateY(-50%);width:44px;padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:auto;border-radius:22px;touch-action:none;user-select:none}
+#zoomBar button{width:30px;height:30px;border-radius:50%;font:800 18px Outfit,sans-serif;color:var(--text);background:rgba(255,255,255,.08);border:1px solid var(--line);line-height:1}
+#zoomBar .lbl{font:800 9px Outfit,sans-serif;letter-spacing:.14em;color:var(--muted)}
+#zoomTrack{position:relative;width:6px;height:170px;border-radius:3px;background:rgba(255,255,255,.14);cursor:pointer}
+#zoomTrack::before{content:'';position:absolute;left:-19px;right:-19px;top:-6px;bottom:-6px}
+#zoomKnob{position:absolute;left:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:linear-gradient(135deg,#39f3ff,#ff4fa3);box-shadow:0 0 12px rgba(57,243,255,.6);pointer-events:none}
+body.touch #zoomBar{left:8px;top:44%}
+body.touch #zoomTrack{height:130px}
 #srv{position:absolute;left:16px;top:86px;min-width:160px;pointer-events:auto;font-size:12px;overflow:hidden}
 #srvBtn{display:flex;align-items:center;gap:8px;padding:8px 12px;width:100%;font-weight:700;color:var(--text);text-align:left}
 #srv .sdot{width:8px;height:8px;border-radius:50%;background:#3dff7a;box-shadow:0 0 8px #3dff7a;flex:none}
@@ -205,7 +213,6 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <div class="row swatches" id="swatches"></div>
     <div class="opts">
       <label id="optMouseRow"><input type="checkbox" id="optMouse" checked> Mouse steer</label>
-      <label style="display:none"><input type="checkbox" id="optInvert"> Inverted controls</label>
       <label><input type="checkbox" id="optSound" checked> Sound</label>
       <label><input type="checkbox" id="optChat" checked> Player chat</label>
     </div>
@@ -229,6 +236,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <div id="puTxt"></div>
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
+  <div id="zoomBar" class="glass"><span class="lbl">ZOOM</span><button id="zoomIn" aria-label="Zoom in">+</button><div id="zoomTrack"><div id="zoomKnob"></div></div><button id="zoomOut" aria-label="Zoom out">−</button></div>
   <div id="srv" class="glass"><button id="srvBtn"><span class="sdot"></span><span id="srvTxt">Lobby</span><span class="car">▾</span></button><ol id="srvList"></ol></div>
   <div id="globeWrap" style="display:none"><canvas id="globe" width="300" height="300"></canvas></div>
   <div id="radarWrap" class="glass" style="display:none"><canvas id="radar" width="300" height="300"></canvas></div>
@@ -581,7 +589,7 @@ const foodMat = new THREE.ShaderMaterial({
       vFade = 1. - smoothstep(uFar*.55, uFar*.97, ownDist(c));   // orbs fade out softly toward the edge of the food field
       vec4 mv = viewMatrix*vec4(c, 1.);
       float rad = sc * smoothstep(0., .25, vFade);
-      if (sc > 0. && vFade > .03) rad = max(rad, .75 * -mv.z * uPix);   // never smaller than about a pixel: far orbs become dots, not nothing
+      if (sc > 0. && vFade > .03) rad = max(rad, 1.15 * -mv.z * uPix);   // never smaller than about a pixel: far orbs become dots, not nothing
       mv.xy += position.xy * rad;   // billboard: always faces you, like agar's flat pellets
       vC = instanceColor;
       gl_Position = projectionMatrix*mv; }`,
@@ -1162,7 +1170,7 @@ function moveEntity(E) {
 let me = null, playing = false, mainCell = null, zoom = 1, zoomTarget = 1, fovKick = 0;   // zoom: 1 = normal chase view; wheel / pinch / +- change it freely
 const orient = new THREE.Quaternion();
 const stats = { peak: 0, eaten: 0, start: 0, peakTier: 0, killer: '' };
-const opts = { level: true, invert: true, sound: true, mouse: true, chat: true };   // inverted (flight-style) up/down by default
+const opts = { level: true, sound: true, mouse: true, chat: true };
 const AX = { X: new V3(1, 0, 0), Y: new V3(0, 1, 0), Z: new V3(0, 0, -1) };
 const _q = new THREE.Quaternion();
 // Heading turns freely about your own axes: no limit up or down, you can loop right over the top. While you're
@@ -1184,8 +1192,16 @@ function levelRoll(dt) {   // upside-down (mid-loop) is left alone
   rotLocal(AX.Z, ang * (1 - Math.exp(-dt * 2.5)));
 }
 
+// zoom slider (right edge): top = closest, bottom = whole map; position is in zoom-octaves so it feels even
+const ZMIN = .3, zoomTrack = document.getElementById('zoomTrack'), zoomKnob = document.getElementById('zoomKnob');
+function updateZoomBar() { const p = clamp(Math.log(zoom / ZMIN) / Math.log(zoomMax / ZMIN), 0, 1); zoomKnob.style.top = (p * 100) + '%'; }
+function zoomFromPointer(e) { const r = zoomTrack.getBoundingClientRect(), p = clamp((e.clientY - r.top) / r.height, 0, 1); intro = null; zoomTarget = ZMIN * Math.pow(zoomMax / ZMIN, p); }
+zoomTrack.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); zoomTrack.setPointerCapture(e.pointerId); zoomFromPointer(e); });
+zoomTrack.addEventListener('pointermove', e => { if (zoomTrack.hasPointerCapture(e.pointerId)) zoomFromPointer(e); });
+for (const [id, f] of [['zoomIn', 1 / 1.6], ['zoomOut', 1.6]]) document.getElementById(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); intro = null; zoomTarget = clamp(zoomTarget * f, ZMIN, zoomMax); });
+let intro = null, zoomMax = 1;   // intro: every new life opens with a fly-in from the whole map down to your ball
 function spawnMe(name, hue, forceMass) {
-  camR = 0;
+  camR = 0; intro = { t: 0, dur: 6 };
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId);
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
@@ -1233,7 +1249,7 @@ addEventListener('keydown', e => {
   if (ROCKETS_ON && e.code === 'KeyR' && !e.repeat) fireRocket();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('wheel', e => { if (!playing || chatOpen) return; e.preventDefault(); zoomTarget *= Math.exp(clamp(e.deltaY, -120, 120) * .0022); }, { passive: false });
+addEventListener('wheel', e => { if (!playing || chatOpen) return; e.preventDefault(); intro = null; zoomTarget *= Math.exp(clamp(e.deltaY, -120, 120) * .0022); }, { passive: false });
 let pinch = null;   // two-finger pinch zooms on phones
 addEventListener('touchstart', e => { if (playing && e.touches.length === 2) { pinch = { d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1, z: zoomTarget }; stick.x = stick.y = 0; } }, { passive: true });
 addEventListener('touchmove', e => { if (pinch && e.touches.length === 2) zoomTarget = pinch.z * pinch.d / (Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1); }, { passive: true });
@@ -1292,7 +1308,6 @@ function handleInput() {
     yIn -= curve(mouse.x); pIn -= curve(mouse.y);
   }
   yIn = clamp(yIn, -1, 1); pIn = clamp(pIn, -1, 1);
-  if (opts.invert) { pIn = -pIn; yIn = -yIn; }   // inverted: up/down AND left/right flip
   const acc = 1 - Math.exp(-dt * 7);
   yawVel += (yIn * 2.0 - yawVel) * acc;
   pitchVel += (pIn * 1.5 - pitchVel) * acc;
@@ -1315,7 +1330,7 @@ function interactions() {
   for (const a of all) {
     if (!a.ent.local || a.dead) continue;
     for (const b of all) {
-      if (b === a || b.ent === a.ent || b.dead || b.mass < a.mass * 1.25) continue;
+      if (b === a || b.ent === a.ent || b.dead || b.mass < a.mass * 1.25 || (intro && a.ent === me)) continue;   // nothing can eat you during the opening fly-in
       const lim = b.r - a.r * .35; if (lim <= 0) continue;
       const dx = a.pos.x - b.pos.x, dy = a.pos.y - b.pos.y, dz = a.pos.z - b.pos.z;
       if (dx * dx + dy * dy + dz * dz < lim * lim) { a.dead = true; eaten.push([a, b]); break; }
@@ -1373,7 +1388,7 @@ function updateFood() {
   if (firstFill || chunkT <= 0 || _fq.distanceTo(chunkC) > Cnow * .5) { refreshChunks(_fq, gR + V); chunkT = .25; chunkC.copy(_fq); foodInit = true; }
   if (fillIdx < fillOrder.length) fillChunks(firstFill ? 12 : 2.5);
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
-  foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height;
+  foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
   const gRate = (.88 * Math.pow(tm, .7) + 4) * (now < PU.roidsUntil ? 4 : 1);
@@ -1854,8 +1869,16 @@ function updateCamera() {
     const tanH = Math.tan(camera.fov * Math.PI / 360) * Math.min(1, camera.aspect);
     const needDist = spread > 0 ? spread * 1.25 / tanH : 0;
     const k2 = 1 - Math.exp(-DT * 3);
-    zoomTarget = clamp(zoomTarget, .3, Math.max(1, ARENA * 2.15 / (r * 6.8 + 30)));
-    zoom += (zoomTarget - zoom) * (1 - Math.exp(-DT * 7));
+    zoomMax = Math.max(1, ARENA * 2.15 / (r * 6.8 + 30));
+    if (intro) {   // cinematic: hold the full map for a beat, then glide in (eased, in zoom-octaves so the pace feels even)
+      intro.t += DT; const u = clamp((intro.t - .9) / intro.dur, 0, 1), e = u * u * (3 - 2 * u);
+      zoom = zoomTarget = Math.exp(Math.log(zoomMax) * (1 - e));
+      if (u >= 1) intro = null;
+    } else {
+      zoomTarget = clamp(zoomTarget, .3, zoomMax);
+      zoom += (zoomTarget - zoom) * (1 - Math.exp(-DT * 7));
+    }
+    updateZoomBar();
     camExtra += (Math.max(0, needDist - (r * 6.8 + 30) * zoom) - camExtra) * k2;
     camLook.set(0, 0, 0);
     const dist = (r * 6.8 + 30) * zoom + camExtra;
@@ -2230,7 +2253,7 @@ document.addEventListener('focusin', e => { if (playing && e.target !== chatIn &
 function startGame() {
   const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
   try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); } catch { }
-  opts.invert = false; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked; opts.chat = $('optChat').checked;
+  opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked; opts.chat = $('optChat').checked;
   sfx('tier');
   dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
   spawnMe(name, chosenHue);
