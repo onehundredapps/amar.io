@@ -118,7 +118,7 @@ body.touch #stats{top:calc(12px + env(safe-area-inset-top))}
 body.touch #globeWrap{top:calc(10px + env(safe-area-inset-top))!important}
 body.touch .tbtns,body.touch .tbtnsL{bottom:calc(20px + env(safe-area-inset-bottom))}
 body.touch #globeWrap{right:10px;top:10px;width:104px;height:104px}
-#lb{position:absolute;right:16px;top:176px;padding:12px 14px;width:220px;font-size:13px}
+#lb{position:absolute;right:16px;top:16px;padding:12px 14px;width:220px;font-size:13px}
 #lb h4{font:800 12px Outfit,sans-serif;letter-spacing:.2em;color:var(--muted);margin-bottom:8px}
 #lb ol{list-style:none}
 #lb li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;white-space:nowrap}
@@ -205,14 +205,14 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
     <div class="row swatches" id="swatches"></div>
     <div class="opts">
       <label id="optMouseRow"><input type="checkbox" id="optMouse" checked> Mouse steer</label>
-      <label><input type="checkbox" id="optInvert" checked> Inverted controls</label>
+      <label style="display:none"><input type="checkbox" id="optInvert"> Inverted controls</label>
       <label><input type="checkbox" id="optSound" checked> Sound</label>
       <label><input type="checkbox" id="optChat" checked> Player chat</label>
     </div>
     <button id="play">PLAY</button>
     <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
     <div class="keys" id="keysHelp">
-      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Enter</kbd> chat<br>
+      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom<br>
       <kbd>S</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
     </div>
   </div>
@@ -230,14 +230,14 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   </div>
   <div id="lb" class="glass"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
   <div id="srv" class="glass"><button id="srvBtn"><span class="sdot"></span><span id="srvTxt">Lobby</span><span class="car">▾</span></button><ol id="srvList"></ol></div>
-  <div id="globeWrap"><canvas id="globe" width="300" height="300"></canvas></div>
+  <div id="globeWrap" style="display:none"><canvas id="globe" width="300" height="300"></canvas></div>
   <div id="radarWrap" class="glass" style="display:none"><canvas id="radar" width="300" height="300"></canvas></div>
   <div id="feed"></div>
   <canvas id="marks"></canvas>
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Enter</kbd> chat</div>
+  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
@@ -298,8 +298,8 @@ const CFG = {
   APP_ID: 'orbivore-3d-opus55-v2',
   ROOM_CAP: 10,
 };
-const ARENA = 9600;   // agar.io-style proportions: max ball ≈21% of map width
-const MAX_CELL_MASS = 36000000, MAX_CELLS = 64;   // split down to tiny pieces   // a single ball can grow to fill the whole cage
+const ARENA = 96000;   // agar.io-style proportions: max ball ≈21% of map width
+const MAX_CELL_MASS = 4e9, MAX_CELLS = 64;   // split down to tiny pieces   // a single ball can grow to fill the whole cage
 const BOT_MAX = 90000;
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches;   // real phones/tablets only
 const params = new URLSearchParams(location.search);
@@ -309,7 +309,7 @@ const V3 = THREE.Vector3;
 const rad = m => 1.5 * Math.sqrt(m);
 // agar.io speed 1:1 — agar moves a cell 2.2·size^-0.439·40 units per tick at 25 ticks/s, with agar size = 10·sqrt(mass);
 // our radius is 1.5·sqrt(mass) (0.15× agar units), so that's 120·mass^-0.2195 of our units per second — plus ~20%
-const speedOf = m => 145 * Math.pow(m, -0.2195);
+const speedOf = m => Math.max(145 * Math.pow(m, -0.2195), .9 * Math.sqrt(m));
 const BOOST_ON = false, ROCKETS_ON = false;   // nitro + rockets switched off for now
 const viewRadius = r => 2240 + r * 56;   // how far you can see through the fog of war
 const foodRadius = r => 560 + r * 14;    // orbs are kept this close to you
@@ -323,7 +323,7 @@ const randInSphere = (R, v = new V3()) => randUnit(v).multiplyScalar(R * Math.cb
 const fmt = m => m >= 1e6 ? (m / 1e6).toFixed(2) + 'M' : m >= 1e4 ? (m / 1e3).toFixed(1) + 'k' : Math.round(m).toLocaleString();
 const BAD_WORDS = /\b(f+u+c+k+\w*|sh[i1]+t+\w*|b[i1]tch\w*|c+u+n+t+\w*|d[i1]ck\w*|puss(y|ies)|asshole\w*|bastard\w*|wh[o0]re\w*|slut\w*|n[i1]gg\w*|f[a4]gg?\w*|retard\w*|rap(e|ist)\w*|porn\w*|nazi\w*|kys)\b/gi;
 const filterChat = t => t.replace(BAD_WORDS, w => w[0] + '*'.repeat(Math.max(1, w.length - 1)));
-const NO_CHAT = params.has('nochat');   // the iOS app ships without player chat (App Store guideline 1.2)
+const NO_CHAT = true;   // the iOS app ships without player chat (App Store guideline 1.2)
 const cleanName = s => filterChat(String(s ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16));
 const hueColor = (h, s = .9, l = .55) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l);
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -546,9 +546,9 @@ sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
 /* ---- arena shell: glowing lattice that lights up as you approach ---- */
 const shellMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  uniforms: { uP: { value: new V3() }, uR: { value: 5 }, uTime: U.time, uViewR: U.viewR },
+  uniforms: { uP: { value: new V3() }, uR: { value: 5 }, uTime: U.time, uViewR: U.viewR, uZoom: { value: 0 } },
   vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
-  fragmentShader: `uniform vec3 uP; uniform float uR; uniform float uTime; uniform float uViewR; varying vec3 vW;
+  fragmentShader: `uniform vec3 uP; uniform float uR; uniform float uTime; uniform float uViewR; uniform float uZoom; varying vec3 vW;
   void main(){
     vec3 n = normalize(vW);
     vec2 g = vec2(atan(n.z,n.x)*16./3.14159, asin(n.y)*16./3.14159);
@@ -558,7 +558,7 @@ const shellMat = new THREE.ShaderMaterial({
     float near = exp(-d/(160. + uR*4.)) * (1. - smoothstep(uViewR*.35, uViewR*.8, d));
     float pulse = .5+.5*sin(uTime*1.5 - d*.01);
     vec3 col = mix(vec3(.1,.8,1.), vec3(.9,.3,1.), .5+.5*n.y);
-    float a2 = line*2.2*near + near*.25*pulse;   // border invisible until you get close
+    float a2 = line*2.2*near + near*.25*pulse + line*uZoom*.55;   // border invisible until you get close — or zoom far out
     gl_FragColor = vec4(col*a2, 1.);
   }`,
 });
@@ -642,7 +642,7 @@ function richness(x, y, z) { let d = .12; for (const [s, w] of RICH_S) d += w * 
    sub-chunks' spots, so growing never moves an orb. Orbs only vanish when eaten: when fewer are needed, the extras
    (orphans) wait until they're off-screen or deep in the fog before they go. Eaten orbs grow back after a while. ---- */
 const C0 = 120, K_PER = IS_TOUCH ? 9 : 16;
-const FOOD_TARGET = Math.round(FOOD_N * .6), K_MIN = 1, K_MAX = 400000;
+const FOOD_TARGET = Math.round(FOOD_N * .6), K_MIN = 1, K_MAX = 100000;
 let foodK = K_PER * 2;                     // orb spots tried per chunk; tuned so the screen always holds ~FOOD_TARGET orbs
 const chunks = new Map();                  // key -> { a, b, c, L, slots: Set, pending: [[k, t]], done, hot, dead }
 const freeSlots = []; for (let i = FOOD_N - 1; i >= 0; i--) freeSlots.push(i);
@@ -701,7 +701,7 @@ function tryCandidate(ch, k) {
   if (x * x + y * y + z * z > ARENA * ARENA * .97) return true;
   const h = hash4(Cc, A, B, j);
   if (h > .158 && (h > .95 || h > richAt(ch, x, y, z) * .9 + .05)) return true;   // dense in rich zones, sparse elsewhere
-  const id = ((A + 128) * 256 + (B + 128)) * 256 + (Cc + 128) + j * 16777216;
+  const id = ((A + 2048) * 4096 + (B + 2048)) * 4096 + (Cc + 2048) + j * 68719476736;
   const t = eatenUntil.get(id);
   if (t !== undefined) { if (now < t) { ch.pending.push([k, t]); return true; } eatenUntil.delete(id); }
   let i = idSlot.get(id);
@@ -757,8 +757,8 @@ function resetWorldFood() {   // new life / new world: start clean
   for (const p of [...pickups]) dropPickup(p); puChunks.clear();
 }
 function refreshChunks(G, radius) {
-  const V = foodRadius(myR()) * Math.max(1, zoom), Lf = Math.log2(V / (5 * C0));
-  let L = foodLevel; if (L < 0 || Math.abs(Lf - L) > .75) L = clamp(Math.round(Lf), 0, 9);
+  const V = foodRadius(myR()) * Math.max(1, zoom), Lf = Math.log2(Math.min(V, ARENA * 1.3) / (5 * C0));   // never coarser than the map itself needs
+  let L = foodLevel; if (L < 0 || Math.abs(Lf - L) > .75) L = clamp(Math.round(Lf), 0, 13);
   if (L !== foodLevel) {
     for (const key of [...chunks.keys()]) unloadChunk(key);   // orbs stay put; the new level's chunks adopt them
     if (foodLevel >= 0) foodK = clamp(Math.round(foodK * 8 ** (L - foodLevel)), K_MIN, K_MAX);   // same orbs, grouped into bigger/smaller chunks
@@ -778,6 +778,7 @@ function refreshChunks(G, radius) {
   fillOrder = [];
   for (const [, a, b, c] of want) { const key = L + '|' + a + ',' + b + ',' + c; fillOrder.push(chunks.get(key) || makeChunk(L, a, b, c, key)); }
   fillIdx = 0;
+  { const cap = Math.max(K_MIN, Math.ceil(FOOD_TARGET / Math.max(1, want.length) / .05)); if (foodK > cap) setFoodK(cap); }   // spread the budget over every chunk in view
   // regrow eaten orbs whose timer is up
   for (const ch of chunks.values()) if (ch.pending.length) {
     const still = [];
@@ -1381,7 +1382,7 @@ function updateFood() {
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < V + bc.r) {
     bc.fg = 0; const br = bc.r * 1.4 + 6, p = bc.pos;
     for (let ix = Math.floor((p.x - br) / BG); ix <= Math.floor((p.x + br) / BG); ix++) for (let iy = Math.floor((p.y - br) / BG); iy <= Math.floor((p.y + br) / BG); iy++) for (let iz = Math.floor((p.z - br) / BG); iz <= Math.floor((p.z + br) / BG); iz++) {
-      const gk = (ix + 128) * 65536 + (iy + 128) * 256 + iz + 128; let l = botGrid.get(gk); if (!l) botGrid.set(gk, l = []); l.push(bc);
+      const gk = (ix + 512) * 1048576 + (iy + 512) * 1024 + iz + 512; let l = botGrid.get(gk); if (!l) botGrid.set(gk, l = []); l.push(bc);
     }
   }
   const arr = food.instanceMatrix.array;
@@ -1392,7 +1393,7 @@ function updateFood() {
     let x = foodPos[j], y = foodPos[j + 1], z = foodPos[j + 2];
     let s = foodSize[i] * pk * Math.min(1, (now - foodBorn[i]) / .6), hit = null, hd = 0, hx = 0, hy = 0, hz = 0, reach = 0;
     const ex = x - gx, ey = y - gy, ez = z - gz, dG = Math.sqrt(ex * ex + ey * ey + ez * ez);
-    if (orphan[i] && (dG - gR > V || offScreen(x, y, z, s * 3 + 1))) { freeSlot(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; }   // an unneeded orb leaves only once you can't see it
+    if (orphan[i] && (zoom > 1.6 || freeSlots.length < 200 || dG - gR > V || offScreen(x, y, z, s * 3 + 1))) { freeSlot(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue; }   // an unneeded orb leaves only once you can't see it
     if (dG < gR + maxReach) for (let k = 0; k < cells.length; k++) {
       const cc = cells[k], dx = cc.pos.x - x, dy = cc.pos.y - y, dz = cc.pos.z - z, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       const rc = cc.r + Math.min(cc.r * 1.2, 30 * sc) + 10;
@@ -1413,7 +1414,7 @@ function updateFood() {
       }
     }
     let botAte = false;
-    const bl = botGrid.size ? botGrid.get((Math.floor(x / BG) + 128) * 65536 + (Math.floor(y / BG) + 128) * 256 + Math.floor(z / BG) + 128) : undefined;
+    const bl = botGrid.size ? botGrid.get((Math.floor(x / BG) + 512) * 1048576 + (Math.floor(y / BG) + 512) * 1024 + Math.floor(z / BG) + 512) : undefined;
     if (bl) for (let b = 0; b < bl.length; b++) {
       const bc = bl[b], dx = bc.pos.x - x, dy = bc.pos.y - y, dz = bc.pos.z - z;
       const br = bc.r * 1.4 + 6;   // bots get a small pickup reach
@@ -1865,7 +1866,7 @@ function updateCamera() {
     if (heat > .05) camPos.addScaledVector(randUnit(_t), r * .012 * heat);
     _m4.lookAt(camPos, _look, cu); _dq.setFromRotationMatrix(_m4);
     camQ.copy(_dq);
-    camera.near = clamp(r * .04, .15, 6);
+    camera.near = clamp(Math.max(r * .04, dist * .01), .15, 5000);   // far pull-backs need a deeper near plane to keep depth precise
   } else {
     // attract mode / death cam: slow orbit around the biggest thing in the arena
     if (!attractTarget || attractTarget.dead || Math.random() < .002) {
@@ -1907,7 +1908,7 @@ function updateVisuals() {
   }
   { const op = U.ownP.value; let n = 0; if (playing && me) for (const c of (me.cells.length > 16 ? [...me.cells].sort((a, b) => b.mass - a.mass) : me.cells)) { if (n >= 16) break; op[n++].set(c.pos.x, c.pos.y, c.pos.z, c.rr); } if (!n) { op[0].set(camera.position.x, camera.position.y, camera.position.z, 0); n = 1; } U.ownN.value = n; }
   const pr = mainCell && playing ? mainCell.rr : 60; U.view.value = pr; U.viewR.value = playing && mainCell ? viewRadius(camR || myR()) * Math.max(1, zoom) : 1e5;   // zooming out pushes the fog back with it if (playing && mainCell) U.pp.value.copy(mainCell.pos); else U.pp.value.copy(camera.position);
-  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr;
+  shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; shellMat.uniforms.uZoom.value = clamp((zoom - 2) / 6, 0, 1);
   updateWakes();
   sky.position.copy(camera.position);
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
@@ -1959,6 +1960,7 @@ function dropPickup(p) { p.g.visible = false; puPool[p.type].push(p); const i = 
 // power-ups live at fixed spots across the WHOLE map: roughly every 3.5 food chunks there's a 45% chance of one
 function refreshPickups(G, radius, L) {
   L = Math.min(L, 3);
+  radius = Math.min(radius, C0 * 2 ** L * 3.5 * 5);   // power-ups only load near you, however far you zoom out
   const P = C0 * 2 ** L * 3.5, rng = Math.ceil(radius / P) + 1, ga = Math.floor(G.x / P), gb = Math.floor(G.y / P), gc = Math.floor(G.z / P);
   const want = new Map(), lo = Math.floor(-ARENA / P) - 1, hi = Math.floor(ARENA / P) + 1;
   for (let a = Math.max(lo, ga - rng); a <= Math.min(hi, ga + rng); a++) for (let b = Math.max(lo, gb - rng); b <= Math.min(hi, gb + rng); b++) for (let c = Math.max(lo, gc - rng); c <= Math.min(hi, gc + rng); c++) {
@@ -2227,8 +2229,8 @@ function dismissKeyboard() {
 document.addEventListener('focusin', e => { if (playing && e.target !== chatIn && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) dismissKeyboard(); });
 function startGame() {
   const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
-  try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); localStorage.setItem('orb_invert', $('optInvert').checked ? '1' : '0'); } catch { }
-  opts.invert = $('optInvert').checked; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked; opts.chat = $('optChat').checked;
+  try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); } catch { }
+  opts.invert = false; opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked; opts.chat = $('optChat').checked;
   sfx('tier');
   dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
   spawnMe(name, chosenHue);
@@ -2266,7 +2268,7 @@ $('again').addEventListener('click', startGame);
 $('toHome').addEventListener('click', () => { death.classList.add('hidden'); home.classList.remove('hidden'); });
 // swatches
 { const hues = [.52, .6, .72, .83, .93, .02, .09, .15, .3, .42]; const wrap = $('swatches');
-  try { const h = parseFloat(localStorage.getItem('orb_hue')); if (isFinite(h)) chosenHue = h; $('name').value = localStorage.getItem('orb_name') || ''; $('optInvert').checked = localStorage.getItem('orb_invert') !== '0'; } catch { }
+  try { const h = parseFloat(localStorage.getItem('orb_hue')); if (isFinite(h)) chosenHue = h; $('name').value = localStorage.getItem('orb_name') || '';  } catch { }
   let best = 0; hues.forEach((h, i) => { if (Math.abs(h - chosenHue) < Math.abs(hues[best] - chosenHue)) best = i; });
   hues.forEach((h, i) => { const b = document.createElement('button'); b.className = 'sw' + (i === best ? ' on' : ''); b.style.background = `hsl(${h * 360},95%,56%)`; b.setAttribute('aria-label', 'color');
     b.onclick = () => { chosenHue = h; wrap.querySelectorAll('.sw').forEach(x => x.classList.toggle('on', x === b)); }; wrap.appendChild(b); });
@@ -2307,7 +2309,6 @@ function frame(t) {
   updateVisuals();
   updateCamera();
   hudT -= DT; if (hudT <= 0) { hudT = .25; updateHud(); updateServerList(); }
-  if (playing) drawGlobe();
   let p3 = performance.now(); PROF.vis += p3 - p2;
   composer.render();
   PROF.render += performance.now() - p3; PROF.n++;
