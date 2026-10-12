@@ -297,7 +297,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610112300'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610112400'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -1497,7 +1497,7 @@ let camLock = false;   // freeze the direction the camera looks (V or the pin bu
 function setCamLock(v) { camLock = v; document.getElementById('camLock').classList.toggle('on', v); }
 document.getElementById('camLock').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); setCamLock(!camLock); });   // intro: every new life opens with a fly-in from the whole map down to your ball
 function spawnMe(name, hue, forceMass) {
-  setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 11 }; if (intro) { zoom = zoomTarget = ARENA * 1.0 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
+  setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 5.5 }; if (intro) { zoom = zoomTarget = ARENA * 1.0 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId, short() + Math.random().toString(36).slice(2, 8));   // a fresh random world every life
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
@@ -1549,7 +1549,7 @@ addEventListener('keydown', e => {
   if (ROCKETS_ON && e.code === 'KeyR' && !e.repeat) fireRocket();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('wheel', e => { if (!playing || chatOpen) return; e.preventDefault(); if (intro) { if (intro.t > 3.5) { intro = null; zoomTarget = ZSTART; } return; } zoomTarget *= Math.exp(clamp(e.deltaY, -120, 120) * .0022); }, { passive: false });
+addEventListener('wheel', e => { if (!playing || chatOpen) return; e.preventDefault(); if (intro) { if (intro.t > 1.75) { intro = null; zoomTarget = ZSTART; } return; } zoomTarget *= Math.exp(clamp(e.deltaY, -120, 120) * .0022); }, { passive: false });
 let pinch = null;   // two-finger pinch zooms on phones
 addEventListener('touchstart', e => { if (playing && e.touches.length === 2) { pinch = { d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1, z: zoomTarget }; stick.x = stick.y = 0; } }, { passive: true });
 addEventListener('touchmove', e => { if (pinch && e.touches.length === 2) zoomTarget = pinch.z * pinch.d / (Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) || 1); }, { passive: true });
@@ -2199,7 +2199,7 @@ function updateCamera() {
     const k2 = 1 - Math.exp(-DT * 3);
     zoomMax = Math.max(1, ARENA * 1.0 / (r * 6.8 + 30));   // the farthest view still has stars past every edge of the screen, so the world reads as endless
     if (intro) {   // cinematic: hold the full map for a beat, then glide in (eased, in zoom-octaves so the pace feels even)
-      intro.t += DT; const u = clamp((intro.t - 1.6) / intro.dur, 0, 1), e = u * u * (3 - 2 * u);
+      intro.t += DT; const u = clamp((intro.t - .8) / intro.dur, 0, 1), e = u * u * (3 - 2 * u);
       zoom = zoomTarget = Math.exp(Math.log(zoomMax) * (1 - e) + Math.log(ZSTART) * e);
       if (u >= 1) intro = null;
     } else {
@@ -2211,7 +2211,7 @@ function updateCamera() {
     camLook.set(0, 0, 0);
     const dist = (r * 6.8 + 30) * zoom + camExtra;
     _look.copy(P).add(camLook);
-    camTilt += (.18 + heat * .55 + (intro ? .95 * Math.max(0, 1 - Math.max(0, intro.t - 1.6) / (intro.dur * .8)) : 0) - camTilt) * k2;   // the intro opens looking down on the galaxy's face, then settles behind you
+    camTilt += (.18 + heat * .55 + (intro ? .95 * Math.max(0, 1 - Math.max(0, intro.t - .8) / (intro.dur * .8)) : 0) - camTilt) * k2;   // the intro opens looking down on the galaxy's face, then settles behind you
     _des.copy(_look).addScaledVector(cf, -dist).addScaledVector(cu, dist * camTilt);
     camPos.copy(_des);
     { const f = clamp((ZFPV - zoom) / (ZFPV - ZMIN * 1.5), 0, 1), fp = f * f * (3 - 2 * f);   // zoom all the way in: first-person, from the nose of your ball
