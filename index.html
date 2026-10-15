@@ -292,7 +292,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610150300'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610150400'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -2729,6 +2729,24 @@ function frame(t) {
   let p3 = performance.now(); PROF.vis += p3 - p2;
   composer.render();
   PROF.render += performance.now() - p3; PROF.n++;
+  perfTick();
+}
+// Performance guard (borrowed from the desert-explorer build's quality presets): watch the real frame time and quietly lower the
+// render resolution when the device can't keep up, raising it again when it can. The look never changes, only the pixel count.
+// F3 (or ?stats) shows the numbers.
+const PERF = { acc: 0, n: 0, t: 0, scale: 1, show: params.has('stats') };
+const perfEl = document.createElement('div'); perfEl.id = 'perf'; perfEl.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:30;font:600 11px ui-monospace,monospace;color:#cfe;background:rgba(0,0,0,.55);padding:6px 9px;border-radius:8px;white-space:pre;pointer-events:none;display:none';
+document.body.appendChild(perfEl);
+addEventListener('keydown', e => { if (e.code === 'F3') { e.preventDefault(); PERF.show = !PERF.show; perfEl.style.display = PERF.show ? 'block' : 'none'; } });
+if (PERF.show) perfEl.style.display = 'block';
+function perfTick() {
+  PERF.acc += DT; PERF.n++; PERF.t += DT; if (PERF.t < 2) return;
+  const ft = PERF.acc / PERF.n * 1000; let sc = PERF.scale;
+  if (!document.hidden) { if (ft > 21 && sc > .6) sc = Math.round((sc - .1) * 100) / 100; else if (ft < 13 && sc < 1) sc = Math.min(1, Math.round((sc + .05) * 100) / 100); }
+  if (sc !== PERF.scale) { PERF.scale = sc; renderer.setPixelRatio(PR * sc); composer.setPixelRatio && composer.setPixelRatio(PR * sc); composer.setSize(innerWidth, innerHeight); }
+  if (PERF.show) { let orbs = 0; for (let i = 0; i < FOOD_N; i++) orbs += foodAlive[i]; let bots = 0; for (const e of entities.values()) if (e.cells.length && e.kind !== 'me') bots++;
+    perfEl.textContent = `${Math.round(1000 / ft)} fps  ${ft.toFixed(1)} ms\nres ${Math.round(sc * 100)}%  calls ${renderer.info.render.calls}\norbs ${orbs}  balls ${bots}\nsim ${(PROF.sim / PROF.n).toFixed(1)} food ${(PROF.food / PROF.n).toFixed(1)} draw ${(PROF.render / PROF.n).toFixed(1)} ms`; }
+  PERF.acc = PERF.n = PERF.t = 0;
 }
 // warm the world
 isHost = true; ensureBots();
