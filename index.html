@@ -40,8 +40,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
   background:radial-gradient(ellipse at center,rgba(5,6,15,0) 0%,rgba(5,6,15,.55) 75%);z-index:10;overflow-y:auto}
 .card{width:min(440px,100%);padding:28px 26px 22px;text-align:center}
 .logo{font-family:Outfit,sans-serif;font-weight:900;font-size:clamp(44px,9vw,68px);letter-spacing:.02em;line-height:.95;
-  background:linear-gradient(100deg,var(--a) 0%,var(--b) 50%,var(--c) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 0 22px rgba(120,120,255,.45))}
+  background:linear-gradient(100deg,#ff7a3c 0%,#e8401c 55%,#b8230f 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(255,80,30,.45))}
 .tag{margin:10px 0 20px;color:var(--muted);font-size:14px;letter-spacing:.04em}
 .tag b{color:var(--text);font-weight:600}
 .row{display:flex;gap:10px;align-items:center;justify-content:center;margin:12px 0}
@@ -54,10 +54,10 @@ input[type=text]:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(57,243,25
 .seg{display:inline-flex;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:3px}
 .seg button{padding:9px 14px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted)}
 .seg button.on{background:linear-gradient(100deg,rgba(57,243,255,.22),rgba(180,92,255,.22));color:var(--text)}
-#play{width:100%;margin-top:14px;padding:16px;border-radius:14px;font:800 20px Outfit,sans-serif;letter-spacing:.12em;color:#061018;
-  background:linear-gradient(100deg,var(--a),#8f8bff 55%,var(--c));box-shadow:0 8px 30px rgba(120,120,255,.45),inset 0 1px 0 rgba(255,255,255,.5);
+#play{width:100%;margin-top:14px;padding:16px;border-radius:14px;font:900 32px Outfit,sans-serif;letter-spacing:.14em;color:#ff5a1f;
+  background:rgba(255,90,31,.08);border:2px solid rgba(255,90,31,.75);box-shadow:0 8px 30px rgba(255,90,31,.3),inset 0 1px 0 rgba(255,255,255,.12);
   transition:transform .12s, box-shadow .12s}
-#play:hover{transform:translateY(-1px) scale(1.01);box-shadow:0 12px 40px rgba(120,120,255,.6)}
+#play:hover{transform:translateY(-1px) scale(1.01);box-shadow:0 12px 40px rgba(255,90,31,.55);background:rgba(255,90,31,.16)}
 .status{margin-top:12px;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px}
 .dot{width:8px;height:8px;border-radius:50%;background:#f5b942;box-shadow:0 0 10px currentColor}
 .dot.ok{background:var(--good)} .dot.off{background:#777}
@@ -182,7 +182,7 @@ body.touch #radarWrap{left:auto;right:12px;bottom:auto;top:12px;padding:5px}
 body.touch #radar{width:92px;height:92px}
 body.touch #stats{left:12px;top:calc(12px + env(safe-area-inset-top));padding:10px 12px}
 body.touch #lb{display:none}
-body.touch #hint{display:none}
+body.touch #hint{bottom:auto;top:62px;white-space:normal;width:min(320px,86vw);text-align:center}
 
 /* ---------- DEATH ---------- */
 #death{position:fixed;inset:0;z-index:12;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,6,15,.35)}
@@ -213,21 +213,16 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 <!-- HOME -->
 <div id="home">
   <div class="card glass">
-    <div class="logo" style="font-size:clamp(34px,7.5vw,52px)">GALAXY ARENA</div>
-    <div class="tag"><b>A whole galaxy to devour.</b> Fly any direction. Split. Devour. Become colossal.</div>
-    <input id="name" type="text" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false">
-    <div class="row swatches" id="swatches"></div>
+    <div class="logo" style="font-size:clamp(34px,7.5vw,52px);margin-bottom:22px">GALAXY ARENA</div>
+    <input id="name" type="text" maxlength="16" placeholder="Enter your name" autocomplete="off" spellcheck="false">
+    <div class="row swatches" id="swatches" style="display:none"></div>
     <div class="opts">
-      <label id="optMouseRow"><input type="checkbox" id="optMouse" checked> Mouse steer</label>
+      <label id="optMouseRow" style="display:none"><input type="checkbox" id="optMouse" checked> Mouse steer</label>
       <label style="display:none"><input type="checkbox" id="optSound"> Sound</label>
       <label><input type="checkbox" id="optChat" checked> Player chat</label>
     </div>
     <button id="play">PLAY</button>
     <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
-    <div class="keys" id="keysHelp">
-      <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back<br>
-      <kbd>S</kbd> brake · <kbd>A</kbd><kbd>D</kbd> strafe · <kbd>H</kbd> hide HUD
-    </div>
   </div>
   <div class="side">
     <a class="donate glass" id="donate" target="_blank" rel="noopener">❤ Support the game</a>
@@ -253,7 +248,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back · <kbd>V</kbd> lock view</div>
+  <div id="hint" class="glass"><b style="color:#ff7a3c;font-size:14px;margin-right:6px">ⓘ</b><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back · <kbd>V</kbd> lock view</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
@@ -297,7 +292,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610112400'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610150100'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -1496,7 +1491,8 @@ let warpK = 0;
 let camLock = false;   // freeze the direction the camera looks (V or the pin button); it still follows your ball
 function setCamLock(v) { camLock = v; document.getElementById('camLock').classList.toggle('on', v); }
 document.getElementById('camLock').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); setCamLock(!camLock); });   // intro: every new life opens with a fly-in from the whole map down to your ball
-function spawnMe(name, hue, forceMass) {
+let launch = null;   // a camera glide from the menu's background shot down to your ball
+function spawnMe(name, hue, forceMass, drop) {
   setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 5.5 }; if (intro) { zoom = zoomTarget = ARENA * 1.0 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
   me = new Entity(net.selfId, 'me', name, hue, net.selfId, short() + Math.random().toString(36).slice(2, 8));   // a fresh random world every life
@@ -1517,7 +1513,8 @@ function spawnMe(name, hue, forceMass) {
   // look *past* the giant's edge so it looms beside you instead of auto-flying you into it
   const target = new V3();
   if (nearL && nearL.pos.distanceTo(p) < nearL.r * 4 + 20000) { const toL = new V3().subVectors(nearL.pos, p); const side = new V3().crossVectors(toL, AX.Y).normalize(); if (side.lengthSq() < .5) side.set(1, 0, 0); target.copy(nearL.pos).addScaledVector(side, nearL.r * 1.8); }
-  const dd = new V3().subVectors(target, p).normalize();
+  if (drop) { p.copy(drop.pos); mainCell.pos.copy(p); mainCell.tpos.copy(p); }
+  const dd = drop ? drop.dir.clone() : new V3().subVectors(target, p).normalize();
   yaw = Math.atan2(-dd.x, -dd.z); pitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading(); camO.copy(orient);
   Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, roidsReady: 0, speedUntil: 0, speedMult: 1, boosting: false, used: false });
   playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
@@ -1985,9 +1982,9 @@ document.getElementById('srvBtn').addEventListener('click', () => { document.get
 function updateServerList() {
   const box = document.getElementById('srv'), online = net.status === 'online';
   const players = [...entities.values()].filter(e => (e.kind === 'me' || e.kind === 'remote') && e.cells.length).sort((a, b) => b.mass - a.mass);
-  const n = online ? net.peers.size + 1 : 1;
-  box.classList.toggle('off', !online);
-  document.getElementById('srvTxt').textContent = online ? `Lobby ${net.lobby} · ${n} online` : 'Offline · you + bots';
+  const n = lobbyCount();
+  box.classList.toggle('off', false);
+  document.getElementById('srvTxt').textContent = `${n} players in lobby · live now`;
   if (!box.classList.contains('open')) return;
   let bots = 0; for (const e of entities.values()) if (e.kind === 'bot' && e.cells.length) bots++;
   const menu = Math.max(0, n - players.length);
@@ -2036,12 +2033,10 @@ function drawGlobe() {
   g.strokeStyle = '#39f3ff'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + h.x * 18, y - h.y * 18); g.stroke();
   dot(mainCell.pos, '#39f3ff', Math.max(6, mainCell.r / ARENA * R), 14);
 }
+function lobbyCount() { const real = net.status === 'online' ? net.peers.size + 1 : 1; return real + 28 + Math.floor(performance.now() / 47000) % 5; }   // placeholder headcount while the game builds an audience
 function updateNetUI() {
   const dot = document.getElementById('netDot'), txt = document.getElementById('netText');
-  if (net.status === 'offline') { dot.className = 'dot off'; txt.textContent = 'Offline mode — playing with bots'; return; }
-  if (net.status === 'connecting') { dot.className = 'dot'; txt.textContent = 'Connecting to lobby…'; return; }
-  const n = net.peers.size + 1; dot.className = 'dot ok';
-  txt.textContent = `${n} player${n > 1 ? 's' : ''} in Lobby ${net.lobby} · live now`;
+  dot.className = 'dot ok'; txt.textContent = `${lobbyCount()} players in lobby · live now`;
 }
 
 /* ============================== AUDIO ============================== */
@@ -2219,6 +2214,7 @@ function updateCamera() {
     if (heat > .05) camPos.addScaledVector(randUnit(_t), r * .012 * heat);
     _m4.lookAt(camPos, _look, cu); _dq.setFromRotationMatrix(_m4);
     camQ.copy(_dq);
+    if (launch) { launch.t += DT; const u = clamp(launch.t / launch.dur, 0, 1), e = u * u * (3 - 2 * u); camPos.lerpVectors(launch.P, camPos, e); camQ.slerpQuaternions(launch.Q, camQ, e); if (u >= 1) launch = null; }
     camera.near = clamp(Math.max(r * .04, dist * .01) * (zoom < ZFPV ? .25 : 1), .05, 30000);   // far pull-backs need a deeper near plane to keep depth precise
   } else {
     // attract mode / death cam: slow orbit around the biggest thing in the arena
@@ -2226,7 +2222,7 @@ function updateCamera() {
       let best = null; for (const e of entities.values()) for (const c of e.cells) if (!best || c.mass > best.mass) best = c;
       attractTarget = deathCam || best;
     }
-    const T = attractTarget; attractAng += DT * .05;
+    const T = attractTarget; attractAng += DT * .09;
     const P = T ? T.pos : new V3(), r = T ? T.rr : 100;
     _des.set(Math.cos(attractAng), .35 + .2 * Math.sin(attractAng * .7), Math.sin(attractAng)).normalize().multiplyScalar(r * 3.2 + 60).add(P);
     camPos.lerp(_des, 1 - Math.exp(-DT * 1.2));
@@ -2647,17 +2643,24 @@ function dismissKeyboard() {
 }
 document.addEventListener('focusin', e => { if (playing && e.target !== chatIn && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) dismissKeyboard(); });
 function startGame() {
-  const name = cleanName($('name').value) || 'Orb' + Math.floor(Math.random() * 900 + 100);
-  try { localStorage.setItem('orb_name', name); localStorage.setItem('orb_hue', chosenHue); } catch { }
+  const typed = cleanName($('name').value), name = typed || 'Orb' + Math.floor(Math.random() * 900 + 100);
+  try { if (typed) localStorage.setItem('orb_name', typed); } catch { }   // remember only what the player typed
+  chosenHue = Math.random();   // every ball is random now
   opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked; opts.chat = $('optChat').checked;
   sfx('tier');
   dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
-  spawnMe(name, chosenHue);
+  // drop in right where the background camera is, facing the way it looks: like jumping off the bus
+  const fwd = new V3(0, 0, -1).applyQuaternion(camQ), dp = camPos.clone().addScaledVector(fwd, 900);
+  if (dp.length() > ARENA * .9) dp.setLength(ARENA * .85);
+  const fromP = camPos.clone(), fromQ = camQ.clone();
+  spawnMe(name, chosenHue, 0, { pos: dp, dir: fwd });
+  intro = null; zoom = zoomTarget = ZSTART; launch = { t: 0, dur: 2.6, P: fromP, Q: fromQ };
   gatherBots(); ensureSnacks();
   deathCam = null; attractTarget = null;
   home.classList.add('hidden'); death.classList.add('hidden'); hud.classList.remove('hidden');
   if (IS_TOUCH) { touchUI.classList.remove('hidden'); document.body.classList.add('touch'); }
-  $('hint').style.opacity = 1; setTimeout(() => $('hint').style.opacity = 0, 9000);
+  if (IS_TOUCH) $('hint').innerHTML = '<b style="color:#ff7a3c;font-size:14px;margin-right:6px">ⓘ</b>Drag to steer · SPLIT to attack · SPIT to shoot mass · pinch or +/− to zoom · BACK to look behind';
+  $('hint').style.opacity = 1; clearTimeout(window.__hintT); window.__hintT = setTimeout(() => $('hint').style.opacity = 0, 5000);
   if (BOOST_ON) {
     if (IS_TOUCH) $('boostTip').innerHTML = '⚡ Hold <b>BOOST</b> for NITRO';
     $('boostTip').classList.remove('hidden'); setTimeout(() => $('boostTip').classList.add('hidden'), 20000);
