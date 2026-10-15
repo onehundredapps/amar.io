@@ -292,7 +292,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610150100'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610150200'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -365,7 +365,7 @@ const filterChat = t => t.replace(BAD_WORDS, w => w[0] + '*'.repeat(Math.max(1, 
 const NO_CHAT = true;   // the iOS app ships without player chat (App Store guideline 1.2)
 const cleanName = s => filterChat(String(s ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16));
 const hueColor = (h, s = .9, l = .55) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l);
-function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function galRng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const TIERS = [[0, 'MICROBE'], [60, 'CELL'], [300, 'ORGANISM'], [1500, 'BEHEMOTH'], [5000, 'TITAN'], [20000, 'COLOSSUS'], [60000, 'CELESTIAL'], [105000, 'WORLD-EATER'], [300000, 'PLANET'], [900000, 'STAR'], [1600000, 'CAGE-FILLER']];
 const tierOf = m => { let t = TIERS[0][1]; for (const [k, n] of TIERS) if (m >= k) t = n; return t; };
 const tierIdx = m => { let i = 0; TIERS.forEach(([k], j) => { if (m >= k) i = j; }); return i; };
@@ -625,29 +625,44 @@ function updateWakes() {
 /* ---- sky ---- */
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, depthTest: false,
-  uniforms: { uTime: U.time, uDim: { value: 1 } },
+  uniforms: { uTime: U.time, uDim: { value: 1 }, uGC: { value: new V3(1, 0, 0) } },
   vertexShader: `varying vec3 vD; void main(){ vD = position; vec4 p = projectionMatrix*vec4(mat3(viewMatrix)*position,1.); gl_Position = p.xyww; }`,
-  fragmentShader: `uniform float uTime; uniform float uDim; varying vec3 vD; ${NOISE}
+  fragmentShader: `uniform float uTime; uniform float uDim; uniform vec3 uGC; varying vec3 vD; ${NOISE}
+  float h13(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); }
+  vec3 starTint(float t){ return t < .12 ? vec3(1.,.62,.42) : t < .3 ? vec3(1.,.84,.66) : t < .7 ? vec3(1.,.97,.93) : vec3(.72,.82,1.); }
   void main(){
     vec3 d = normalize(vD);
-    float n = fbm(d*2.2 + vec3(0.,0.,uTime*.004)); float n2 = fbm(d*4.5 + 11.);
-    vec3 col = vec3(.002,.003,.007);
-    { float band = exp(-d.y*d.y/.05), lane = smoothstep(.42, .62, fbm(d*vec3(2.5,11.,2.5) + 3.));   // the galaxy's own disc seen from inside: a pale band cut by dust lanes
-      col += mix(vec3(.10,.085,.06), vec3(.05,.065,.10), n2) * band * (1. - .8*lane) * (.35 + .65*n); }
-    col += vec3(.34,.08,.5)*pow(n,3.4)*.5;
-    col += vec3(.03,.26,.42)*pow(n2,3.4)*.45;
-    col += vec3(.25,.07,.10)*pow(max(0.,fbm(d*1.3-4.)-.42),2.)*.5;
-    col *= uDim;
-    for (int i = 0; i < 3; i++) {   // far background stars, in layers: endless depth behind the arena
-      float fq = i == 0 ? 90. : i == 1 ? 210. : 460.;
-      vec3 g = d*fq + float(i)*17.3, id = floor(g), f = fract(g) - .5;
-      float hh = fract(sin(dot(id, vec3(127.1,311.7,74.7)))*43758.5453);
-      float on = step(i == 0 ? .992 : .985, hh), b = fract(hh*91.7);
-      vec3 off = (vec3(fract(hh*13.1), fract(hh*57.3), fract(hh*7.7)) - .5)*.6;
-      float st = on * exp(-dot(f-off, f-off)*(i == 0 ? 260. : 160.)) * (.25 + b*b*1.2) * (i == 0 ? 1. : i == 1 ? .55 : .3);
-      col += st * mix(vec3(.75,.85,1.), vec3(1.,.85,.7), fract(hh*33.3)) * (.5 + .5*uDim);
+    // the Milky Way seen from inside it: a band of unresolved starlight along the galactic plane, brightest and warmest toward the
+    // core, split down its middle by dark dust, with faint pink star-forming glow. Built from fine-grained noise so it reads as
+    // countless stars, not fog.
+    float lat = d.y, band = exp(-lat*lat/.010), wide = exp(-lat*lat/.07), toC = max(0., dot(d, uGC));
+    float bulge = pow(toC, 5.)*exp(-lat*lat/.035);
+    float dust = smoothstep(.44, .66, fbm(d*vec3(5.,22.,5.) + 3.))*exp(-lat*lat/.005) + smoothstep(.5, .7, fbm(d*9. + 17.))*band*.5;
+    float grain = fbm(d*70.)*.5 + fbm(d*190.)*.5;
+    float mw = (band*.75 + wide*.22 + bulge*1.6)*(.35 + 1.1*grain*grain)*(1. - .88*min(1., dust));
+    vec3 col = vec3(.0012,.0016,.0032);
+    col += mix(vec3(.55,.62,.8), vec3(1.,.8,.55), clamp(bulge*1.6 + toC*toC*.35, 0., 1.))*mw*.13;
+    col += vec3(.55,.1,.24)*pow(fbm(d*26. + 9.), 6.)*band*.9*(1. - dust);
+    for (int i = 0; i < 2; i++) {   // a few distant galaxies, impossibly far away: tiny tilted smudges
+      vec3 g = d*(i == 0 ? 9. : 17.) + float(i)*5.1, id = floor(g), f = fract(g) - .5; float hh = h13(id + 31.);
+      if (hh > .965) { vec3 ax = normalize(vec3(fract(hh*17.) - .5, fract(hh*31.) - .5, fract(hh*53.) - .5)); vec3 q = f - (vec3(fract(hh*7.), fract(hh*11.), fract(hh*13.)) - .5)*.4;
+        float al = dot(q, ax), e = dot(q, q) - al*al*.88; col += mix(vec3(.9,.78,.6), vec3(.6,.7,1.), fract(hh*3.7))*exp(-e*(i == 0 ? 3200. : 2200.))*.07; }
     }
-    gl_FragColor = vec4(col,1.);
+    col *= uDim;
+    // stars: six depth layers from a few bright foreground suns down to a fine dust of faint ones, many more of them along the band
+    for (int i = 0; i < 6; i++) {
+      float fq = i == 0 ? 30. : i == 1 ? 60. : i == 2 ? 120. : i == 3 ? 230. : i == 4 ? 420. : 700.;
+      vec3 g = d*fq + float(i)*17.3, id = floor(g), f = fract(g) - .5; float hh = h13(id);
+      float dens = (i < 2 ? .05 : .1)*(1. + 3.5*band + 1.5*wide + 3.*bulge);
+      if (hh > 1. - dens) {
+        float b = fract(hh*91.7), mag = (i == 0 ? 1.4 : i == 1 ? .9 : i == 2 ? .75 : i == 3 ? .5 : i == 4 ? .36 : .26)*(.25 + pow(b, 3.)*1.6);
+        vec3 off = (vec3(fract(hh*13.1), fract(hh*57.3), fract(hh*7.7)) - .5)*.6, q = f - off; float r2 = dot(q, q);
+        float k = i == 0 ? 2600. : i == 1 ? 1100. : i < 4 ? 260. : 160.;   // every star a sharp point, however bright
+        float st = exp(-r2*k);
+        col += st*mag*starTint(fract(hh*33.3))*(.55 + .45*uDim);
+      }
+    }
+    gl_FragColor = vec4(col, 1.);
   }`,
 }));
 sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
@@ -700,13 +715,13 @@ const gstars = (() => {
     return (hash3(ix, iz, 7) * (1 - ux) + hash3(ix + 1, iz, 7) * ux) * (1 - uz) + (hash3(ix, iz + 1, 7) * (1 - ux) + hash3(ix + 1, iz + 1, 7) * ux) * uz; };
   let n = 0, guard = 0;
   while (n < GSTAR_N && guard++ < GSTAR_N * 60) {
-    let x, y, z; const gcS = Math.random() < .07, halo = !gcS && Math.random() < .07;
-    if (gcS) { const c = Math.floor(Math.random() * (GCS.length / 5)) * 5, sg = GCS[c + 4] * .8, gq = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.4 * sg;
-      pos[n * 3] = GCS[c] + gq(); pos[n * 3 + 1] = GCS[c + 1] + gq(); pos[n * 3 + 2] = GCS[c + 2] + gq(); const b = .32 + .4 * Math.random(); col[n * 3] = b; col[n * 3 + 1] = b * .78; col[n * 3 + 2] = b * .38; sz[n] = 1.3 + Math.random(); n++; continue; }
+    let x, y, z; const gcS = Math.random() < .025, halo = !gcS && Math.random() < .07;
+    if (gcS) { const c = Math.floor(Math.random() * (GCS.length / 5)) * 5, sg = GCS[c + 4] * (Math.random() < .6 ? .12 : .4), gq = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.4 * sg;   // dense bright core, faint outskirts: a soft glow, not a speckled ball
+      pos[n * 3] = GCS[c] + gq(); pos[n * 3 + 1] = GCS[c + 1] + gq(); pos[n * 3 + 2] = GCS[c + 2] + gq(); const b = .1 + .16 * Math.random(); col[n * 3] = b; col[n * 3 + 1] = b * .85; col[n * 3 + 2] = b * .6; sz[n] = 1; n++; continue; }
     if (halo) { const v = randInSphere(ARENA * .95); x = v.x; y = v.y * .7; z = v.z; }
     else { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * ARENA * .92; x = Math.cos(a) * rr; z = Math.sin(a) * rr;
       const h = (.03 + .11 * Math.exp(-rr / ARENA * 4.5)) * ARENA; y = (Math.random() + Math.random() + Math.random() - 1.5) * h * 1.7; }
-    const r = Math.sqrt(x * x + z * z) / ARENA, g = galaxy(x, y * .5, z);   // a little thicker than the playable disc, so it has body from the side
+    const r = Math.sqrt(x * x + z * z) / ARENA, g = Math.max(0, galaxy(x, y * .5, z) - gcAt(x, y * .5, z));   // the decorative sky leaves out the globular clusters, so they never show up as lone speckled balls   // a little thicker than the playable disc, so it has body from the side
     if (!halo) {
       const ph = 2 * (Math.atan2(z, x) - Math.log(r + .04) * 3.4), nz = vn(x / ARENA * 14 + 40, z / ARENA * 14 + 40) * .6 + vn(x / ARENA * 40, z / ARENA * 40) * .4;
       const lane = Math.max(0, Math.cos(ph + 1.15)) ** 3 * Math.min(1, r / .12) * (.5 + nz);   // dust hugs the inner edge of each arm
@@ -730,34 +745,53 @@ const gstars = (() => {
   const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = -7; scene.add(pts); return pts;
 })();
 
-/* ---- other galaxies, far beyond ours: Andromeda and a handful of neighbours hang in the background for scale (not reachable) ---- */
-// kind: 0 spiral, 1 elliptical, 2 edge-on disc, 3 irregular, 4 barred spiral
-const farGalMat = (kind, seed, twist, bright) => new THREE.ShaderMaterial({
-  transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-  uniforms: { uSeed: { value: seed }, uTw: { value: twist }, uB: { value: bright }, uK: { value: kind } },
-  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-  fragmentShader: `uniform float uSeed; uniform float uTw; uniform float uB; uniform float uK; varying vec2 vUv; ${NOISE}
-    void main(){ vec2 p = vUv*2. - 1.; float r = length(p); if (r > 1.) discard; float th = atan(p.y, p.x); vec3 col;
-      if (uK < .5 || uK > 3.5) {
-        float arm = .5 + .5*cos(2.*(th - log(r + .05)*uTw)), n = fbm(vec3(p*6., uSeed));
-        float disc = exp(-r*3.2)*(.25 + .75*arm*arm)*(.6 + .8*n), core = exp(-r*r/.012);
-        float dust = smoothstep(.45, .7, fbm(vec3(p*11., uSeed + 3.)))*smoothstep(.08, .25, r);
-        col = mix(vec3(1.,.78,.45), vec3(.4,.6,1.), smoothstep(.05, .45, r))*disc*(1. - .7*dust)*1.7 + vec3(1.,.88,.62)*core;
-        col += vec3(1.,.3,.62)*pow(fbm(vec3(p*24., uSeed + 7.)), 5.)*disc*7.;
-        if (uK > 3.5) col += vec3(1.,.82,.55)*exp(-(p.x*p.x/.07 + p.y*p.y/.006))*.9;
-      } else if (uK < 1.5) { vec2 q = p*vec2(1., 1.5); float e = length(q); col = vec3(1.,.82,.55)*(exp(-e*5.)*1.3 + exp(-e*e/.012));
-      } else if (uK < 2.5) { vec2 q = p*vec2(1., 7.); float e = length(q); float lane = 1. - .8*exp(-p.y*p.y/.0009)*smoothstep(.75, .1, abs(p.x));
-        col = (mix(vec3(1.,.8,.5), vec3(.5,.65,1.), smoothstep(.1,.6,abs(p.x)))*exp(-e*3.2)*1.5 + vec3(1.,.88,.62)*exp(-dot(p*vec2(1.,2.2), p*vec2(1.,2.2))/.02))*lane;
-      } else { float n = fbm(vec3(p*3., uSeed)), n2 = fbm(vec3(p*7., uSeed + 4.));
-        col = mix(vec3(.4,.6,1.), vec3(1.,.4,.7), n2)*smoothstep(.42, .72, n)*exp(-r*2.4)*1.9 + vec3(1.,.4,.65)*pow(n2, 5.)*exp(-r*2.)*5.; }
-      gl_FragColor = vec4(col*uB*(1. - smoothstep(.8, 1., r)), 1.); }`,
-});
-// pinned to the sky like the stars behind them: always behind every ball, and so far off they never shift as you fly
+/* ---- other galaxies, far beyond ours: each one is its own cloud of stars (spiral, barred, elliptical, edge-on or irregular), generated
+   with its own arm count, winding, tilt and colours, so no two look alike. Andromeda is the big neighbour. Pinned to the sky. ---- */
+function farGalaxy(type, n, seed) {
+  const R = galRng(seed * 9973 + 17), gauss = () => { let u = 0; for (let k = 0; k < 4; k++) u += R(); return (u - 2) * .87; };
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), sz = new Float32Array(n);
+  const arms = 2 + Math.floor(R() * 3), wind = 2.4 + R() * 2.6, flat = .02 + R() * .04, hueShift = R() * .2 - .1;
+  for (let i = 0; i < n; i++) {
+    let x, y, z, cr, cg, cb; const k = R();
+    if (type === 1) {   // elliptical: a smooth swarm of old, yellow stars
+      const r = Math.pow(R(), 2.2) * .9, a = R() * Math.PI * 2, u = R() * 2 - 1, s2 = Math.sqrt(1 - u * u);
+      x = Math.cos(a) * s2 * r; y = u * r * .7; z = Math.sin(a) * s2 * r * .85; cr = 1; cg = .82; cb = .6;
+    } else if (type === 3) {   // irregular: young blue clumps scattered without order
+      const c = Math.floor(R() * 7), cx = (galRng(seed * 31 + c)() - .5) * 1.1, cz = (galRng(seed * 53 + c)() - .5) * 1.1;
+      x = cx + gauss() * .14; z = cz + gauss() * .14; y = gauss() * .06; cr = .7; cg = .8; cb = 1;
+    } else {   // spirals (0), edge-on discs (2), barred spirals (4)
+      if (k < .12) {   // bulge (a bar for type 4)
+        const bx = type === 4 ? gauss() * .2 : gauss() * .1; x = bx; z = gauss() * .09; y = gauss() * .06; cr = 1; cg = .8; cb = .55;
+      } else {
+        let r = -Math.log(1 - R() * .985) * .2; r = Math.min(r, 1);
+        const onArm = k < .82, arm = Math.floor(R() * arms);
+        const th = onArm ? arm * Math.PI * 2 / arms + Math.log(r + .05) * wind + gauss() * (.18 + .25 * r) : R() * Math.PI * 2;
+        const rr = type === 4 ? Math.max(r, .16) : r;
+        x = Math.cos(th) * rr; z = Math.sin(th) * rr; y = gauss() * flat * (1 + 1.5 * (1 - r));
+        const t = Math.min(1, r / .45); cr = 1 - .45 * t; cg = .85 - .05 * t; cb = .6 + .4 * t;
+        if (onArm && R() < .04) { cr = 1; cg = .42; cb = .66; }   // star-forming knots
+      }
+    }
+    const b = (.25 + .75 * Math.pow(R(), 3)) * (type === 1 ? .45 : k < .12 && type !== 3 ? .4 : 1);
+    pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+    col[i * 3] = Math.max(0, cr + hueShift) * b; col[i * 3 + 1] = cg * b; col[i * 3 + 2] = Math.max(0, cb - hueShift) * b; sz[i] = 1 + Math.pow(R(), 8) * 1.6;
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aS', new THREE.BufferAttribute(sz, 1));
+  return geo;
+}
+const farGalPts = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+  uniforms: { uDpr: { value: 1 }, uB: { value: .42 } },
+  vertexShader: `attribute vec3 color; attribute float aS; uniform float uDpr; uniform float uB; varying vec3 vC; void main(){ vC = color*uB; gl_PointSize = max(1., aS*uDpr); gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.); }`,
+  fragmentShader: `varying vec3 vC; void main(){ float d = length(gl_PointCoord - .5)*2.; gl_FragColor = vec4(vC*exp(-d*d*2.2)*(1. - d*d), 1.); }` });
 const farGals = new THREE.Group(); scene.add(farGals);
-for (const [dx, dy, dz, size, kind, seed, tw, br] of [[.62, .42, -.66, .62, 0, 1.3, 3.2, .85],   // the one big neighbour: Andromeda
-  [-.8, -.2, -.55, .2, 1, 4.1, 0, .6], [-.45, .6, .66, .17, 2, 7.7, 0, .7], [.4, -.62, .68, .24, 3, 2.9, 0, .6], [-.1, .7, -.7, .15, 4, 9.2, 2.6, .6], [.85, -.12, .5, .13, 1, 5.5, 0, .5], [-.7, -.6, .35, .12, 3, 6.6, 0, .5]]) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * size * 2, ARENA * size * 2), farGalMat(kind, seed, tw, br)), v = new V3(dx, dy, dz).normalize().multiplyScalar(ARENA * 7);
-  m.position.copy(v); m.rotation.set(seed * 1.3, seed * .7, seed * 2.1); m.frustumCulled = false; m.renderOrder = -9; farGals.add(m);
+{ const K = IS_TOUCH ? .35 : 1;
+  for (const [dx, dy, dz, size, type, seed, n, tilt] of [[.62, .42, -.66, .62, 0, 13, 30000, .95],   // Andromeda, steeply tilted like the real one
+    [-.8, -.2, -.55, .14, 1, 41, 14000, .4], [-.45, .6, .66, .2, 2, 77, 6000, 1.55], [.4, -.62, .68, .2, 3, 29, 4000, .9], [-.1, .7, -.7, .22, 4, 92, 9000, .5],
+    [.85, -.12, .5, .12, 0, 55, 5000, .8], [-.7, -.6, .35, .15, 0, 66, 6000, .2], [.15, -.85, -.5, .1, 0, 18, 3500, 1.1], [-.9, .3, .2, .09, 2, 8, 3000, 1.5], [.3, .2, .93, .11, 4, 37, 4000, .7]]) {
+    const pts = new THREE.Points(farGalaxy(type, Math.round(n * K), seed), farGalPts);
+    pts.position.copy(new V3(dx, dy, dz).normalize().multiplyScalar(ARENA * 7)); pts.scale.setScalar(ARENA * size);
+    pts.rotation.set(tilt, seed * .7, seed * .31); pts.frustumCulled = false; pts.renderOrder = -9; farGals.add(pts);
+  }
 }
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
@@ -1185,7 +1219,7 @@ function dressCell(ent, mesh) {   // rings, a circling moon, or a star's corona,
   if (L.ring) { const ring = new THREE.Mesh(RING_GEO2, ringMat(L.seed, ent.kind === 'me')); ring.rotation.x = Math.PI / 2 + L.ringTilt; ring.rotation.y = L.seed * 2; ring.renderOrder = 1; mesh.add(ring); }
   if (L.moon) { const mm = cellMaterial(ent.color, ent.deep, L.seed * 7 % 1, 5, null, { design: L.seed > .5 ? 0 : 8, seed: L.seed * 3 % 1, alt: ent.color, spin: .2 }); if (ent.kind === 'me') mm.uniforms.uOwn.value = 1;
     moon = new THREE.Mesh(CELL_GEO, mm); moon.scale.setScalar(.2); mesh.add(moon); }
-  if (L.star) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: L.star, opacity: .55, toneMapped: false })); g.scale.setScalar(3.4); mesh.add(g); }
+  if (L.star) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: L.star, opacity: .3, toneMapped: false })); g.scale.setScalar(2.4); mesh.add(g); }
   return moon;
 }
 function addCell(ent, pos, mass, id) {
@@ -2235,7 +2269,7 @@ function updateCamera() {
     warpK += (w - warpK) * Math.min(1, DT * 2.5); foodMat.uniforms.uWarp.value = warpK;
     const wb = document.getElementById('warpBanner'); wb.style.opacity = warpK > .05 ? 1 : 0; if (warpK > .05) wb.textContent = 'LIGHT SPEED ×' + PU.speedMult; }
   camera.fov = (IS_TOUCH ? 74 : 66) + warpK * 26 + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
-  farGals.position.copy(camera.position);
+  farGals.position.copy(camera.position); farGalPts.uniforms.uDpr.value = renderer.getPixelRatio();
   camera.far = ARENA * 11 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
   camera.updateProjectionMatrix();
 }
@@ -2317,6 +2351,7 @@ function updateVisuals() {
   shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; gstars.material.uniforms.uDpr.value = renderer.getPixelRatio(); hazeMat.uniforms.uShow.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .03) / .25, 0, 1) : 0; shellMat.uniforms.uZoom.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .12) / .5, 0, 1) : 0;   // edge grid only once the camera is far back relative to the map
   updateWakes();
   sky.position.copy(camera.position);
+  if (camera.position.lengthSq() > 1) sky.material.uniforms.uGC.value.copy(camera.position).negate().normalize();
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
 }
 
