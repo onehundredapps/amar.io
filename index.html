@@ -248,7 +248,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><b style="color:#ff7a3c;font-size:14px;margin-right:6px">ⓘ</b><kbd>Mouse</kbd>/<kbd>WASD</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back · <kbd>V</kbd> lock view · <kbd>Shift</kbd> brake</div>
+  <div id="hint" class="glass"><b style="color:#ff7a3c;font-size:14px;margin-right:6px">ⓘ</b><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>W</kbd>/<kbd>S</kbd> zoom · <kbd>Space</kbd> split · <kbd>F</kbd> spit · <kbd>Shift</kbd> brake · <kbd>C</kbd> look back · <kbd>V</kbd> lock view · <kbd>I</kbd> this help</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
@@ -292,7 +292,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610150400'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610150500'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -344,8 +344,8 @@ const randUnit = (v = new V3()) => { const u = rnd(-1, 1), t = rnd(Math.PI * 2),
 const GCS = (() => { const a = []; for (let i = 0; i < 40; i++) {
   const u = hash3(i, 11, 3) * 2 - 1, t = hash3(i, 5, 17) * Math.PI * 2, rr = (.22 + .6 * hash3(i, 23, 9)) * ARENA, sq = Math.sqrt(1 - u * u);
   let y = u * rr; if (Math.abs(y) < .1 * ARENA) y = (y < 0 ? -1 : 1) * (.1 + .12 * hash3(i, 2, 2)) * ARENA;
-  const sg = (.009 + .011 * hash3(i, 7, 29)) * ARENA; a.push(sq * Math.cos(t) * rr, y, sq * Math.sin(t) * rr, 1 / (2 * sg * sg), sg); } return a; })();
-function gcAt(x, y, z) { let d = 0; for (let n = 0; n < GCS.length; n += 5) { const dx = x - GCS[n], dy = y - GCS[n + 1], dz = z - GCS[n + 2], q = (dx * dx + dy * dy + dz * dz) * GCS[n + 3]; if (q < 9) d += Math.exp(-q); } return d; }
+  const sg = (.035 + .04 * hash3(i, 7, 29)) * ARENA; a.push(sq * Math.cos(t) * rr, y, sq * Math.sin(t) * rr, 1 / (2 * sg * sg), sg); } return a; })();
+function gcAt(x, y, z) { let d = 0; for (let n = 0; n < GCS.length; n += 5) { const dx = x - GCS[n], dy = y - GCS[n + 1], dz = z - GCS[n + 2], q = (dx * dx + dy * dy + dz * dz) * GCS[n + 3]; if (q < 9) d += .45 * Math.exp(-q); } return d; }
 function galaxy(x, y, z) {
   const r = Math.sqrt(x * x + z * z) / ARENA, yy = y / ARENA, h = .035 + .11 * Math.exp(-r * 4.5);
   const arm = .5 + .5 * Math.cos(2 * (Math.atan2(z, x) - Math.log(r + .04) * 3.4));
@@ -535,13 +535,13 @@ void main(){
   float ang = uTime*uSpin, cs = cos(ang), sn = sin(ang);
   vec3 o = vec3(cs*vO.x + sn*vO.z, vO.y, -sn*vO.x + cs*vO.z);   // the pattern slowly spins, so you can read motion
   float gloss, emis; vec3 atmo; vec3 alb = design(o, gloss, emis, atmo);
-  alb = max(mix(vec3(dot(alb, vec3(.3,.55,.15))), alb, 1.45), 0.);   // punchier, game-coloured surfaces
+  alb = max(mix(vec3(dot(alb, vec3(.3,.55,.15))), alb, 1.25), 0.) * .8;   // game-coloured but not glaring
   // lighting: soft wrapped key light (squishy, subsurface feel), cool fill, sky-tinted fresnel rim, clear-coat highlight
   vec3 L = normalize(vec3(.5,.9,.35)), L2 = normalize(vec3(-.6,-.35,-.5));
   float wrap = max((dot(N,L) + .3) / 1.3, 0.);
   vec3 col = alb * (.1 + 1.02*wrap) + alb * max(dot(N,L2), 0.) * vec3(.10,.12,.2);   // sunlit side, soft night side
   float fr = pow(1. - ndv, 3.);
-  col += atmo * fr * (.3 + .9*wrap) + alb * fr * .7;   // + a bright cartoon rim                          // thin glowing atmosphere on the limb
+  col += atmo * fr * (.3 + .9*wrap) + alb * fr * .3;   // + a soft cartoon rim                          // thin glowing atmosphere on the limb
   col = mix(col, alb * (.72 + .4*pow(ndv, .45)), emis);       // stars and lava shine by themselves (darker at the limb)
   vec3 H = normalize(L + V);
   float spec = pow(max(dot(N,H),0.), mix(36., 220., gloss)) * mix(.0, 1.1, gloss) * (1. - fow) * (1. - emis);
@@ -700,7 +700,7 @@ const gstars = (() => {
     return (hash3(ix, iz, 7) * (1 - ux) + hash3(ix + 1, iz, 7) * ux) * (1 - uz) + (hash3(ix, iz + 1, 7) * (1 - ux) + hash3(ix + 1, iz + 1, 7) * ux) * uz; };
   let n = 0, guard = 0;
   while (n < GSTAR_N && guard++ < GSTAR_N * 60) {
-    let x, y, z; const gcS = Math.random() < .07, halo = !gcS && Math.random() < .07;
+    let x, y, z; const gcS = false, halo = !gcS && Math.random() < .07;
     if (gcS) { const c = Math.floor(Math.random() * (GCS.length / 5)) * 5, sg = GCS[c + 4] * .8, gq = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.4 * sg;
       pos[n * 3] = GCS[c] + gq(); pos[n * 3 + 1] = GCS[c + 1] + gq(); pos[n * 3 + 2] = GCS[c + 2] + gq(); const b = .32 + .4 * Math.random(); col[n * 3] = b; col[n * 3 + 1] = b * .78; col[n * 3 + 2] = b * .38; sz[n] = 1.3 + Math.random(); n++; continue; }
     if (halo) { const v = randInSphere(ARENA * .95); x = v.x; y = v.y * .7; z = v.z; }
@@ -768,14 +768,15 @@ const PER_CL = 0;
 const foodGeo = new THREE.CircleGeometry(1, 18);
 const foodMat = new THREE.ShaderMaterial({
   transparent: true, premultipliedAlpha: true, depthWrite: false,
-  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uFarK2: { value: 0 }, uWarp: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
-  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; varying float vDim; uniform float uFarK; uniform float uFarK2; uniform float uWarp;
+  uniforms: { uTime: U.time, uFar: { value: 200 }, uPix: { value: .001 }, uBoost: { value: 1 }, uFarK: { value: 0 }, uCamD: { value: 100 }, uFarK2: { value: 0 }, uWarp: { value: 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR, uFog: U.fog },
+  vertexShader: `uniform float uFar; uniform float uPix; uniform float uTime; uniform float uBoost; uniform float uCamD; varying vec3 vC; varying vec2 vUv; varying float vFade; varying float vStar; varying float vI; varying float vRel; varying float vRpx; varying float vDim; uniform float uFarK; uniform float uFarK2; uniform float uWarp;
     ${OWN_GLSL}
     void main(){
       vec3 c = (modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
       float sc = length(instanceMatrix[0].xyz);   // pellet radius (0 = not alive)
       vFade = (1. - smoothstep(uFar*.55, uFar*.97, ownDist(c))) * instanceMatrix[1].x;   // orbs fade out softly toward the edge of the food field
       vec4 mv = viewMatrix*vec4(c, 1.);
+      vFade *= smoothstep(uCamD*.12, uCamD*.45, -mv.z);   // an orb between you and the camera melts away instead of whooshing past the lens
       vDim = 1. - .6*smoothstep(uFar*.08, uFar*.85, ownDist(c));   // depth cue: the farther an orb is from you, the dimmer it reads
       float pix = max(-mv.z, 1e-4) * uPix;   // world size of one CSS pixel at this depth
       float px = sc / pix;                   // the orb's true on-screen radius, in pixels
@@ -1169,14 +1170,14 @@ const RING_GEO2 = new THREE.RingGeometry(1.32, 2.35, 128, 1);
 const ringMat = (seed, own) => new THREE.ShaderMaterial({
   transparent: true, depthWrite: false, side: THREE.DoubleSide,
   uniforms: { uSeed: { value: seed }, uOwn: { value: own ? 1 : 0 }, uPP: U.pp, uOwnP: U.ownP, uOwnN: U.ownN, uViewR: U.viewR },
-  vertexShader: `varying vec3 vP; varying vec3 vW; void main(){ vP = position; vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
-  fragmentShader: `uniform float uSeed; uniform float uOwn; uniform float uViewR; uniform vec3 uPP; varying vec3 vP; varying vec3 vW; ${OWN_GLSL}
+  vertexShader: `varying vec3 vP; varying vec3 vW; varying vec3 vCen; void main(){ vP = position; vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; vCen = (modelMatrix*vec4(0.,0.,0.,1.)).xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader: `uniform float uSeed; uniform float uOwn; uniform float uViewR; uniform vec3 uPP; varying vec3 vP; varying vec3 vW; varying vec3 vCen; ${OWN_GLSL}
     float h1(float x){ return fract(sin(x*127.1 + uSeed*311.7)*43758.5453); }
     void main(){ float r = (length(vP.xy) - 1.32)/1.03;   // 0 inner edge .. 1 outer edge
       float b = mix(h1(floor(r*26.)), h1(floor(r*26.) + 1.), smoothstep(.3,.7,fract(r*26.)))*.6 + h1(floor(r*90.))*.4;
       float gap = smoothstep(.02,.05,abs(r - .58))*smoothstep(.0,.03,abs(r - .2 - .1*uSeed));   // Cassini-style divisions
       float a = (.25 + .75*b) * gap * smoothstep(0.,.04,r) * smoothstep(1.,.93,r);
-      float d = ownDist(vW); float fade = mix(exp(-d/(uViewR*.6))*(1. - smoothstep(uViewR*.8, uViewR, d)), 1., uOwn);
+      float d = ownDist(vCen); float fade = mix(exp(-d/(uViewR*.6))*(1. - smoothstep(uViewR*.6, uViewR*.85, d)), 1., uOwn);   // the whole ring fades with its planet's distance, never sliced off
       vec3 col = mix(vec3(.62,.52,.4), vec3(.95,.88,.74), b);
       gl_FragColor = vec4(col*(.75 + .3*b), a*.85*fade); }`,
 });
@@ -1539,6 +1540,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomTarget *= 1.25;
   if (e.code === 'KeyV' && !e.repeat) setCamLock(!camLock);
   if (e.code === 'KeyH') document.getElementById('hud').classList.toggle('clean');
+  if (e.code === 'KeyI' && !e.repeat) { const h = document.getElementById('hint'); const on = h.style.opacity !== '1'; h.style.opacity = on ? 1 : 0; clearTimeout(window.__hintT); if (on) window.__hintT = setTimeout(() => h.style.opacity = 0, 12000); }   // I: how to play
   if (e.code === 'KeyM') { opts.sound = !opts.sound; document.getElementById('optSound').checked = opts.sound; }
   if (!playing) return;
   if (e.code === 'Space') { split(me, fwd, crosshairPoint()); e.preventDefault(); }
@@ -1600,13 +1602,18 @@ function handleInput() {
     const k = 1 - Math.exp(-dt * 9); tStick.x += (stick.x - tStick.x) * k; tStick.y += (stick.y - tStick.y) * k;
     yIn = -tStick.x * .7; pIn = -tStick.y * .7;
   }
-  if (keys.ArrowLeft || keys.KeyA) yIn += 1; if (keys.ArrowRight || keys.KeyD) yIn -= 1;   // WASD steers exactly like the arrow keys
-  if (keys.ArrowUp || keys.KeyW) pIn += 1; if (keys.ArrowDown || keys.KeyS) pIn -= 1;
+  if (keys.ArrowLeft) yIn += 1; if (keys.ArrowRight) yIn -= 1;   // arrow keys steer
+  if (keys.ArrowUp) pIn += 1; if (keys.ArrowDown) pIn -= 1;
+  if ((keys.KeyW || keys.KeyS) && !chatOpen) {   // W zooms in, S zooms out (A and D do nothing)
+    if (intro) { if (intro.t > 1.75) { intro = null; zoomTarget = zoom; } }
+    else zoomTarget *= Math.exp((keys.KeyS ? 1 : 0) * dt * 1.8 - (keys.KeyW ? 1 : 0) * dt * 1.8);
+  }
   if (opts.mouse && mouse.in && !IS_TOUCH && !chatOpen) {   // mouse: the ball flies toward your cursor (dead zone in the middle)
     const curve = v => Math.sign(v) * clamp((Math.abs(v) - .1) / .55, 0, 1);
     yIn -= curve(mouse.x); pIn -= curve(mouse.y);
   }
   yIn = clamp(yIn, -1, 1); pIn = clamp(pIn, -1, 1);
+  if (intro) yIn = pIn = 0;   // hands off during the intro, so the camera doesn't swing to wherever the mouse happened to be
   const acc = 1 - Math.exp(-dt * 4);   // turns ease in and out more gently
   yawVel += (yIn * 1.35 - yawVel) * acc;
   pitchVel += (pIn * 1.0 - pitchVel) * acc;
@@ -1698,13 +1705,13 @@ function updateFood() {
   // leftover orbs from the previous zoom level are held on screen only while zooming IN (so the view never empties) and only while the pool
   // has room; zooming OUT they dim away at once, otherwise they sit around you as a dense ball and starve the wider view of orbs
   if (!filling) levelFill = false;
-  noPop = !levelFill && !intro && zoom <= 2.5; popV2 = (V * .86) ** 2;
+  noPop = !levelFill && !intro;   // at every zoom: once a view has loaded, new orbs only appear out of sight popV2 = (V * .86) ** 2;
   const holdOrph = filling && levelDir < 0 && freeSlots.length >= 600;
   if (holdOrph) fillDoneT = now;
   const fadeIn = intro ? .9 : zoom > 1.6 ? 1.4 : 2.2;
   const zk = 1;   // true perspective: orbs shrink to star points as you zoom out
   const pk = Math.max(sc, ((camR || myR()) * 6.8 + 30) * .003);   // pellet size tracks camera distance so orbs stay visible when you're huge
-  foodMat.uniforms.uBoost.value += (1 + .1 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFarK2.value = clamp((zoom - 2.5) / 5, 0, 1); foodMat.uniforms.uFarK.value = clamp(Math.log(Math.max(1, zoom)) / Math.log(Math.max(2, zoomMax)), 0, 1); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
+  foodMat.uniforms.uBoost.value += (1 + .1 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFarK2.value = clamp((zoom - 2.5) / 5, 0, 1); foodMat.uniforms.uFarK.value = clamp(Math.log(Math.max(1, zoom)) / Math.log(Math.max(2, zoomMax)), 0, 1); foodMat.uniforms.uCamD.value = Math.max(1, camera.position.distanceTo(mainCell ? mainCell.pos : camera.position)); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
   const gRate = (1.06 * Math.pow(tm, .7) + 4.8) * (now < PU.roidsUntil ? PU.mult : 1);
@@ -2374,7 +2381,7 @@ function refreshPickups(G, radius, L) {
   const P = C0 * 2 ** L * 3.5, rng = Math.ceil(radius / P) + 1, ga = Math.floor(G.x / P), gb = Math.floor(G.y / P), gc = Math.floor(G.z / P);
   const want = new Map(), lo = Math.floor(-ARENA / P) - 1, hi = Math.floor(ARENA / P) + 1;
   for (let a = Math.max(lo, ga - rng); a <= Math.min(hi, ga + rng); a++) for (let b = Math.max(lo, gb - rng); b <= Math.min(hi, gb + rng); b++) for (let c = Math.max(lo, gc - rng); c <= Math.min(hi, gc + rng); c++) {
-    if (hash3(a * 3 + L, b * 5 - L, c * 7 + 11) > (BOOST_ON || ROCKETS_ON ? .45 : .2)) continue;   // half growth, half speed; kept scarce so each one matters
+    if (hash3(a * 3 + L, b * 5 - L, c * 7 + 11) > (BOOST_ON || ROCKETS_ON ? .45 : .5)) continue;   // half growth, half speed; kept scarce so each one matters
     const x = (a + .15 + .7 * hash3(a, b + 31, c)) * P, y = (b + .15 + .7 * hash3(b, c + 17, a)) * P, z = (c + .15 + .7 * hash3(c, a + 5, b)) * P;
     if (x * x + y * y + z * z > ARENA * ARENA * .9) continue;
     const dx = x - G.x, dy = y - G.y, dz = z - G.z; if (dx * dx + dy * dy + dz * dz > radius * radius) continue;
