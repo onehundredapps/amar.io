@@ -16,7 +16,7 @@
 <meta name="theme-color" content="#05060f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Ubuntu:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#05060f; --glass:rgba(14,18,40,.55); --glass-strong:rgba(12,16,36,.78);
@@ -199,154 +199,6 @@ body.touch #hint{bottom:auto;top:62px;white-space:normal;width:min(320px,86vw);t
 body.og #home .side, body.og #home input, body.og #home .row, body.og #home .opts, body.og #play, body.og .status, body.og .keys{display:none!important}
 body.og #home{align-items:center!important;align-content:center!important} body.og .card{background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;width:auto}
 body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{display:none}
-/* ---- main menu: the classic .io card layout ---- */
-#home{position:fixed;inset:0;z-index:10;overflow-y:auto;display:block;padding:0;background:radial-gradient(ellipse at center,rgba(5,6,15,0) 0%,rgba(5,6,15,.45) 80%);font-family:Ubuntu,Inter,system-ui,sans-serif;color:#333}
-#home *{box-sizing:border-box}
-#legal{position:absolute;top:0;right:24px;background:#fff;padding:9px 18px 10px;border-radius:0 0 6px 6px;font-size:14px;color:#777;z-index:2}
-#legal a{color:#777;text-decoration:underline;cursor:pointer;font-weight:500}
-#mgrid{position:relative;margin:126px auto 40px;width:1010px;display:grid;grid-template-columns:330px 330px 330px;grid-template-rows:184px 118px 296px;gap:6px 10px;
-  grid-template-areas:"prof main modes" "off main party" "tools ad mob"}
-.mp{background:#fff;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.25);position:relative;padding:14px 18px;overflow:hidden}
-#pProf{grid-area:prof} #pOff{grid-area:off} #pTools{grid-area:tools} #pMain{grid-area:main;text-align:center} #pAd{grid-area:ad;padding:10px} #pModes{grid-area:modes} #pParty{grid-area:party;text-align:center} #pMob{grid-area:mob;padding:0;background:#fff}
-.ptitle{font-weight:700;font-size:21px;text-align:center;color:#333;margin-bottom:10px}
-.ptitle.big{font-size:23px}
-/* profile */
-.avatar{position:absolute;left:18px;top:18px;width:62px;height:62px;border-radius:4px;background:#e4e4e4 radial-gradient(circle at 50% 38%,#8a8a8a 0 13px,transparent 14px),radial-gradient(ellipse at 50% 100%,#8a8a8a 0 22px,transparent 23px);background-blend-mode:normal;border:2px solid #d4d4d4}
-.curr{position:absolute;left:92px;top:18px;width:138px;display:flex;flex-direction:column;gap:6px}
-.cur{position:relative;height:26px;border:2px solid #54c800;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:58px;font-size:14px;font-weight:500}
-.cur i{position:absolute;right:30px;top:2px;width:18px;height:18px;border-radius:50%}
-.gem{background:linear-gradient(135deg,#ffe066,#ffb703);clip-path:polygon(50% 0,100% 38%,80% 100%,20% 100%,0 38%)}
-.coin{background:radial-gradient(circle at 40% 35%,#fff3a0,#f5b800 60%,#c98a00);border:1px solid #c98a00}
-.coin.big{width:30px;height:30px;display:inline-block;vertical-align:middle;margin-right:8px;border-radius:50%}
-.plus{position:absolute;right:-2px;top:-2px;width:26px;height:26px;background:#54c800;color:#fff;font-size:20px;line-height:24px;text-align:center;border-radius:0 4px 4px 0;cursor:pointer}
-.badges{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px}
-.badge{position:relative;width:62px;height:52px;cursor:pointer;opacity:.55}
-.badge.on{opacity:1}
-.badge span{position:absolute;left:8px;top:6px;width:40px;height:40px;display:grid;place-items:center;font:900 30px Ubuntu,sans-serif;color:#ffd23a;text-shadow:0 0 0 #c48d00}
-.badge.ms span{color:#fff;background:#2fa8ff;border-radius:50%;font-size:22px;width:36px;height:36px;border:3px solid #9bd7ff}
-.badge em{position:absolute;right:0;bottom:2px;font:900 italic 20px Ubuntu,sans-serif;color:#ffb400;-webkit-text-stroke:1px #fff}
-.badge.ms em{color:#2fa8ff}
-.badge b{position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;background:#54c800;color:#fff;font-size:15px;line-height:17px;text-align:center}
-.pname{position:absolute;left:18px;top:86px;font-size:22px;font-weight:700;color:#444}
-.xpbar{position:absolute;left:18px;right:96px;top:120px;height:34px;border:2px solid #54c800;border-radius:4px;overflow:hidden}
-.xpbar i{position:absolute;left:0;top:0;bottom:0;width:0;background:#c9f2a6}
-.xpbar span{position:relative;display:block;text-align:center;line-height:30px;font-size:14px;font-weight:700;color:#333}
-.lvl{position:absolute;right:-1px;top:-1px;width:32px;height:32px;background:#ffd23a;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);display:grid;place-items:center;font-size:11px;color:#7a5600}
-/* offers */
-.offrow{display:flex;gap:10px;justify-content:center;align-items:center}
-.freec{background:#54c800;color:#fff;border:0;border-radius:4px;padding:8px 14px 8px 8px;font:700 15px Ubuntu,sans-serif;cursor:pointer;display:flex;align-items:center}
-.event{width:142px;height:46px;border-radius:4px;background:linear-gradient(135deg,#3a1c71,#d76d77 60%,#ffaf7b);color:#fff;cursor:pointer;position:relative;padding:4px 8px;font-size:11px;line-height:1.05;text-align:left}
-.event b{font:900 italic 13px Ubuntu,sans-serif;letter-spacing:.04em;text-shadow:0 1px 0 #000}
-.event span{position:absolute;right:4px;bottom:3px;background:#e02020;padding:1px 4px;border-radius:2px;font-weight:700;font-size:10px}
-/* tools */
-.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
-.tools button{height:56px;background:#00a2ff;border:0;border-radius:4px;color:#fff;font:500 11px Ubuntu,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:3px}
-.tools i{font-style:normal;font-size:24px;line-height:30px;filter:grayscale(1) brightness(10)}
-.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
-.slot{height:134px;border-radius:6px;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999;font-size:15px;font-weight:700;text-align:center;line-height:1.1}
-.slot.full{background:linear-gradient(#f3f9ff,#dceefd);color:#2a6fb0;cursor:pointer}
-.slot .pot{font-size:38px;margin-bottom:6px}
-.slotbtns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
-.slotbtns button{height:34px;background:#54c800;color:#fff;border:0;border-radius:4px;font:700 13px Ubuntu,sans-serif;cursor:pointer}
-.help{position:absolute;right:8px;bottom:6px;width:18px;height:18px;border-radius:50%;background:#2fc6f6;color:#fff;font-size:13px;line-height:18px;text-align:center;cursor:pointer;font-weight:700}
-/* main */
-.gear{position:absolute;left:12px;top:6px;font-size:30px;color:#777;cursor:pointer;line-height:1}
-.bubble{position:absolute;left:-6px;top:38px;width:84px;padding:6px 4px;background:#1e5aa8;color:#fff;font:700 12px Ubuntu,sans-serif;border-radius:6px;cursor:pointer;line-height:1.15;z-index:2}
-.bubble:after{content:'';position:absolute;right:-8px;top:18px;border:6px solid transparent;border-left-color:#1e5aa8}
-.mtitle{margin:44px 0 8px 64px;display:flex;align-items:center;justify-content:center;gap:10px}
-.mtitle span{white-space:nowrap;font:700 38px Ubuntu,sans-serif;color:#333;letter-spacing:-.5px;line-height:1}
-.mlogo{display:inline-block;width:54px;height:54px;border-radius:8px;background:
-  radial-gradient(circle at 30% 30%,#ff5a5a 0 7px,transparent 8px),radial-gradient(circle at 70% 26%,#ffd23a 0 9px,transparent 10px),radial-gradient(circle at 26% 72%,#3fa9ff 0 8px,transparent 9px),
-  radial-gradient(circle at 70% 70%,#54c800 0 6px,transparent 7px),radial-gradient(circle at 52% 52%,#b06bff 0 5px,transparent 6px),#fff;box-shadow:inset 0 0 0 2px #e6e6e6}
-.mlogo.sm{width:40px;height:40px}
-.namerow{display:flex;align-items:center;gap:10px;margin:2px 4px 8px}
-.skinbtn{position:relative;flex:0 0 56px;height:56px;border-radius:50%;border:3px solid #e2e2e2;cursor:pointer;display:grid;place-items:center;background:#fff}
-.skinbtn b{position:absolute;left:-6px;top:-6px;width:22px;height:22px;border-radius:50%;background:#54c800;color:#fff;font-size:18px;line-height:21px;z-index:2}
-.skinbtn span{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;color:#333;z-index:1}
-#skinPrev{position:absolute;inset:3px;border-radius:50%;opacity:.35}
-#home #name{flex:1;height:36px;border:2px solid #ccc;border-radius:4px;padding:0 10px;font:400 20px Ubuntu,sans-serif;color:#333;background:#fff;margin:0;width:auto}
-#home #play{display:block;width:calc(100% - 8px);margin:0 4px 6px;height:38px;padding:0;border:0;border-radius:4px;background:#54c800;color:#fff;font:400 24px Ubuntu,sans-serif;letter-spacing:0;box-shadow:none;cursor:pointer}
-#home #play:hover{background:#4ab300;transform:none}
-.signrow{display:flex;gap:6px;margin:0 4px}
-.sgn{flex:1;height:36px;border:0;border-radius:4px;color:#fff;font:700 16px Ubuntu,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
-.sgn i{font-style:normal;background:#fff;color:#333;border-radius:3px;width:24px;height:24px;line-height:24px;font-size:14px}
-.sgn.a{background:#3b5bc5} .sgn.b{background:#e8433a}
-.howto{margin-top:22px;font-size:13px;color:#777;line-height:1.35}
-#pMain .status{margin-top:8px;font-size:12px;color:#999;display:flex;align-items:center;justify-content:center;gap:6px}
-/* ad slots (house promos until an ad network is connected) */
-.adtag{position:absolute;right:6px;top:4px;font:700 9px Ubuntu,sans-serif;letter-spacing:.08em;color:rgba(255,255,255,.65)}
-.ad{position:fixed;overflow:hidden;color:#fff;text-align:center;font-family:Ubuntu,sans-serif}
-.adL,.adR{top:94px;width:244px;height:852px;padding:50px 16px}
-.adL{left:0;background:linear-gradient(170deg,#ff3b3b,#d4141a)} .adR{right:0;background:#fff;color:#222}
-.adR .adtag{color:#999}
-.adbig{font:900 40px/1.05 Ubuntu,sans-serif;margin:24px 0}
-.adbig.dark{color:#222;font-size:34px}
-.adsmall{font-size:15px;line-height:1.35;color:inherit;opacity:.85;margin:10px 0 16px}
-.adbtn{display:inline-block;background:#2b6cff;color:#fff;border:0;border-radius:28px;padding:14px 24px;font:700 17px Ubuntu,sans-serif;cursor:pointer;text-decoration:none}
-.adart{font-size:120px;margin-top:60px;filter:drop-shadow(0 10px 20px rgba(0,0,0,.4))}
-.adlogo{font:900 34px/1 Ubuntu,sans-serif;color:#ff7a1a;border-bottom:2px solid #ddd;padding-bottom:18px}
-.adcode{margin:16px 8px;border:3px dashed #555;border-radius:12px;padding:18px 6px;font:700 22px Ubuntu,sans-serif;letter-spacing:.12em;color:#222}
-.adB{left:50%;bottom:0;transform:translateX(-50%);width:1112px;max-width:100%;height:130px;background:linear-gradient(100deg,#d4141a,#ff3b3b);display:flex;align-items:center;justify-content:center;gap:40px;padding:0 30px}
-.adwide{font:900 28px/1.15 Ubuntu,sans-serif;text-align:left;max-width:560px}
-.ad300{position:relative;height:100%;border-radius:4px;background:linear-gradient(160deg,#16163a,#3b1f6b);color:#fff;text-align:center;padding:40px 18px}
-.ad300 .adbig.dark{color:#fff}
-.ad300 .adtag{color:rgba(255,255,255,.5)}
-/* modes */
-.modes{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
-.mode{height:112px;border-radius:4px;background:#ddd;color:#fff;font:500 12px/1 Ubuntu,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6px;cursor:pointer;text-align:center}
-.mode.on{background:#ff4b5c}
-.mode .mi{width:52px;height:52px;margin-bottom:auto;margin-top:10px;border-radius:50%;opacity:.95}
-.mi.ffa{background:radial-gradient(circle at 35% 35%,#fff 0 13px,transparent 14px),radial-gradient(circle at 74% 40%,#fff 0 7px,transparent 8px),radial-gradient(circle at 50% 78%,#fff 0 9px,transparent 10px)}
-.mi.br{background:radial-gradient(circle,#fff 0 18px,rgba(255,255,255,.35) 19px 25px,transparent 26px)}
-.mi.teams{background:radial-gradient(circle at 30% 30%,#fff 0 8px,transparent 9px),radial-gradient(circle at 72% 30%,#fff 0 8px,transparent 9px),radial-gradient(circle at 50% 74%,#fff 0 10px,transparent 11px)}
-.mi.exp{background:repeating-conic-gradient(#fff 0 12deg,transparent 12deg 24deg);-webkit-mask:radial-gradient(circle,#000 0 25px,transparent 26px);mask:radial-gradient(circle,#000 0 25px,transparent 26px)}
-/* party */
-.psub{color:#888;font-size:16px;margin:-2px 0 12px}
-.prow{display:flex;gap:10px;justify-content:center}
-.prow button{width:98px;height:30px;border:0;border-radius:3px;color:#fff;font:700 16px Ubuntu,sans-serif;cursor:pointer}
-.pc{background:#2fc6f6} .pj{background:#54c800}
-/* mobile */
-.mobhead{height:46px;background:#3c8cff;color:#fff;font:900 20px Ubuntu,sans-serif;display:flex;align-items:center;gap:12px;padding:0 14px;letter-spacing:.01em}
-.phone{margin:10px auto 0;width:236px;height:108px;border-radius:18px;background:#111;padding:8px 12px;box-shadow:0 6px 14px rgba(0,0,0,.35)}
-.phone .screen{width:100%;height:100%;border-radius:8px;background:radial-gradient(circle at 30% 40%,#ffb25a 0 7px,transparent 8px),radial-gradient(circle at 62% 58%,#5ab0ff 0 11px,transparent 12px),radial-gradient(circle at 80% 30%,#c06bff 0 5px,transparent 6px),radial-gradient(ellipse at 50% 55%,rgba(255,220,180,.55),transparent 55%),radial-gradient(ellipse at center,#2a2050,#07070f 75%)}
-.mobget{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0 6px;background:#f2f2f2;padding:6px 8px}
-.mobget b{display:block;font:900 17px Ubuntu,sans-serif;color:#333}
-.mobget span{display:block;font:900 15px/1.05 Ubuntu,sans-serif;color:#2fa8ff;letter-spacing:.03em}
-.mbadge{font-style:normal;width:36px;height:36px;border-radius:50%;background:#2fa8ff;color:#fff;font:900 20px/36px Ubuntu,sans-serif;text-align:center;border:3px solid #9bd7ff}
-.stores{display:flex;gap:8px;justify-content:center}
-.store{width:116px;height:38px;border-radius:6px;background:#000;color:#fff;font:700 15px/1 Ubuntu,sans-serif;text-decoration:none;display:flex;flex-direction:column;justify-content:center;padding-left:10px}
-.store small{font-size:9px;font-weight:400}
-.store.off{opacity:.45}
-/* modal + toast */
-#modal{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.55);display:grid;place-items:center;font-family:Ubuntu,sans-serif}
-#modal.hidden{display:none}
-.mbox{position:relative;width:min(560px,94vw);max-height:84vh;overflow:auto;background:#fff;color:#333;border-radius:8px;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.mx{position:absolute;right:10px;top:6px;border:0;background:none;font-size:30px;color:#999;cursor:pointer}
-.mbox h3{margin:0 0 12px;font-size:24px}
-.mbox .grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.mbox .item{border:2px solid #eee;border-radius:8px;padding:10px;text-align:center;font-size:14px}
-.mbox .item.eq{border-color:#54c800}
-.mbox .ball{width:70px;height:70px;border-radius:50%;margin:0 auto 8px;box-shadow:inset -10px -12px 18px rgba(0,0,0,.35)}
-.mbox button.g{background:#54c800;color:#fff;border:0;border-radius:4px;padding:8px 14px;font:700 14px Ubuntu,sans-serif;cursor:pointer}
-.mbox button.g:disabled{background:#bbb;cursor:default}
-.mbox button.bl{background:#2fc6f6}
-.mbox table{width:100%;border-collapse:collapse;font-size:14px}
-.mbox td,.mbox th{padding:6px 4px;border-bottom:1px solid #eee;text-align:left}
-.mbox .q{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eee}
-.mbox .q .bar{flex:1;height:10px;background:#eee;border-radius:5px;overflow:hidden}
-.mbox .q .bar i{display:block;height:100%;background:#54c800}
-.mbox input[type=text]{font:400 18px Ubuntu,sans-serif;padding:8px;border:2px solid #ccc;border-radius:4px;width:100%;color:#333;background:#fff}
-.mbox label{display:flex;gap:10px;align-items:center;padding:6px 0;font-size:15px}
-#mtoast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#54c800;color:#fff;font:700 16px Ubuntu,sans-serif;padding:10px 18px;border-radius:6px;z-index:40;opacity:0;transition:opacity .3s;pointer-events:none}
-#mtoast.on{opacity:1}
-/* in-game mode HUD */
-#modeHud{position:absolute;left:50%;top:44px;transform:translateX(-50%);font:700 14px Ubuntu,sans-serif;color:#fff;text-shadow:0 1px 3px #000;text-align:center;pointer-events:none;white-space:nowrap}
-#modeHud .tb{display:flex;width:300px;height:10px;border-radius:5px;overflow:hidden;margin:6px auto 0}
-/* narrower screens: hide the side ads first, then stack the cards */
-@media (max-width:1520px){ .adL,.adR{display:none} }
-@media (max-width:1060px){ #mgrid{width:min(680px,96vw);grid-template-columns:1fr 1fr;grid-template-rows:auto;grid-template-areas:"main main" "prof modes" "off party" "tools mob" "ad ad";margin-top:58px} #pMain{min-height:300px} #pTools{min-height:296px} #pMob{min-height:296px} #pAd{min-height:250px} }
-@media (max-width:700px){ #mgrid{width:auto;margin-left:8px!important;margin-right:8px!important;grid-template-columns:minmax(0,1fr);grid-template-areas:"main" "modes" "party" "prof" "off" "tools" "mob" "ad";margin:46px auto 150px} #pProf{min-height:184px} #legal{font-size:11px;right:6px;left:6px;text-align:center;padding:6px} .adB{height:110px;gap:14px;padding:0 12px} .adwide{font-size:17px} .adB{position:relative;left:auto;transform:none;width:auto;margin:0 8px 16px;border-radius:6px} .mp{min-width:0} .namerow,.signrow{min-width:0} #home #name{min-width:0;width:0} .mtitle{margin-left:56px} .mtitle span{font-size:34px} }
-
 </style>
 <script type="importmap">
 {"imports":{
@@ -360,66 +212,22 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 
 <!-- HOME -->
 <div id="home">
-  <div id="legal"><a id="lgPriv">Privacy Settings</a> | <a href="privacy.html" target="_blank" rel="noopener">Cookie Policy</a> | <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> | <a href="support.html" target="_blank" rel="noopener">Terms of Service</a> | <a href="support.html" target="_blank" rel="noopener">Contact Support</a></div>
-  <div class="ad adL"><div class="adtag">GALAXY ARENA</div><div class="adbig">Share<br>and<br>dive in<br>together.</div><button class="adbtn" data-act="party">Start a party</button><div class="adart">🪐</div></div>
-  <div class="ad adR"><div class="adtag">GALAXY ARENA</div><div class="adlogo">TRIPLE<br>MASS</div><div class="adbig dark">FREE<br>3X boost<br>on iPhone</div><div class="adsmall">Play the iPhone app once and get 250 coins + 1 hour of triple mass.</div><div class="adcode">CODE:<br>GALAXY</div></div>
-  <div id="mgrid">
-    <div class="mp" id="pProf">
-      <div class="avatar" id="avatar"></div>
-      <div class="curr"><div class="cur"><span id="gems">20</span><i class="gem"></i><b class="plus" data-act="shop-gems">+</b></div><div class="cur"><span id="coins">100</span><i class="coin"></i><b class="plus" data-act="shop-coins">+</b></div></div>
-      <div class="badges"><div class="badge xp" id="bXp" data-act="potions"><b>+</b><span>★</span><em>3X</em></div><div class="badge ms" id="bMs" data-act="potions"><b>+</b><span>M</span><em>3X</em></div></div>
-      <div class="pname" id="pName">Guest</div>
-      <div class="xpbar"><i id="xpFill"></i><span id="xpTxt">0/50 XP</span><b class="lvl" id="lvl">1</b></div>
+  <div class="card glass">
+    <div class="logo" style="font-size:clamp(34px,7.5vw,52px);margin-bottom:22px">GALAXY ARENA</div>
+    <input id="name" type="text" maxlength="16" placeholder="Enter your name" autocomplete="off" spellcheck="false">
+    <div class="row swatches" id="swatches" style="display:none"></div>
+    <div class="opts">
+      <label id="optMouseRow" style="display:none"><input type="checkbox" id="optMouse" checked> Mouse steer</label>
+      <label style="display:none"><input type="checkbox" id="optSound"> Sound</label>
+      <label><input type="checkbox" id="optChat" checked> Player chat</label>
     </div>
-    <div class="mp" id="pOff">
-      <div class="ptitle">Offers</div>
-      <div class="offrow"><button class="freec" data-act="freecoins"><i class="coin big"></i>Free Coins</button><div class="event" data-act="quests"><b>GALAXY<br>MADNESS</b><span id="evTimer">--</span></div></div>
-    </div>
-    <div class="mp" id="pTools">
-      <div class="tools"><button data-act="shop"><i>🛒</i>Shop</button><button data-act="leaders"><i>🏆</i>Leaderboards</button><button data-act="quests"><i>📋</i>Daily Quests</button><button data-act="gifts"><i>🎁</i>Gifts</button></div>
-      <div class="slots" id="slots"></div>
-      <div class="help" data-act="help">?</div>
-    </div>
-    <div class="mp" id="pMain">
-      <div class="gear" data-act="settings">⚙</div>
-      <div class="bubble" data-act="skins">Create your own skin!</div>
-      <div class="mtitle"><span>Galaxy Arena</span><i class="mlogo"></i></div>
-      <div class="namerow"><div class="skinbtn" data-act="skins"><b>+</b><div id="skinPrev"></div><span>Skins</span></div><input id="name" type="text" maxlength="16" placeholder="Nick" autocomplete="off" spellcheck="false"></div>
-      <button id="play">Play</button>
-      <div class="signrow"><button class="sgn a" data-act="signin"><i>👤</i>Sign in</button><button class="sgn b" data-act="signin"><i>✉</i>Sign in</button></div>
-      <div class="howto">Move your mouse to control your planet<br>Press <b>Space</b> to split and <b>F</b> to spit some mass</div>
-      <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
-      <div id="swatches" style="display:none"></div>
-    </div>
-    <div class="mp" id="pAd">
-      <div class="ad300"><div class="adtag">GALAXY ARENA</div><div class="adbig dark">Keep the<br>galaxy lit.</div><div class="adsmall">Galaxy Arena is free with no tracking. Tips keep it running.</div><a class="adbtn" id="donate" target="_blank" rel="noopener">❤ Support the game</a></div>
-    </div>
-    <div class="mp" id="pModes">
-      <div class="ptitle big">Select Game Mode</div>
-      <div class="modes" id="modes">
-        <div class="mode" data-mode="ffa"><i class="mi ffa"></i><span>FFA</span></div>
-        <div class="mode" data-mode="br"><i class="mi br"></i><span>Battle<br>Royale</span></div>
-        <div class="mode" data-mode="teams"><i class="mi teams"></i><span>Teams</span></div>
-        <div class="mode" data-mode="exp"><i class="mi exp"></i><span>Experimental</span></div>
-      </div>
-    </div>
-    <div class="mp" id="pParty">
-      <div class="ptitle big">👥 Party Mode</div>
-      <div class="psub" id="partyTxt">Play with your friends in the same arena</div>
-      <div class="prow"><button class="pc" data-act="party">Create</button><button class="pj" data-act="join">Join</button></div>
-    </div>
-    <div class="mp" id="pMob">
-      <div class="mobhead"><i class="mlogo sm"></i>AVAILABLE ON MOBILE!</div>
-      <div class="phone"><div class="screen"></div></div>
-      <div class="mobget"><i class="coin big"></i><div><b>PLAY AND GET:</b><span>250 COINS + 1H<br>TRIPLE MASS BOOST</span></div><i class="mbadge">M</i></div>
-      <div class="stores"><a class="store" id="appStore" target="_blank" rel="noopener"><small>Download on the</small>App Store</a><span class="store off"><small>Coming soon to</small>Google Play</span></div>
-    </div>
+    <button id="play">PLAY</button>
+    <div class="status"><span class="dot" id="netDot"></span><span id="netText">Connecting to lobby…</span></div>
   </div>
-  <div class="ad adB"><div class="adtag">GALAXY ARENA</div><div class="adwide">Three new ways to play: <b>Battle Royale</b>, <b>Teams</b> and <b>Experimental</b>.</div><button class="adbtn" data-act="modes">Pick a mode</button></div>
-  <div style="display:none"><label id="optMouseRow"><input type="checkbox" id="optMouse" checked></label><input type="checkbox" id="optSound"><input type="checkbox" id="optChat" checked></div>
+  <div class="side">
+    <a class="donate glass" id="donate" target="_blank" rel="noopener">❤ Support the game</a>
+  </div>
 </div>
-<div id="modal" class="hidden"><div class="mbox"><button class="mx" data-act="close">×</button><div id="mbody"></div></div></div>
-<div id="mtoast"></div>
 
 <!-- HUD -->
 <div id="hud" class="hidden">
@@ -440,7 +248,6 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="modeHud"></div>
   <div id="hint" class="glass"><b style="color:#ff7a3c;font-size:14px;margin-right:6px">ⓘ</b><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>W</kbd>/<kbd>S</kbd> zoom · <kbd>Space</kbd> split · <kbd>F</kbd> spit · <kbd>Shift</kbd> brake · <kbd>C</kbd> look back · <kbd>V</kbd> lock view · <kbd>I</kbd> this help</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
@@ -485,7 +292,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610150600'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610150700'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -497,7 +304,6 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-const GM = { mode: 'ffa', party: '', zone: null, viruses: [], win: false };   // game mode, party code, Battle Royale zone, Experimental viruses
 
 /* ============================== CONFIG ============================== */
 const CFG = {
@@ -1690,7 +1496,7 @@ let launch = null;   // a camera glide from the menu's background shot down to y
 function spawnMe(name, hue, forceMass, drop) {
   setCamLock(false); camR = 0; intro = params.has('nointro') ? null : { t: 0, dur: 5.5 }; if (intro) { zoom = zoomTarget = ARENA * 1.0 / 60; camTilt = 1.13; } else zoom = zoomTarget = ZSTART; if (params.has('z')) zoom = zoomTarget = +params.get('z') || 1;   // (nointro / z: test hooks)
   if (me) removeEntity(me);
-  me = new Entity(net.selfId, 'me', name, hue, net.selfId, pickLookKey());   // a fresh random world every life
+  me = new Entity(net.selfId, 'me', name, hue, net.selfId, short() + Math.random().toString(36).slice(2, 8));   // a fresh random world every life
   const levs = [...entities.values()].filter(e => e.lev && e.cells.length);
   let p = new V3();
   if (false) {
@@ -1712,7 +1518,7 @@ function spawnMe(name, hue, forceMass, drop) {
   const dd = drop ? drop.dir.clone() : new V3().subVectors(target, p).normalize();
   yaw = Math.atan2(-dd.x, -dd.z); pitch = clamp(Math.asin(dd.y), -PITCH_LIM, PITCH_LIM); yawVel = pitchVel = bank = 0; setHeading(); camO.copy(orient);
   Object.assign(PU, { boost: 100, ammo: 0, roidsUntil: 0, roidsReady: 0, speedUntil: 0, speedMult: 1, boosting: false, used: false });
-  playing = true; Object.assign(stats, { peak: startMass, eaten: 0, orbs: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
+  playing = true; Object.assign(stats, { peak: startMass, eaten: 0, start: performance.now(), peakTier: tierIdx(startMass), killer: '' });
   foodInit = false; resetWorldFood();
 }
 
@@ -1828,7 +1634,7 @@ function interactions() {
   for (const a of all) {
     if (!a.ent.local || a.dead) continue;
     for (const b of all) {
-      if (b === a || b.ent === a.ent || b.dead || b.mass < a.mass * 1.25 || sameTeam(a.ent, b.ent) || (intro && a.ent === me)) continue;   // nothing can eat you during the opening fly-in
+      if (b === a || b.ent === a.ent || b.dead || b.mass < a.mass * 1.25 || (intro && a.ent === me)) continue;   // nothing can eat you during the opening fly-in
       const lim = b.r - a.r * .35; if (lim <= 0) continue;
       const dx = a.pos.x - b.pos.x, dy = a.pos.y - b.pos.y, dz = a.pos.z - b.pos.z;
       if (dx * dx + dy * dy + dz * dz < lim * lim) { a.dead = true; eaten.push([a, b]); break; }
@@ -1908,7 +1714,7 @@ function updateFood() {
   foodMat.uniforms.uBoost.value += (1 + .1 * clamp(foodLevel, 0, 8) - foodMat.uniforms.uBoost.value) * Math.min(1, DT * 3); foodMat.uniforms.uFarK2.value = clamp((zoom - 2.5) / 5, 0, 1); foodMat.uniforms.uFarK.value = clamp(Math.log(Math.max(1, zoom)) / Math.log(Math.max(2, zoomMax)), 0, 1); foodMat.uniforms.uCamD.value = Math.max(1, camera.position.distanceTo(mainCell ? mainCell.pos : camera.position)); foodMat.uniforms.uFar.value = V; foodMat.uniforms.uPix.value = 2 * Math.tan(camera.fov * Math.PI / 360) / renderer.domElement.height * renderer.getPixelRatio();   // world size of one CSS pixel at distance 1
   // growth budget: the most mass orbs can add per second, growing slower than you do (so growth never runs away);
   // GROWTH ×4 quadruples it. It banks ~1.5 s so a lone orb still counts in full.
-  const gRate = (1.06 * Math.pow(tm, .7) + 4.8) * (now < PU.roidsUntil ? PU.mult : 1) * massBoost();
+  const gRate = (1.06 * Math.pow(tm, .7) + 4.8) * (now < PU.roidsUntil ? PU.mult : 1);
   me.allow = Math.min((me.allow || 0) + gRate * DT, gRate * 1.5 + 4);
   botGrid.clear();
   for (const e of entities.values()) if (e.local && e !== me && !e.lev) for (const bc of e.cells) if (ownDistJS(bc.pos) < V + bc.r) {
@@ -1937,8 +1743,8 @@ function updateFood() {
     }
     if (hit) {
       if (hd < hit.r + s * .5) {   // touched by any of your balls = eaten, always
-        const g0 = Math.min(foodVal[i] * valK * 4.8, hit.mass * .2 + 2) * (now < PU.roidsUntil ? PU.mult : 1) * massBoost(); const gain = Math.max(0, Math.min(g0, me.allow)); me.allow -= gain;   // ≤ ~20–35% per orb when tiny
-        hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; stats.orbs++; lastCell = hit;
+        const g0 = Math.min(foodVal[i] * valK * 4.8, hit.mass * .2 + 2) * (now < PU.roidsUntil ? PU.mult : 1); const gain = Math.max(0, Math.min(g0, me.allow)); me.allow -= gain;   // ≤ ~20–35% per orb when tiny
+        hit.mass += gain; hit.pulse = Math.max(hit.pulse, .35); ate++; lastCell = hit;
         foodColor.setHSL(((foodHue[i] % 1) + 1) % 1, 1, .6);
         burst(x, y, z, foodColor, foodVal[i] > 12 ? 10 : 4, hit, 30 * sc + hit.r * .6, .9 * sc);
         eatPellet(i); arr[o] = arr[o + 5] = arr[o + 10] = 0; continue;
@@ -2140,7 +1946,7 @@ function joinLobby(n) {
   try { net.room?.leave(); } catch { }
   for (const p of [...net.peers]) dropPeer(p);
   net.lobby = n; net.status = 'online';
-  const room = net.mod.joinRoom({ appId: CFG.APP_ID }, GM.party ? 'party-' + GM.party : (GM.mode === 'ffa' ? 'lobby-' : GM.mode + '-lobby-') + n);
+  const room = net.mod.joinRoom({ appId: CFG.APP_ID }, 'lobby-' + n);
   net.room = room;
   act = { state: mkAction(room, 'state'), eat: mkAction(room, 'eat'), hit: mkAction(room, 'hit'), win: mkAction(room, 'win'), chat: mkAction(room, 'chat') };
   act.chat.on((d, pid) => {
@@ -2850,7 +2656,7 @@ function startGame() {
   sfx('tier');
   dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
   spawnMe(name, chosenHue);   // every Play (first game or after dying) opens with the zoom-in intro
-  gatherBots(); ensureSnacks(); setupMode();
+  gatherBots(); ensureSnacks();
   deathCam = null; attractTarget = null;
   home.classList.add('hidden'); death.classList.add('hidden'); hud.classList.remove('hidden');
   if (IS_TOUCH) { touchUI.classList.remove('hidden'); document.body.classList.add('touch'); }
@@ -2871,9 +2677,7 @@ function onDeath() {
   document.exitPointerLock?.(); touchUI.classList.add('hidden');
   setTimeout(() => {
     hud.classList.add('hidden');
-    document.querySelector('#death h2').textContent = GM.win ? 'VICTORY!' : 'DEVOURED';
-    $('deathBy').textContent = GM.win ? 'You outlasted the Battle Royale zone' : stats.killer ? `Swallowed whole by ${stats.killer}` : 'You were absorbed';
-    awardGame(secs); resetModes();
+    $('deathBy').textContent = stats.killer ? `Swallowed whole by ${stats.killer}` : 'You were absorbed';
     $('dPeak').textContent = fmt(stats.peak); $('dTier').textContent = TIERS[stats.peakTier][1];
     $('dEaten').textContent = stats.eaten; $('dTime').textContent = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
     const url = location.href.split(/[?#]/)[0];
@@ -2884,7 +2688,7 @@ function onDeath() {
 }
 $('play').addEventListener('click', startGame);
 $('again').addEventListener('click', startGame);
-$('toHome').addEventListener('click', () => { death.classList.add('hidden'); home.classList.remove('hidden'); renderMenu(); });
+$('toHome').addEventListener('click', () => { death.classList.add('hidden'); home.classList.remove('hidden'); });
 // swatches
 { const hues = [.52, .6, .72, .83, .93, .02, .09, .15, .3, .42]; const wrap = $('swatches');
   try { const h = parseFloat(localStorage.getItem('orb_hue')); if (isFinite(h)) chosenHue = h; $('name').value = localStorage.getItem('orb_name') || '';  } catch { }
@@ -2899,219 +2703,12 @@ if (/ko-fi\.com\/?$/.test(CFG.DONATE_URL)) { $('donate').classList.add('hidden')
 if (params.has('og')) document.body.classList.add('og');
 if (params.has('clean')) document.body.classList.add('clean');
 if (IS_TOUCH) $('optMouseRow').style.display = 'none';
-if (IS_TOUCH) document.querySelector('#pMain .howto').innerHTML = 'Drag to steer your planet<br>Tap <b>SPLIT</b> to attack and <b>SPIT</b> to shoot out mass';
+if (IS_TOUCH) $('keysHelp').innerHTML = 'Touch anywhere to steer · <b>SPLIT</b> to attack · <b>SPIT</b> to shoot out mass' + (NO_CHAT ? '' : ' · <b>CHAT</b> to talk');
 if (NO_CHAT) { $('tChat').style.display = 'none'; $('optChat').parentElement.style.display = 'none'; }
 
 /* ============================== MAIN LOOP ============================== */
 let last = performance.now();
 const PROF = { sim: 0, food: 0, vis: 0, render: 0, n: 0 };
-/* ============================== MAIN MENU: profile, coins, quests, shop, modes, party ============================== */
-// Everything here is saved on this device (no accounts yet). Coins, gems and potions are earned by playing, never sold.
-const SKINS = [
-  { d: -1, n: 'Random world', p: 0, bg: 'conic-gradient(#ff5a5a,#ffd23a,#54c800,#3fa9ff,#b06bff,#ff5a5a)' },
-  { d: 0, n: 'Moon', p: 0, bg: 'radial-gradient(circle at 35% 35%,#d8d4cc,#8a8580 60%,#4a4744)' },
-  { d: 1, n: 'Terra', p: 150, bg: 'radial-gradient(circle at 40% 40%,#4caf50 0 22%,#1e5fa8 23% 60%,#0b2c5c)' },
-  { d: 2, n: 'Mars', p: 150, bg: 'radial-gradient(circle at 35% 35%,#f0a070,#b8461c 60%,#5a1e08)' },
-  { d: 3, n: 'Jupiter', p: 300, bg: 'repeating-linear-gradient(0deg,#d9b48a 0 9px,#a8643a 9px 15px,#efe0c8 15px 22px)' },
-  { d: 4, n: 'Saturn', p: 400, bg: 'repeating-linear-gradient(0deg,#e8d29a 0 10px,#c4a56a 10px 16px)' },
-  { d: 5, n: 'Neptune', p: 300, bg: 'radial-gradient(circle at 35% 35%,#8ec5ff,#2a5fd8 60%,#0d2470)' },
-  { d: 6, n: 'Inferno', p: 500, bg: 'radial-gradient(circle at 40% 40%,#ffb340 0 10%,#2a1612 30%),repeating-conic-gradient(#ff5a10 0 4deg,#2a1612 4deg 26deg)' },
-  { d: 7, n: 'Sun', p: 800, bg: 'radial-gradient(circle at 40% 40%,#fff6c0,#ffc23a 50%,#ff7a10)' },
-  { d: 8, n: 'Europa', p: 250, bg: 'radial-gradient(circle at 40% 40%,#fbfbff,#d9d4cc 60%,#a08a7a)' },
-  { d: 9, n: 'Venus', p: 250, bg: 'radial-gradient(circle at 40% 40%,#fff2c4,#e0b860 60%,#a07a30)' },
-];
-const POTIONS = [{ k: 'xp', n: '3X XP', ico: '★', c: '#ffb400' }, { k: 'mass', n: '3X Mass', ico: 'Ⓜ', c: '#2fa8ff' }];
-const ACCT = (() => {
-  const d = { coins: 100, gems: 20, xp: 0, level: 1, skin: -1, owned: [-1, 0], potions: [null, null, null], boostXp: 0, boostMass: 0, freeAt: 0, giftAt: 0, runs: [], quests: null, mode: 'ffa', mobileReward: false };
-  try { return Object.assign(d, JSON.parse(localStorage.getItem('ga_profile') || '{}')); } catch { return d; }
-})();
-const saveProf = () => { try { localStorage.setItem('ga_profile', JSON.stringify(ACCT)); } catch { } };
-const xpNeed = l => Math.round(50 * Math.pow(l, 1.35));
-const massBoost = () => Date.now() < ACCT.boostMass ? 3 : 1;
-const dayKey = () => new Date().toDateString();
-function questsToday() {
-  if (!ACCT.quests || ACCT.quests.day !== dayKey()) ACCT.quests = { day: dayKey(), list: [
-    { id: 'orbs', t: 'Eat 300 orbs', goal: 300, v: 0, r: 'coins', amt: 60, done: false },
-    { id: 'mass', t: 'Reach 5,000 mass in one life', goal: 5000, v: 0, r: 'potion', amt: 1, done: false },
-    { id: 'kills', t: 'Eat 3 players', goal: 3, v: 0, r: 'gems', amt: 3, done: false }] };
-  return ACCT.quests.list;
-}
-function mtoast(t, col) { const el = $('mtoast'); el.textContent = t; el.style.background = col || '#54c800'; el.classList.add('on'); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => el.classList.remove('on'), 2600); }
-function givePotion() { const i = ACCT.potions.indexOf(null); if (i < 0) return false; ACCT.potions[i] = POTIONS[Math.random() < .5 ? 0 : 1].k; return true; }
-function hhmmss(ms) { ms = Math.max(0, ms); const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m ${String(s % 60).padStart(2, '0')}s`; }
-function renderMenu() {
-  $('coins').textContent = fmt(ACCT.coins); $('gems').textContent = fmt(ACCT.gems);
-  const need = xpNeed(ACCT.level); $('xpTxt').textContent = `${fmt(ACCT.xp)}/${fmt(need)} XP`; $('xpFill').style.width = Math.min(100, ACCT.xp / need * 100) + '%'; $('lvl').textContent = ACCT.level;
-  const nm = cleanName($('name').value); $('pName').textContent = nm || 'Guest';
-  $('bXp').classList.toggle('on', Date.now() < ACCT.boostXp); $('bMs').classList.toggle('on', Date.now() < ACCT.boostMass);
-  const sk = SKINS.find(s => s.d === ACCT.skin) || SKINS[0]; $('skinPrev').style.background = sk.bg; $('avatar').style.background = ACCT.skin === -1 ? '' : sk.bg;
-  $('slots').innerHTML = ACCT.potions.map((p, i) => { const P = POTIONS.find(x => x.k === p);
-    return P ? `<div class="slot full" data-act="drink" data-i="${i}"><div class="pot" style="color:${P.c}">⚗</div>${P.n}<br><small>tap to drink</small></div>` : `<div class="slot">Empty<br>Slot</div>`; }).join('')
-    + `</div><div class="slotbtns" style="grid-column:1/-1">${ACCT.potions.map((p, i) => `<button data-act="getpot" data-i="${i}">Get Potions</button>`).join('')}`;
-  document.querySelectorAll('.mode').forEach(m => m.classList.toggle('on', m.dataset.mode === ACCT.mode));
-  $('partyTxt').textContent = GM.party ? `In party ${GM.party} · share the link with friends` : 'Play with your friends in the same arena';
-  $('play').textContent = GM.party ? `Play · party ${GM.party}` : 'Play';
-}
-setInterval(() => { const t = new Date(); t.setHours(24, 0, 0, 0); const el = document.getElementById('evTimer'); if (el) el.textContent = hhmmss(t - Date.now()); }, 1000);
-function openModal(html) { $('mbody').innerHTML = html; $('modal').classList.remove('hidden'); }
-function closeModal() { $('modal').classList.add('hidden'); }
-const MENU = {
-  close: closeModal,
-  shop(tab) {
-    openModal(`<h3>Shop</h3><p style="margin:-4px 0 12px;color:#888">Worlds cost coins. Coins and gems are earned by playing — nothing here is sold for money.</p><div class="grid3">${SKINS.map(s => {
-      const own = ACCT.owned.includes(s.d), eq = ACCT.skin === s.d;
-      return `<div class="item ${eq ? 'eq' : ''}"><div class="ball" style="background:${s.bg}"></div><b>${s.n}</b><br><small>${own ? (eq ? 'Equipped' : 'Owned') : fmt(s.p) + ' coins'}</small><br><button class="g" data-act="${own ? 'equip' : 'buy'}" data-d="${s.d}" ${eq ? 'disabled' : ''}>${own ? (eq ? '✓' : 'Equip') : 'Buy'}</button></div>`; }).join('')}</div>`);
-  },
-  'shop-coins'() { this.shop(); }, 'shop-gems'() { this.shop(); }, skins() { this.shop(); },
-  buy(el) { const s = SKINS.find(x => x.d === +el.dataset.d); if (ACCT.coins < s.p) return mtoast(`You need ${fmt(s.p - ACCT.coins)} more coins`, '#e8433a'); ACCT.coins -= s.p; ACCT.owned.push(s.d); ACCT.skin = s.d; saveProf(); renderMenu(); this.shop(); mtoast(`${s.n} unlocked and equipped`); },
-  equip(el) { ACCT.skin = +el.dataset.d; saveProf(); renderMenu(); this.shop(); },
-  leaders() {
-    const rows = [...ACCT.runs].sort((a, b) => b.m - a.m).slice(0, 10);
-    openModal(`<h3>Leaderboards</h3><p style="margin:-4px 0 12px;color:#888">Your best runs on this device.</p>${rows.length ? `<table><tr><th>#</th><th>Name</th><th>Mass</th><th>Mode</th><th>Date</th></tr>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(r.n)}</td><td>${fmt(r.m)}</td><td>${modeName(r.md)}</td><td>${new Date(r.t).toLocaleDateString()}</td></tr>`).join('')}</table>` : '<p>No runs yet — press Play.</p>'}`);
-  },
-  quests() {
-    const L = questsToday(), t = new Date(); t.setHours(24, 0, 0, 0);
-    openModal(`<h3>Daily Quests</h3><p style="margin:-4px 0 8px;color:#888">New quests in ${hhmmss(t - Date.now())}.</p>${L.map((q, i) => `<div class="q"><div style="width:200px"><b>${q.t}</b><br><small>Reward: ${q.r === 'potion' ? 'a potion' : q.amt + ' ' + q.r}</small></div><div class="bar"><i style="width:${Math.min(100, q.v / q.goal * 100)}%"></i></div><button class="g" data-act="claim" data-i="${i}" ${q.v < q.goal || q.done ? 'disabled' : ''}>${q.done ? 'Claimed' : 'Claim'}</button></div>`).join('')}`);
-  },
-  claim(el) { const q = questsToday()[+el.dataset.i]; if (q.done || q.v < q.goal) return; if (q.r === 'potion' && !givePotion()) return mtoast('Your potion slots are full — drink one first', '#e8433a');
-    if (q.r === 'coins') ACCT.coins += q.amt; if (q.r === 'gems') ACCT.gems += q.amt; q.done = true; saveProf(); renderMenu(); this.quests(); mtoast('Quest reward claimed'); },
-  gifts() {
-    const left = ACCT.giftAt + 864e5 - Date.now();
-    openModal(`<h3>Gifts</h3><p>A free gift every 24 hours: <b>100 coins + 2 gems</b>.</p><button class="g" data-act="opengift" ${left > 0 ? 'disabled' : ''}>${left > 0 ? 'Next gift in ' + hhmmss(left) : 'Open gift'}</button>`);
-  },
-  opengift() { if (ACCT.giftAt + 864e5 > Date.now()) return; ACCT.giftAt = Date.now(); ACCT.coins += 100; ACCT.gems += 2; saveProf(); renderMenu(); this.gifts(); mtoast('+100 coins, +2 gems'); },
-  freecoins() { const left = ACCT.freeAt + 36e5 - Date.now(); if (left > 0) return mtoast(`More free coins in ${hhmmss(left)}`, '#2fa8ff'); ACCT.freeAt = Date.now(); ACCT.coins += 25; saveProf(); renderMenu(); mtoast('+25 free coins'); },
-  getpot(el) { const i = +el.dataset.i; if (ACCT.potions[i]) return mtoast('That slot already has a potion — tap it to drink', '#2fa8ff'); if (ACCT.gems < 2) return mtoast('A potion costs 2 gems', '#e8433a');
-    ACCT.gems -= 2; ACCT.potions[i] = POTIONS[Math.random() < .5 ? 0 : 1].k; saveProf(); renderMenu(); mtoast('New potion!'); },
-  drink(el) { const i = +el.dataset.i, p = ACCT.potions[i]; if (!p) return; ACCT.potions[i] = null; const until = Math.max(Date.now(), p === 'xp' ? ACCT.boostXp : ACCT.boostMass) + 36e5;
-    if (p === 'xp') ACCT.boostXp = until; else ACCT.boostMass = until; saveProf(); renderMenu(); mtoast(p === 'xp' ? '3X XP for 1 hour' : '3X mass gain for 1 hour', '#2fa8ff'); },
-  potions() { openModal(`<h3>Boosts</h3><p><b style="color:#ffb400">★ 3X XP</b> triples the XP you earn. <b style="color:#2fa8ff">Ⓜ 3X Mass</b> triples how fast orbs grow you.</p><p>Get potions from the slots under Shop (2 gems each) or from Daily Quests, then tap a potion to drink it. Each lasts 1 hour of real time.</p>${Date.now() < ACCT.boostXp ? `<p>3X XP active: ${hhmmss(ACCT.boostXp - Date.now())} left</p>` : ''}${Date.now() < ACCT.boostMass ? `<p>3X Mass active: ${hhmmss(ACCT.boostMass - Date.now())} left</p>` : ''}`); },
-  help() { this.potions(); },
-  settings() {
-    openModal(`<h3>Settings</h3><label><input type="checkbox" id="sChat" ${$('optChat').checked ? 'checked' : ''}> Player chat</label><label><input type="checkbox" id="sMouse" ${$('optMouse').checked ? 'checked' : ''}> Mouse steering</label><label><input type="checkbox" id="sStats"> Show FPS (F3)</label><p style="color:#888;font-size:13px">Controls: mouse or arrow keys steer · W / S zoom · Space split · F spit · Shift brake · C look back · V lock view · I help.</p><button class="g" style="background:#e8433a" data-act="reset">Reset all progress</button>`);
-    $('sChat').onchange = e => { $('optChat').checked = e.target.checked; opts.chat = e.target.checked; };
-    $('sMouse').onchange = e => { $('optMouse').checked = e.target.checked; opts.mouse = e.target.checked; };
-    $('sStats').onchange = () => dispatchEvent(new KeyboardEvent('keydown', { code: 'F3' }));
-  },
-  reset() { if (!confirm('Erase coins, XP, skins and potions on this device?')) return; try { localStorage.removeItem('ga_profile'); } catch { } location.reload(); },
-  signin() { openModal(`<h3>Sign in</h3><p>Accounts are coming soon. Until then your coins, XP, worlds and potions are saved on this device.</p>`); },
-  party() {
-    const code = GM.party || Math.random().toString(36).slice(2, 7).toUpperCase(); setParty(code);
-    const link = location.href.split(/[?#]/)[0] + '?party=' + code;
-    openModal(`<h3>Party ${code}</h3><p>Friends who open this link (or enter the code under Join) land in your arena.</p><input type="text" readonly value="${link}" id="pLink"><p><button class="g bl" data-act="copylink">Copy link</button> <button class="g" data-act="leaveparty" style="background:#999">Leave party</button></p>`);
-  },
-  copylink() { const el = $('pLink'); el.select(); navigator.clipboard?.writeText(el.value).then(() => mtoast('Link copied')).catch(() => document.execCommand('copy')); },
-  join() { openModal(`<h3>Join a party</h3><input type="text" id="pCode" maxlength="8" placeholder="Party code"><p><button class="g" data-act="dojoin">Join</button></p>`); setTimeout(() => $('pCode').focus(), 50); },
-  dojoin() { const c = ($('pCode').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length < 3) return mtoast('Enter the party code', '#e8433a'); setParty(c); closeModal(); mtoast('Joined party ' + c); },
-  leaveparty() { setParty(''); closeModal(); },
-  modes() { document.getElementById('pModes').scrollIntoView({ behavior: 'smooth', block: 'center' }); },
-};
-const modeName = m => ({ ffa: 'FFA', br: 'Battle Royale', teams: 'Teams', exp: 'Experimental' })[m] || 'FFA';
-function setParty(code) { GM.party = code; try { history.replaceState(null, '', location.pathname + (code ? '?party=' + code : '')); } catch { } renderMenu(); if (net.mod) joinLobby(1); }
-function setMode(m) { ACCT.mode = m; GM.mode = m; saveProf(); renderMenu(); if (net.mod && !GM.party) joinLobby(1); mtoast(modeName(m) + ' selected', '#ff4b5c'); }
-document.addEventListener('click', e => {
-  const m = e.target.closest('[data-mode]'); if (m && m.closest('#home')) return setMode(m.dataset.mode);
-  const a = e.target.closest('[data-act]'); if (!a || !(a.closest('#home') || a.closest('#modal'))) return;
-  const f = MENU[a.dataset.act]; if (f) { e.preventDefault(); f.call(MENU, a); }
-});
-$('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-$('lgPriv').addEventListener('click', () => MENU.settings());
-$('name').addEventListener('input', renderMenu);
-$('appStore').href = 'support.html';
-// the iPhone app's welcome gift (the menu panel promises it)
-if (window.webkit?.messageHandlers?.haptic && !ACCT.mobileReward) { ACCT.mobileReward = true; ACCT.coins += 250; ACCT.boostMass = Math.max(Date.now(), ACCT.boostMass) + 36e5; saveProf(); setTimeout(() => mtoast('Welcome gift: 250 coins + 1 hour of 3X mass'), 1500); }
-{ const q = new URLSearchParams(location.search).get('party'); if (q) GM.party = q.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); }
-GM.mode = ACCT.mode;
-{ const qm = new URLSearchParams(location.search).get('mode'); if (['ffa', 'br', 'teams', 'exp'].includes(qm)) GM.mode = ACCT.mode = qm; }   // (test hook)
-renderMenu();
-// pick a world key whose design matches the equipped skin, so every player in the lobby sees the same world
-function pickLookKey() { for (let i = 0; i < 400; i++) { const k = short() + Math.random().toString(36).slice(2, 8); if (ACCT.skin < 0 || strHash(k) % 10 === ACCT.skin) return k; } return short(); }
-// after a life: XP, coins, quest progress and a local leaderboard entry
-function awardGame(secs) {
-  const xp = Math.round((Math.sqrt(stats.peak) * 2 + stats.eaten * 6 + (stats.orbs || 0) * .08 + secs * .2) * (Date.now() < ACCT.boostXp ? 3 : 1) * (GM.win ? 2 : 1));
-  const coins = Math.round(Math.pow(stats.peak, .35) + stats.eaten * 2 + 5) + (GM.win ? 200 : 0);
-  ACCT.xp += xp; ACCT.coins += coins; let lv = false;
-  while (ACCT.xp >= xpNeed(ACCT.level)) { ACCT.xp -= xpNeed(ACCT.level); ACCT.level++; ACCT.gems += 2; lv = true; }
-  const L = questsToday(); L[0].v = Math.min(L[0].goal, L[0].v + (stats.orbs || 0)); L[1].v = Math.max(L[1].v, Math.min(L[1].goal, Math.round(stats.peak))); L[2].v = Math.min(L[2].goal, L[2].v + stats.eaten);
-  ACCT.runs.push({ n: me ? me.name : 'Guest', m: Math.round(stats.peak), md: GM.mode, t: Date.now() }); ACCT.runs = ACCT.runs.sort((a, b) => b.m - a.m).slice(0, 25);
-  saveProf(); renderMenu();
-  setTimeout(() => mtoast(`+${fmt(xp)} XP · +${fmt(coins)} coins${lv ? ' · LEVEL UP!' : ''}`), 300);
-}
-
-/* ============================== GAME MODES ============================== */
-// FFA: the classic. Battle Royale: a shrinking zone burns anyone outside it; outlast it to win. Teams: three colours, team-mates
-// can't eat each other. Experimental: spiky virus mines that burst anything bigger into pieces (feed one 5 spits and it splits).
-const TEAM_COL = ['#ff4b5c', '#54c800', '#2fa8ff'], TEAM_NAME = ['RED', 'GREEN', 'BLUE'];
-function teamOf(e) { if (GM.mode !== 'teams' || !e) return -1; return strHash(String(e.kind === 'me' ? net.selfId : e.kind === 'remote' ? e.owner : e.id)) % 3; }
-const sameTeam = (a, b) => GM.mode === 'teams' && teamOf(a) === teamOf(b);
-const VIRUS_GEO = (() => { const g = new THREE.IcosahedronGeometry(1, 3), p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) { const v = new V3().fromBufferAttribute(p, i).normalize(), sp = .82 + .3 * Math.pow(Math.max(0, Math.sin(v.x * 9) * Math.sin(v.y * 9) * Math.sin(v.z * 9)), .5); p.setXYZ(i, v.x * sp, v.y * sp, v.z * sp); }
-  g.computeVertexNormals(); return g; })();
-const VIRUS_MAT = new THREE.ShaderMaterial({ transparent: true, uniforms: { uTime: U.time },
-  vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vec4 w = modelMatrix*vec4(position,1.); vN = normalize(mat3(modelMatrix)*normal); vV = normalize(cameraPosition - w.xyz); gl_Position = projectionMatrix*viewMatrix*w; }`,
-  fragmentShader: `uniform float uTime; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1. - max(dot(vN, vV), 0.), 2.); float l = .45 + .55*max(dot(vN, normalize(vec3(.5,.9,.3))), 0.);
-    gl_FragColor = vec4(vec3(.15,.95,.35)*l + vec3(.6,1.,.6)*f*.8, .92); }` });
-const zoneMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, uniforms: { uTime: U.time },
-  vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-  fragmentShader: `uniform float uTime; varying vec3 vP; void main(){ vec3 n = normalize(vP); vec2 g = vec2(atan(n.z,n.x)*12./3.14159, asin(n.y)*12./3.14159);
-    vec2 a = abs(fract(g + vec2(uTime*.05, 0.)) - .5)/fwidth(g); float line = 1. - min(min(a.x,a.y),1.); gl_FragColor = vec4(vec3(1.,.38,.12)*line*.45, 1.); }` });
-function resetModes() {
-  if (GM.zone) { scene.remove(GM.zone.mesh); GM.zone = null; }
-  for (const v of GM.viruses) scene.remove(v.mesh); GM.viruses.length = 0; GM.win = false;
-  const h = document.getElementById('modeHud'); if (h) h.innerHTML = '';
-}
-function setupMode() {
-  resetModes(); if (!mainCell) return;
-  if (GM.mode === 'br') { const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 40), zoneMat); mesh.frustumCulled = false; mesh.renderOrder = 4; scene.add(mesh);
-    GM.zone = { c: mainCell.pos.clone().addScaledVector(randUnit(new V3()), 8000), R0: 70000, R1: 900, T: 240, t: 0, mesh }; }
-  if (GM.mode === 'teams') setTimeout(() => mtoast(`You are on team ${TEAM_NAME[teamOf(me)]}`, TEAM_COL[teamOf(me)]), 600);
-}
-function spawnVirus() {
-  const R = viewRadius(myR()) * Math.max(1, zoom), p = mainCell.pos.clone().addScaledVector(randUnit(new V3()), R * (1.2 + Math.random() * 2.6));
-  if (p.length() > ARENA * .95) p.setLength(ARENA * .9);
-  const r = Math.max(16, myR() * .55), mesh = new THREE.Mesh(VIRUS_GEO, VIRUS_MAT); mesh.position.copy(p); mesh.scale.setScalar(r); scene.add(mesh);
-  GM.viruses.push({ pos: p, r, mesh, feeds: 0, spin: Math.random() * 2 - 1 });
-}
-function updateModes() {
-  if (!playing || !me || !mainCell) return;
-  const hud = document.getElementById('modeHud');
-  if (GM.mode === 'br' && GM.zone) {
-    const Z = GM.zone; if (!intro) Z.t += DT; const k = Math.min(1, Z.t / Z.T), R = Z.R1 + (Z.R0 - Z.R1) * Math.pow(1 - k, 1.4);
-    Z.mesh.position.copy(Z.c); Z.mesh.scale.setScalar(R);
-    for (const e of entities.values()) if (e.local) for (const c of [...e.cells]) if (c.pos.distanceTo(Z.c) > R) {
-      c.mass *= Math.exp(-.3 * DT); c.r = rad(c.mass);
-      if (c.mass < 10) { removeCell(c); if (e === me && !me.cells.length) stats.killer = 'the Zone'; }
-    }
-    const out = mainCell.pos.distanceTo(Z.c) > R, left = Math.max(0, Z.T - Z.t);
-    if (hud) hud.innerHTML = `BATTLE ROYALE · zone closes in ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}${out ? ' · <span style="color:#ff6a3a">OUTSIDE THE ZONE — get back in!</span>' : ''}`;
-    if (k >= 1 && me.cells.length) { GM.win = true; for (const c of [...me.cells]) removeCell(c); stats.killer = ''; }
-  }
-  if (GM.mode === 'teams') {
-    const tot = [0, 0, 0]; for (const e of entities.values()) { const t = teamOf(e); if (t >= 0 && e.kind !== 'snack') tot[t] += e.mass; for (const c of e.cells) if (c.label && c.teamTint !== t) { c.teamTint = t; c.label.material.color.set(t >= 0 ? TEAM_COL[t] : '#fff'); } }
-    const sum = tot[0] + tot[1] + tot[2] || 1;
-    if (hud) hud.innerHTML = `TEAMS · you are <span style="color:${TEAM_COL[teamOf(me)]}">${TEAM_NAME[teamOf(me)]}</span><div class="tb">${tot.map((v, i) => `<i style="width:${v / sum * 100}%;background:${TEAM_COL[i]}"></i>`).join('')}</div>`;
-  }
-  if (GM.mode === 'exp') {
-    const want = 40, V = viewRadius(myR()) * Math.max(1, zoom);
-    while (GM.viruses.length < want) spawnVirus();
-    for (let i = GM.viruses.length - 1; i >= 0; i--) {
-      const v = GM.viruses[i]; v.mesh.rotation.y += DT * .3 * v.spin;
-      if (v.pos.distanceTo(mainCell.pos) > V * 6) { scene.remove(v.mesh); GM.viruses.splice(i, 1); continue; }   // left far behind: a new one appears ahead, out of sight
-      let gone = false;
-      for (const e of entities.values()) { if (!e.local || gone) continue; for (const c of [...e.cells]) if (c.r > v.r * 1.15 && c.pos.distanceTo(v.pos) < c.r - v.r * .3) { if (popCell(e, c)) { gone = true; if (e === me) mtoast('POP! A virus burst you apart', '#33d17a'); } break; } }
-      for (let j = blobs.length - 1; j >= 0 && !gone; j--) { const b = blobs[j]; if (b.pos.distanceTo(v.pos) < v.r + 4) {
-        scene.remove(b.mesh); b.mesh.material.dispose(); blobs.splice(j, 1);
-        if (++v.feeds >= 5) { v.feeds = 0; const n = v.pos.clone().addScaledVector(b.vel.clone().normalize(), v.r * 7); const mesh = new THREE.Mesh(VIRUS_GEO, VIRUS_MAT); mesh.position.copy(n); mesh.scale.setScalar(v.r); scene.add(mesh); GM.viruses.push({ pos: n, r: v.r, mesh, feeds: 0, spin: 1, vel: b.vel.clone().normalize().multiplyScalar(v.r * 4) }); }
-      } }
-      if (v.vel) { v.pos.addScaledVector(v.vel, DT); v.vel.multiplyScalar(Math.exp(-2 * DT)); v.mesh.position.copy(v.pos); }
-      if (gone) { scene.remove(v.mesh); GM.viruses.splice(i, 1); }
-    }
-    if (hud) hud.innerHTML = 'EXPERIMENTAL · green virus mines burst anything bigger · feed one 5 spits to split it';
-  }
-  if (GM.mode === 'ffa' && hud) hud.innerHTML = GM.party ? `PARTY ${GM.party}` : '';
-}
-
-if ($('donate').classList.contains('hidden')) document.querySelector('#pAd .ad300').innerHTML = '<div class="adtag">GALAXY ARENA</div><div class="adbig dark">Bring<br>your crew.</div><div class="adsmall">Start a party and everyone with the link drops into the same arena.</div><button class="adbtn" data-act="party">Start a party</button>';
 function frame(t) {
   requestAnimationFrame(frame);
   // never let time run backwards
@@ -3119,7 +2716,7 @@ function frame(t) {
   let p0 = performance.now();
   if (playing && me) handleInput();
   for (const e of entities.values()) if (e.local) { if (e.kind === 'snack') { botThink(e); e.throttle *= .85; if (!e.cells.length) continue; } if (e.kind === 'bot') { botThink(e); if (e.cells.length === 0) continue; if (playing && ROCKETS_ON) botFire(e); e.cells.forEach(c => { if (!e.lev && c.mass < 1500) c.mass += DT * 2.5; }); } moveEntity(e); }
-  interactions(); updateModes();
+  interactions();
   let p1 = performance.now(); PROF.sim += p1 - p0;
   if (playing && me) {
     pickMain(); updateFood(); updatePickups(); checkWin();
