@@ -248,7 +248,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
   <div id="toast"></div>
   <div id="combo"></div>
   <div id="boostTip" class="glass hidden">⚡ Hold <kbd>SHIFT</kbd> for NITRO boost</div>
-  <div id="hint" class="glass"><b style="color:#ff7a3c;font-size:14px;margin-right:6px">ⓘ</b><kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back · <kbd>V</kbd> lock view</div>
+  <div id="hint" class="glass"><b style="color:#ff7a3c;font-size:14px;margin-right:6px">ⓘ</b><kbd>Mouse</kbd>/<kbd>WASD</kbd>/<kbd>Arrows</kbd> steer · <kbd>Space</kbd> split · <kbd>F</kbd> spit mass · <kbd>Wheel</kbd> zoom · <kbd>C</kbd> look back · <kbd>V</kbd> lock view · <kbd>Shift</kbd> brake</div>
   <input id="chatIn" class="hidden" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something… (Enter to send · Esc to cancel)">
 </div>
 
@@ -292,7 +292,7 @@ body.og .logo{font-size:150px} body.og .tag{font-size:26px} body.clean #home{dis
 </div>
 
 <script>
-(function () { var BUILD = '202610150200'; if (location.protocol.indexOf('http') !== 0) return;
+(function () { var BUILD = '202610150300'; if (location.protocol.indexOf('http') !== 0) return;
   fetch('version.txt?' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
     v = v.trim(); if (v && v !== BUILD && sessionStorage.getItem('amar_reloaded') !== v) { sessionStorage.setItem('amar_reloaded', v); location.replace(location.pathname + '?v=' + v + location.hash); }
   }).catch(function () {}); })();
@@ -365,7 +365,7 @@ const filterChat = t => t.replace(BAD_WORDS, w => w[0] + '*'.repeat(Math.max(1, 
 const NO_CHAT = true;   // the iOS app ships without player chat (App Store guideline 1.2)
 const cleanName = s => filterChat(String(s ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').trim().slice(0, 16));
 const hueColor = (h, s = .9, l = .55) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l);
-function galRng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const TIERS = [[0, 'MICROBE'], [60, 'CELL'], [300, 'ORGANISM'], [1500, 'BEHEMOTH'], [5000, 'TITAN'], [20000, 'COLOSSUS'], [60000, 'CELESTIAL'], [105000, 'WORLD-EATER'], [300000, 'PLANET'], [900000, 'STAR'], [1600000, 'CAGE-FILLER']];
 const tierOf = m => { let t = TIERS[0][1]; for (const [k, n] of TIERS) if (m >= k) t = n; return t; };
 const tierIdx = m => { let i = 0; TIERS.forEach(([k], j) => { if (m >= k) i = j; }); return i; };
@@ -625,44 +625,29 @@ function updateWakes() {
 /* ---- sky ---- */
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, depthTest: false,
-  uniforms: { uTime: U.time, uDim: { value: 1 }, uGC: { value: new V3(1, 0, 0) } },
+  uniforms: { uTime: U.time, uDim: { value: 1 } },
   vertexShader: `varying vec3 vD; void main(){ vD = position; vec4 p = projectionMatrix*vec4(mat3(viewMatrix)*position,1.); gl_Position = p.xyww; }`,
-  fragmentShader: `uniform float uTime; uniform float uDim; uniform vec3 uGC; varying vec3 vD; ${NOISE}
-  float h13(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); }
-  vec3 starTint(float t){ return t < .12 ? vec3(1.,.62,.42) : t < .3 ? vec3(1.,.84,.66) : t < .7 ? vec3(1.,.97,.93) : vec3(.72,.82,1.); }
+  fragmentShader: `uniform float uTime; uniform float uDim; varying vec3 vD; ${NOISE}
   void main(){
     vec3 d = normalize(vD);
-    // the Milky Way seen from inside it: a band of unresolved starlight along the galactic plane, brightest and warmest toward the
-    // core, split down its middle by dark dust, with faint pink star-forming glow. Built from fine-grained noise so it reads as
-    // countless stars, not fog.
-    float lat = d.y, band = exp(-lat*lat/.010), wide = exp(-lat*lat/.07), toC = max(0., dot(d, uGC));
-    float bulge = pow(toC, 5.)*exp(-lat*lat/.035);
-    float dust = smoothstep(.44, .66, fbm(d*vec3(5.,22.,5.) + 3.))*exp(-lat*lat/.005) + smoothstep(.5, .7, fbm(d*9. + 17.))*band*.5;
-    float grain = fbm(d*70.)*.5 + fbm(d*190.)*.5;
-    float mw = (band*.75 + wide*.22 + bulge*1.6)*(.35 + 1.1*grain*grain)*(1. - .88*min(1., dust));
-    vec3 col = vec3(.0012,.0016,.0032);
-    col += mix(vec3(.55,.62,.8), vec3(1.,.8,.55), clamp(bulge*1.6 + toC*toC*.35, 0., 1.))*mw*.13;
-    col += vec3(.55,.1,.24)*pow(fbm(d*26. + 9.), 6.)*band*.9*(1. - dust);
-    for (int i = 0; i < 2; i++) {   // a few distant galaxies, impossibly far away: tiny tilted smudges
-      vec3 g = d*(i == 0 ? 9. : 17.) + float(i)*5.1, id = floor(g), f = fract(g) - .5; float hh = h13(id + 31.);
-      if (hh > .965) { vec3 ax = normalize(vec3(fract(hh*17.) - .5, fract(hh*31.) - .5, fract(hh*53.) - .5)); vec3 q = f - (vec3(fract(hh*7.), fract(hh*11.), fract(hh*13.)) - .5)*.4;
-        float al = dot(q, ax), e = dot(q, q) - al*al*.88; col += mix(vec3(.9,.78,.6), vec3(.6,.7,1.), fract(hh*3.7))*exp(-e*(i == 0 ? 3200. : 2200.))*.07; }
-    }
+    float n = fbm(d*2.2 + vec3(0.,0.,uTime*.004)); float n2 = fbm(d*4.5 + 11.);
+    vec3 col = vec3(.002,.003,.007);
+    { float band = exp(-d.y*d.y/.05), lane = smoothstep(.42, .62, fbm(d*vec3(2.5,11.,2.5) + 3.));   // the galaxy's own disc seen from inside: a pale band cut by dust lanes
+      col += mix(vec3(.10,.085,.06), vec3(.05,.065,.10), n2) * band * (1. - .8*lane) * (.35 + .65*n); }
+    col += vec3(.34,.08,.5)*pow(n,3.4)*.5;
+    col += vec3(.03,.26,.42)*pow(n2,3.4)*.45;
+    col += vec3(.25,.07,.10)*pow(max(0.,fbm(d*1.3-4.)-.42),2.)*.5;
     col *= uDim;
-    // stars: six depth layers from a few bright foreground suns down to a fine dust of faint ones, many more of them along the band
-    for (int i = 0; i < 6; i++) {
-      float fq = i == 0 ? 30. : i == 1 ? 60. : i == 2 ? 120. : i == 3 ? 230. : i == 4 ? 420. : 700.;
-      vec3 g = d*fq + float(i)*17.3, id = floor(g), f = fract(g) - .5; float hh = h13(id);
-      float dens = (i < 2 ? .05 : .1)*(1. + 3.5*band + 1.5*wide + 3.*bulge);
-      if (hh > 1. - dens) {
-        float b = fract(hh*91.7), mag = (i == 0 ? 1.4 : i == 1 ? .9 : i == 2 ? .75 : i == 3 ? .5 : i == 4 ? .36 : .26)*(.25 + pow(b, 3.)*1.6);
-        vec3 off = (vec3(fract(hh*13.1), fract(hh*57.3), fract(hh*7.7)) - .5)*.6, q = f - off; float r2 = dot(q, q);
-        float k = i == 0 ? 2600. : i == 1 ? 1100. : i < 4 ? 260. : 160.;   // every star a sharp point, however bright
-        float st = exp(-r2*k);
-        col += st*mag*starTint(fract(hh*33.3))*(.55 + .45*uDim);
-      }
+    for (int i = 0; i < 3; i++) {   // far background stars, in layers: endless depth behind the arena
+      float fq = i == 0 ? 90. : i == 1 ? 210. : 460.;
+      vec3 g = d*fq + float(i)*17.3, id = floor(g), f = fract(g) - .5;
+      float hh = fract(sin(dot(id, vec3(127.1,311.7,74.7)))*43758.5453);
+      float on = step(i == 0 ? .992 : .985, hh), b = fract(hh*91.7);
+      vec3 off = (vec3(fract(hh*13.1), fract(hh*57.3), fract(hh*7.7)) - .5)*.6;
+      float st = on * exp(-dot(f-off, f-off)*(i == 0 ? 260. : 160.)) * (.25 + b*b*1.2) * (i == 0 ? 1. : i == 1 ? .55 : .3);
+      col += st * mix(vec3(.75,.85,1.), vec3(1.,.85,.7), fract(hh*33.3)) * (.5 + .5*uDim);
     }
-    gl_FragColor = vec4(col, 1.);
+    gl_FragColor = vec4(col,1.);
   }`,
 }));
 sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
@@ -715,13 +700,13 @@ const gstars = (() => {
     return (hash3(ix, iz, 7) * (1 - ux) + hash3(ix + 1, iz, 7) * ux) * (1 - uz) + (hash3(ix, iz + 1, 7) * (1 - ux) + hash3(ix + 1, iz + 1, 7) * ux) * uz; };
   let n = 0, guard = 0;
   while (n < GSTAR_N && guard++ < GSTAR_N * 60) {
-    let x, y, z; const gcS = Math.random() < .025, halo = !gcS && Math.random() < .07;
-    if (gcS) { const c = Math.floor(Math.random() * (GCS.length / 5)) * 5, sg = GCS[c + 4] * (Math.random() < .6 ? .12 : .4), gq = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.4 * sg;   // dense bright core, faint outskirts: a soft glow, not a speckled ball
-      pos[n * 3] = GCS[c] + gq(); pos[n * 3 + 1] = GCS[c + 1] + gq(); pos[n * 3 + 2] = GCS[c + 2] + gq(); const b = .1 + .16 * Math.random(); col[n * 3] = b; col[n * 3 + 1] = b * .85; col[n * 3 + 2] = b * .6; sz[n] = 1; n++; continue; }
+    let x, y, z; const gcS = Math.random() < .07, halo = !gcS && Math.random() < .07;
+    if (gcS) { const c = Math.floor(Math.random() * (GCS.length / 5)) * 5, sg = GCS[c + 4] * .8, gq = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.4 * sg;
+      pos[n * 3] = GCS[c] + gq(); pos[n * 3 + 1] = GCS[c + 1] + gq(); pos[n * 3 + 2] = GCS[c + 2] + gq(); const b = .32 + .4 * Math.random(); col[n * 3] = b; col[n * 3 + 1] = b * .78; col[n * 3 + 2] = b * .38; sz[n] = 1.3 + Math.random(); n++; continue; }
     if (halo) { const v = randInSphere(ARENA * .95); x = v.x; y = v.y * .7; z = v.z; }
     else { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * ARENA * .92; x = Math.cos(a) * rr; z = Math.sin(a) * rr;
       const h = (.03 + .11 * Math.exp(-rr / ARENA * 4.5)) * ARENA; y = (Math.random() + Math.random() + Math.random() - 1.5) * h * 1.7; }
-    const r = Math.sqrt(x * x + z * z) / ARENA, g = Math.max(0, galaxy(x, y * .5, z) - gcAt(x, y * .5, z));   // the decorative sky leaves out the globular clusters, so they never show up as lone speckled balls   // a little thicker than the playable disc, so it has body from the side
+    const r = Math.sqrt(x * x + z * z) / ARENA, g = galaxy(x, y * .5, z);   // a little thicker than the playable disc, so it has body from the side
     if (!halo) {
       const ph = 2 * (Math.atan2(z, x) - Math.log(r + .04) * 3.4), nz = vn(x / ARENA * 14 + 40, z / ARENA * 14 + 40) * .6 + vn(x / ARENA * 40, z / ARENA * 40) * .4;
       const lane = Math.max(0, Math.cos(ph + 1.15)) ** 3 * Math.min(1, r / .12) * (.5 + nz);   // dust hugs the inner edge of each arm
@@ -745,53 +730,34 @@ const gstars = (() => {
   const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = -7; scene.add(pts); return pts;
 })();
 
-/* ---- other galaxies, far beyond ours: each one is its own cloud of stars (spiral, barred, elliptical, edge-on or irregular), generated
-   with its own arm count, winding, tilt and colours, so no two look alike. Andromeda is the big neighbour. Pinned to the sky. ---- */
-function farGalaxy(type, n, seed) {
-  const R = galRng(seed * 9973 + 17), gauss = () => { let u = 0; for (let k = 0; k < 4; k++) u += R(); return (u - 2) * .87; };
-  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), sz = new Float32Array(n);
-  const arms = 2 + Math.floor(R() * 3), wind = 2.4 + R() * 2.6, flat = .02 + R() * .04, hueShift = R() * .2 - .1;
-  for (let i = 0; i < n; i++) {
-    let x, y, z, cr, cg, cb; const k = R();
-    if (type === 1) {   // elliptical: a smooth swarm of old, yellow stars
-      const r = Math.pow(R(), 2.2) * .9, a = R() * Math.PI * 2, u = R() * 2 - 1, s2 = Math.sqrt(1 - u * u);
-      x = Math.cos(a) * s2 * r; y = u * r * .7; z = Math.sin(a) * s2 * r * .85; cr = 1; cg = .82; cb = .6;
-    } else if (type === 3) {   // irregular: young blue clumps scattered without order
-      const c = Math.floor(R() * 7), cx = (galRng(seed * 31 + c)() - .5) * 1.1, cz = (galRng(seed * 53 + c)() - .5) * 1.1;
-      x = cx + gauss() * .14; z = cz + gauss() * .14; y = gauss() * .06; cr = .7; cg = .8; cb = 1;
-    } else {   // spirals (0), edge-on discs (2), barred spirals (4)
-      if (k < .12) {   // bulge (a bar for type 4)
-        const bx = type === 4 ? gauss() * .2 : gauss() * .1; x = bx; z = gauss() * .09; y = gauss() * .06; cr = 1; cg = .8; cb = .55;
-      } else {
-        let r = -Math.log(1 - R() * .985) * .2; r = Math.min(r, 1);
-        const onArm = k < .82, arm = Math.floor(R() * arms);
-        const th = onArm ? arm * Math.PI * 2 / arms + Math.log(r + .05) * wind + gauss() * (.18 + .25 * r) : R() * Math.PI * 2;
-        const rr = type === 4 ? Math.max(r, .16) : r;
-        x = Math.cos(th) * rr; z = Math.sin(th) * rr; y = gauss() * flat * (1 + 1.5 * (1 - r));
-        const t = Math.min(1, r / .45); cr = 1 - .45 * t; cg = .85 - .05 * t; cb = .6 + .4 * t;
-        if (onArm && R() < .04) { cr = 1; cg = .42; cb = .66; }   // star-forming knots
-      }
-    }
-    const b = (.25 + .75 * Math.pow(R(), 3)) * (type === 1 ? .45 : k < .12 && type !== 3 ? .4 : 1);
-    pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
-    col[i * 3] = Math.max(0, cr + hueShift) * b; col[i * 3 + 1] = cg * b; col[i * 3 + 2] = Math.max(0, cb - hueShift) * b; sz[i] = 1 + Math.pow(R(), 8) * 1.6;
-  }
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aS', new THREE.BufferAttribute(sz, 1));
-  return geo;
-}
-const farGalPts = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
-  uniforms: { uDpr: { value: 1 }, uB: { value: .42 } },
-  vertexShader: `attribute vec3 color; attribute float aS; uniform float uDpr; uniform float uB; varying vec3 vC; void main(){ vC = color*uB; gl_PointSize = max(1., aS*uDpr); gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.); }`,
-  fragmentShader: `varying vec3 vC; void main(){ float d = length(gl_PointCoord - .5)*2.; gl_FragColor = vec4(vC*exp(-d*d*2.2)*(1. - d*d), 1.); }` });
-const farGals = new THREE.Group(); scene.add(farGals);
-{ const K = IS_TOUCH ? .35 : 1;
-  for (const [dx, dy, dz, size, type, seed, n, tilt] of [[.62, .42, -.66, .62, 0, 13, 30000, .95],   // Andromeda, steeply tilted like the real one
-    [-.8, -.2, -.55, .14, 1, 41, 14000, .4], [-.45, .6, .66, .2, 2, 77, 6000, 1.55], [.4, -.62, .68, .2, 3, 29, 4000, .9], [-.1, .7, -.7, .22, 4, 92, 9000, .5],
-    [.85, -.12, .5, .12, 0, 55, 5000, .8], [-.7, -.6, .35, .15, 0, 66, 6000, .2], [.15, -.85, -.5, .1, 0, 18, 3500, 1.1], [-.9, .3, .2, .09, 2, 8, 3000, 1.5], [.3, .2, .93, .11, 4, 37, 4000, .7]]) {
-    const pts = new THREE.Points(farGalaxy(type, Math.round(n * K), seed), farGalPts);
-    pts.position.copy(new V3(dx, dy, dz).normalize().multiplyScalar(ARENA * 7)); pts.scale.setScalar(ARENA * size);
-    pts.rotation.set(tilt, seed * .7, seed * .31); pts.frustumCulled = false; pts.renderOrder = -9; farGals.add(pts);
-  }
+/* ---- other galaxies, far beyond ours: Andromeda and a handful of neighbours hang in the background for scale (not reachable) ---- */
+// kind: 0 spiral, 1 elliptical, 2 edge-on disc, 3 irregular, 4 barred spiral
+const farGalMat = (kind, seed, twist, bright) => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  uniforms: { uSeed: { value: seed }, uTw: { value: twist }, uB: { value: bright }, uK: { value: kind } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `uniform float uSeed; uniform float uTw; uniform float uB; uniform float uK; varying vec2 vUv; ${NOISE}
+    void main(){ vec2 p = vUv*2. - 1.; float r = length(p); if (r > 1.) discard; float th = atan(p.y, p.x); vec3 col;
+      if (uK < .5 || uK > 3.5) {
+        float arm = .5 + .5*cos(2.*(th - log(r + .05)*uTw)), n = fbm(vec3(p*6., uSeed));
+        float disc = exp(-r*3.2)*(.25 + .75*arm*arm)*(.6 + .8*n), core = exp(-r*r/.012);
+        float dust = smoothstep(.45, .7, fbm(vec3(p*11., uSeed + 3.)))*smoothstep(.08, .25, r);
+        col = mix(vec3(1.,.78,.45), vec3(.4,.6,1.), smoothstep(.05, .45, r))*disc*(1. - .7*dust)*1.7 + vec3(1.,.88,.62)*core;
+        col += vec3(1.,.3,.62)*pow(fbm(vec3(p*24., uSeed + 7.)), 5.)*disc*7.;
+        if (uK > 3.5) col += vec3(1.,.82,.55)*exp(-(p.x*p.x/.07 + p.y*p.y/.006))*.9;
+      } else if (uK < 1.5) { vec2 q = p*vec2(1., 1.5); float e = length(q); col = vec3(1.,.82,.55)*(exp(-e*5.)*1.3 + exp(-e*e/.012));
+      } else if (uK < 2.5) { vec2 q = p*vec2(1., 7.); float e = length(q); float lane = 1. - .8*exp(-p.y*p.y/.0009)*smoothstep(.75, .1, abs(p.x));
+        col = (mix(vec3(1.,.8,.5), vec3(.5,.65,1.), smoothstep(.1,.6,abs(p.x)))*exp(-e*3.2)*1.5 + vec3(1.,.88,.62)*exp(-dot(p*vec2(1.,2.2), p*vec2(1.,2.2))/.02))*lane;
+      } else { float n = fbm(vec3(p*3., uSeed)), n2 = fbm(vec3(p*7., uSeed + 4.));
+        col = mix(vec3(.4,.6,1.), vec3(1.,.4,.7), n2)*smoothstep(.42, .72, n)*exp(-r*2.4)*1.9 + vec3(1.,.4,.65)*pow(n2, 5.)*exp(-r*2.)*5.; }
+      gl_FragColor = vec4(col*uB*(1. - smoothstep(.8, 1., r)), 1.); }`,
+});
+// pinned to the sky like the stars behind them: always behind every ball, and so far off they never shift as you fly
+const farGals = new THREE.Group(); farGals.visible = false; scene.add(farGals);   // hidden: everything you can see must be somewhere you can actually reach
+for (const [dx, dy, dz, size, kind, seed, tw, br] of [[.62, .42, -.66, .62, 0, 1.3, 3.2, .85],   // the one big neighbour: Andromeda
+  [-.8, -.2, -.55, .2, 1, 4.1, 0, .6], [-.45, .6, .66, .17, 2, 7.7, 0, .7], [.4, -.62, .68, .24, 3, 2.9, 0, .6], [-.1, .7, -.7, .15, 4, 9.2, 2.6, .6], [.85, -.12, .5, .13, 1, 5.5, 0, .5], [-.7, -.6, .35, .12, 3, 6.6, 0, .5]]) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * size * 2, ARENA * size * 2), farGalMat(kind, seed, tw, br)), v = new V3(dx, dy, dz).normalize().multiplyScalar(ARENA * 7);
+  m.position.copy(v); m.rotation.set(seed * 1.3, seed * .7, seed * 2.1); m.frustumCulled = false; m.renderOrder = -9; farGals.add(m);
 }
 
 /* ============================== FOOD: glowing clusters (local, wrap around you) ============================== */
@@ -1219,7 +1185,7 @@ function dressCell(ent, mesh) {   // rings, a circling moon, or a star's corona,
   if (L.ring) { const ring = new THREE.Mesh(RING_GEO2, ringMat(L.seed, ent.kind === 'me')); ring.rotation.x = Math.PI / 2 + L.ringTilt; ring.rotation.y = L.seed * 2; ring.renderOrder = 1; mesh.add(ring); }
   if (L.moon) { const mm = cellMaterial(ent.color, ent.deep, L.seed * 7 % 1, 5, null, { design: L.seed > .5 ? 0 : 8, seed: L.seed * 3 % 1, alt: ent.color, spin: .2 }); if (ent.kind === 'me') mm.uniforms.uOwn.value = 1;
     moon = new THREE.Mesh(CELL_GEO, mm); moon.scale.setScalar(.2); mesh.add(moon); }
-  if (L.star) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: L.star, opacity: .3, toneMapped: false })); g.scale.setScalar(2.4); mesh.add(g); }
+  if (L.star) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: L.star, opacity: .55, toneMapped: false })); g.scale.setScalar(3.4); mesh.add(g); }
   return moon;
 }
 function addCell(ent, pos, mass, id) {
@@ -1246,6 +1212,8 @@ const BOT_NAMES = ['Nucleus', 'Blobfather', 'Mitochondria', 'xX_Orb_Xx', 'Plasma
 const LEV_NAMES = ['GARGANTUA', 'THE VOID WHALE', 'LEVIATHAN', 'Ω TITAN'];
 let botSeq = 0;
 const COL_MASS = (ARENA / 20 / 1.5) ** 2;   // colossi: balls a twentieth the width of the whole map
+const nearR = c => viewRadius(c.r) * 2.4 * (c.ent === me ? Math.max(1, zoom) : 1);   // 'near you' grows with your zoom, so spawns out of sight still count as your crowd
+const seenR = h => (h === me ? viewRadius(camR || h.main().r) * Math.max(1, zoom) : viewRadius(h.main().r) * 1.6) * 1.25;   // how far a player can currently see, plus a margin
 function spawnBot(lev = false, near = true, col = false) {
   const id = `${short()}b${(botSeq++).toString(36)}`;
   const e = new Entity(id, 'bot', col ? ['COLOSSUS', 'WORLD EATER', 'THE ABYSS'][botSeq % 3] : lev ? LEV_NAMES[botSeq % LEV_NAMES.length] : BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)], Math.random(), net.selfId);
@@ -1265,21 +1233,19 @@ function spawnBot(lev = false, near = true, col = false) {
     else if (k < .85) { m = h.mass * (k < .72 ? rnd(1.4, 3) : rnd(3, 6)); if (m > BOT_MAX) m = rnd(200, PREY_MAX); }
     else m = rnd(6000, 150000);   // plenty of properly big bots around, whatever your size
     m = clamp(m, 10, BOT_MAX);
-    const warp = h === me && now < PU.speedUntil;
-    if (warp) { m = clamp(h.mass * rnd(1.6, 8), 200, BOT_MAX); _sd.copy(me.dir).addScaledVector(randUnit(), .3).normalize(); }   // at light speed the traffic is ahead of you, and bigger than you
-    pos = hm.pos.clone().addScaledVector(warp ? _sd : randUnit(), viewRadius(hm.r) * (warp ? rnd(1.15, 2.2) : 1.15) + rad(m) + rnd(50, 400));
+    pos = hm.pos.clone().addScaledVector(randUnit(), seenR(h) + rad(m) + rnd(50, 400));   // born out of sight; it drifts in through the haze
     if (pos.length() > ARENA * .95) pos.setLength(ARENA * .9);
     e.anchor = hm;   // drifts toward this player and creeps into view
   }
   // never materialise inside anyone's view
-  for (let k = 0; k < 20 && humans.some(h => h.main().pos.distanceTo(pos) < viewRadius(h.main().r) * 1.1 + rad(m)); k++) pos = randInSphere(ARENA * (lev ? .55 : .85));
+  for (let k = 0; k < 20 && humans.some(h => h.main().pos.distanceTo(pos) < seenR(h) + rad(m)); k++) pos = randInSphere(ARENA * (lev ? .55 : .85));
   addCell(e, pos, m);
   return e;
 }
 const BOT_NEAR = IS_TOUCH ? 48 : 80;   // how many bots hang around each player; the rest roam the whole map
 function botTarget() { return { norm: IS_TOUCH ? 180 : 400, lev: IS_TOUCH ? 5 : 8 }; }
 function humanMains() { return [...entities.values()].filter(h => (h.kind === 'me' || h.kind === 'remote') && h.cells.length).map(h => h.main()); }
-function countNearBots(hs) { let n = 0; for (const e of entities.values()) { if (e.kind !== 'bot' || e.lev || !e.cells.length) continue; const p = e.main().pos; if (hs.some(h => h.pos.distanceTo(p) < viewRadius(h.r) * 2.4)) n++; } return n; }
+function countNearBots(hs) { let n = 0; for (const e of entities.values()) { if (e.kind !== 'bot' || e.lev || !e.cells.length) continue; const p = e.main().pos; if (hs.some(h => h.pos.distanceTo(p) < nearR(h))) n++; } return n; }
 let levNext = 0;
 function ensureBots() {
   if (!isHost) return;
@@ -1302,7 +1268,7 @@ function ensureBots() {
     if (near >= BOT_NEAR * humans.length || recycled >= (me && now < PU.speedUntil ? 20 : 8)) break;
     if (e.kind !== 'bot' || e.lev) continue;
     const m = e.main(); if (!m) continue;
-    if (humans.every(h => h.pos.distanceTo(m.pos) > viewRadius(h.r) * 2.4)) { removeEntity(e); spawnBot(false, true); recycled++; near++; }
+    if (humans.every(h => h.pos.distanceTo(m.pos) > nearR(h))) { removeEntity(e); spawnBot(false, true); recycled++; near++; }
   }
 }
 // snacks: small local prey that keep spawning around you so split-attacks are always on the menu
@@ -1310,7 +1276,7 @@ const SNACK_NAMES = ['snack', 'lil orb', 'tiny', 'morsel', 'bite', 'crumb', 'nib
 let snackSeq = 0;
 function ensureSnacks() {
   if (!playing || !mainCell) return;
-  const r = mainCell.r, near = viewRadius(r) * 2.4;
+  const r = mainCell.r, near = nearR(mainCell);
   let n = 0;
   for (const e of [...entities.values()]) {
     if (e.kind !== 'snack') continue;
@@ -1322,7 +1288,7 @@ function ensureSnacks() {
   for (let added = 0; n < want && added < 3; n++, added++) {
     const e = new Entity(`${short()}s${(snackSeq++).toString(36)}`, 'snack', SNACK_NAMES[snackSeq % SNACK_NAMES.length], Math.random(), net.selfId);
     e.aggr = false;
-    const p = new V3().copy(mainCell.pos).addScaledVector(randUnit(), viewRadius(r) * 1.1 + rnd(50, 300));
+    const p = new V3().copy(mainCell.pos).addScaledVector(randUnit(), seenR(me) + rnd(50, 300));   // out of sight, never popping in beside you
     e.anchor = mainCell;
     if (p.length() > ARENA * .95) p.setLength(ARENA * .9);
     addCell(e, p, clamp(my * rnd(.03, .12), 3, 30 + my * .02));
@@ -1330,7 +1296,7 @@ function ensureSnacks() {
 }
 function gatherBots() {   // on (re)spawn: bring the crowd to you, just outside your fog, so they drift into view
   if (!isHost || !mainCell) return;
-  const far = viewRadius(mainCell.r) * 2.4; let near = countNearBots([mainCell]);
+  const far = nearR(mainCell); let near = countNearBots([mainCell]);
   for (const e of [...entities.values()]) {
     if (near >= BOT_NEAR) break;
     if (e.kind !== 'bot' || e.lev) continue; const m = e.main();
@@ -1576,7 +1542,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') { opts.sound = !opts.sound; document.getElementById('optSound').checked = opts.sound; }
   if (!playing) return;
   if (e.code === 'Space') { split(me, fwd, crosshairPoint()); e.preventDefault(); }
-  if (e.code === 'KeyF' || e.code === 'KeyW') eject(me, fwd, crosshairPoint());
+  if (e.code === 'KeyF') eject(me, fwd, crosshairPoint());
   if (ROCKETS_ON && e.code === 'KeyR' && !e.repeat) fireRocket();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1634,8 +1600,8 @@ function handleInput() {
     const k = 1 - Math.exp(-dt * 9); tStick.x += (stick.x - tStick.x) * k; tStick.y += (stick.y - tStick.y) * k;
     yIn = -tStick.x * .7; pIn = -tStick.y * .7;
   }
-  if (keys.ArrowLeft) yIn += 1; if (keys.ArrowRight) yIn -= 1;
-  if (keys.ArrowUp) pIn += 1; if (keys.ArrowDown) pIn -= 1;
+  if (keys.ArrowLeft || keys.KeyA) yIn += 1; if (keys.ArrowRight || keys.KeyD) yIn -= 1;   // WASD steers exactly like the arrow keys
+  if (keys.ArrowUp || keys.KeyW) pIn += 1; if (keys.ArrowDown || keys.KeyS) pIn -= 1;
   if (opts.mouse && mouse.in && !IS_TOUCH && !chatOpen) {   // mouse: the ball flies toward your cursor (dead zone in the middle)
     const curve = v => Math.sign(v) * clamp((Math.abs(v) - .1) / .55, 0, 1);
     yIn -= curve(mouse.x); pIn -= curve(mouse.y);
@@ -1647,13 +1613,11 @@ function handleInput() {
   rotLocal(AX.Y, yawVel * dt); rotLocal(AX.X, pitchVel * dt);
   levelRoll(dt); updateBasis();
   me.dir.copy(fwd);
-  const sx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-  if (sx) me.dir.addScaledVector(right, sx * .8).normalize();
   PU.boosting = BOOST_ON && (keys.ShiftLeft || keys.ShiftRight || boostHeld) && PU.boost > 0;
   if (PU.boosting) { PU.boost = Math.max(0, PU.boost - 30 * dt); if (!PU.used) { PU.used = true; $('boostTip').classList.add('hidden'); } }
   else if (PU.boost < 40) PU.boost = Math.min(40, PU.boost + 2.5 * dt);   // slow trickle so you always have a little nitro
   const roids = now < PU.roidsUntil ? 1.15 : 1;
-  me.throttle = (keys.KeyS || brakeHeld) ? .12 : (PU.boosting ? 3 : 1) * roids * (now < PU.speedUntil ? PU.speedMult : 1);
+  me.throttle = (((keys.ShiftLeft || keys.ShiftRight) && !BOOST_ON) || brakeHeld) ? .12 : (PU.boosting ? 3 : 1) * roids * (now < PU.speedUntil ? PU.speedMult : 1);
 }
 
 /* ============================== INTERACTIONS ============================== */
@@ -1672,7 +1636,8 @@ function interactions() {
   for (const [a, b] of eaten) {
     const victim = a.ent;
     removeCell(a);
-    if (b.ent.local && !b.dead) { b.mass += a.mass * (b.ent === me && victim.kind !== 'snack' ? KILL_BONUS : 1); b.r = rad(b.mass); b.pulse = 1; }
+    if (b.ent.local && !b.dead) { const g = a.mass * (b.ent === me && victim.kind !== 'snack' ? KILL_BONUS : 1); b.mass += g; b.r = rad(b.mass); b.pulse = 1;
+      if (b.ent === me && victim.kind !== 'snack' && g > me.mass * .08) feed(`<b style="color:#ff7a3c">Ate ${escapeHtml(victim.name)}</b> +${fmt(g)}`); }
     if (b.ent === me) { burst(a.pos.x, a.pos.y, a.pos.z, victim.color, clamp(Math.round(20 + a.r * 2), 20, 120), b, 40 + a.r * 4, Math.max(1.2, a.r * .25)); }
     else if (!b.ent.local) netEat(b.ent.owner, { t: b.id, m: Math.round(a.mass), v: victim.name, k: victim.cells.length === 0 ? 1 : 0 });
     if (b.ent === me) onMeAte(victim, victim.cells.length === 0);
@@ -2256,7 +2221,7 @@ function updateCamera() {
       let best = null; for (const e of entities.values()) for (const c of e.cells) if (!best || c.mass > best.mass) best = c;
       attractTarget = deathCam || best;
     }
-    const T = attractTarget; attractAng += DT * .09;
+    const T = attractTarget; attractAng += DT * .05;
     const P = T ? T.pos : new V3(), r = T ? T.rr : 100;
     _des.set(Math.cos(attractAng), .35 + .2 * Math.sin(attractAng * .7), Math.sin(attractAng)).normalize().multiplyScalar(r * 3.2 + 60).add(P);
     camPos.lerp(_des, 1 - Math.exp(-DT * 1.2));
@@ -2269,7 +2234,7 @@ function updateCamera() {
     warpK += (w - warpK) * Math.min(1, DT * 2.5); foodMat.uniforms.uWarp.value = warpK;
     const wb = document.getElementById('warpBanner'); wb.style.opacity = warpK > .05 ? 1 : 0; if (warpK > .05) wb.textContent = 'LIGHT SPEED ×' + PU.speedMult; }
   camera.fov = (IS_TOUCH ? 74 : 66) + warpK * 26 + fovKick + (playing && me ? (me.throttle < .5 ? -3 : 0) : 0);
-  farGals.position.copy(camera.position); farGalPts.uniforms.uDpr.value = renderer.getPixelRatio();
+  farGals.position.copy(camera.position);
   camera.far = ARENA * 11 + 4000 + (mainCell && playing ? mainCell.rr * 8 : 0);
   camera.updateProjectionMatrix();
 }
@@ -2332,11 +2297,11 @@ function updateVisuals() {
   for (const e of entities.values()) {
     for (const c of e.cells) {
       if (!e.local) c.pos.lerp(c.tpos, 1 - Math.exp(-DT * 11));
-      c.rr += (c.r - c.rr) * Math.min(1, DT * 4);
+      c.rr += (c.r - c.rr) * Math.min(1, DT * (c.r > c.rr ? 1.6 : 4));   // growing swells in gradually instead of jumping
       c.pulse *= Math.exp(-DT * 4);
       c.mesh.position.copy(c.pos); c.mesh.scale.setScalar(c.rr);
       if (c.moon) { const a = now * .35 + c.born; c.moon.position.set(Math.cos(a) * 1.75, Math.sin(a * .7) * .35, Math.sin(a) * 1.75); }
-      c.appear = Math.min(1, c.appear + DT * .8); const u = c.mesh.material.uniforms; u.uAppear.value = c.appear; u.uR.value = c.rr; u.uPulse.value = c.pulse * .5; u.uWobble.value = .022;
+      c.appear = Math.min(1, c.appear + DT * .5); const u = c.mesh.material.uniforms; u.uAppear.value = c.appear; u.uR.value = c.rr; u.uPulse.value = c.pulse * .5; u.uWobble.value = .022;
       const hideLabel = true;   // names are painted on the ball surface now
       c.label.visible = !hideLabel;
       if (!hideLabel) {
@@ -2351,7 +2316,6 @@ function updateVisuals() {
   shellMat.uniforms.uP.value.copy(mainCell && playing ? mainCell.pos : camera.position); shellMat.uniforms.uR.value = pr; gstars.material.uniforms.uDpr.value = renderer.getPixelRatio(); hazeMat.uniforms.uShow.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .03) / .25, 0, 1) : 0; shellMat.uniforms.uZoom.value = playing && mainCell ? clamp((camera.position.distanceTo(mainCell.pos) / ARENA - .12) / .5, 0, 1) : 0;   // edge grid only once the camera is far back relative to the map
   updateWakes();
   sky.position.copy(camera.position);
-  if (camera.position.lengthSq() > 1) sky.material.uniforms.uGC.value.copy(camera.position).negate().normalize();
   sky.material.uniforms.uDim.value += ((playing ? .4 : 1) - sky.material.uniforms.uDim.value) * Math.min(1, DT * 2);
 }
 
@@ -2684,12 +2648,7 @@ function startGame() {
   opts.sound = $('optSound').checked; opts.mouse = $('optMouse').checked; opts.chat = $('optChat').checked;
   sfx('tier');
   dismissKeyboard();   // keys must reach the game, and phones must drop the keyboard
-  // drop in right where the background camera is, facing the way it looks: like jumping off the bus
-  const fwd = new V3(0, 0, -1).applyQuaternion(camQ), dp = camPos.clone().addScaledVector(fwd, 900);
-  if (dp.length() > ARENA * .9) dp.setLength(ARENA * .85);
-  const fromP = camPos.clone(), fromQ = camQ.clone();
-  spawnMe(name, chosenHue, 0, { pos: dp, dir: fwd });
-  intro = null; zoom = zoomTarget = ZSTART; launch = { t: 0, dur: 2.6, P: fromP, Q: fromQ };
+  spawnMe(name, chosenHue);   // every Play (first game or after dying) opens with the zoom-in intro
   gatherBots(); ensureSnacks();
   deathCam = null; attractTarget = null;
   home.classList.add('hidden'); death.classList.add('hidden'); hud.classList.remove('hidden');
