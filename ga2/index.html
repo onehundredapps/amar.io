@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Galaxy Arena 2</title>
+<meta name="description" content="Galaxy Arena 2: a 3D eat-and-grow arena across a whole spiral galaxy. WebGPU.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--a:#39f3ff;--text:#e8ecff;--muted:#9aa3c7;--glass:rgba(14,18,40,.62);--line:rgba(255,255,255,.12)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Outfit,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none}
+.hidden{display:none!important}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+#loading,#nogpu{position:fixed;inset:0;display:grid;place-items:center;text-align:center;z-index:20;background:radial-gradient(ellipse at center,#120d2a,#000 70%)}
+#loading h1,#nogpu h1{font:900 54px Outfit;margin:0 0 10px;background:linear-gradient(90deg,#ff8a3c,#ff4fd8 60%,#7a8bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+#loadTxt{color:var(--muted)}
+#home,#death{position:fixed;inset:0;display:grid;place-items:center;z-index:10;background:radial-gradient(ellipse at center,rgba(0,0,0,0),rgba(0,0,0,.55) 80%)}
+.card{width:min(420px,92vw);padding:28px 26px 22px;text-align:center}
+.logo{font:900 50px/1 Outfit;letter-spacing:.02em;background:linear-gradient(90deg,#ff8a3c,#ff4fd8 55%,#7a8bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ver{font:700 13px Outfit;letter-spacing:.3em;color:var(--muted);margin:6px 0 22px}
+input{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);font:500 18px Outfit;text-align:center;outline:none;-webkit-user-select:text;user-select:text}
+.big{width:100%;margin-top:14px;padding:15px;border-radius:14px;border:1px solid rgba(255,138,60,.6);background:rgba(255,138,60,.12);color:#ff8a3c;font:900 28px Outfit;letter-spacing:.14em;cursor:pointer}
+.big:hover{background:rgba(255,138,60,.22)}
+.small{margin-top:12px;color:var(--muted);font-size:13px;line-height:1.5}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+#mass{position:absolute;left:16px;top:14px;padding:10px 16px;font:900 30px Outfit}
+#boosts{position:absolute;left:18px;top:70px;font:700 13px Outfit}
+#lb{position:absolute;right:14px;top:14px;width:220px;padding:12px 14px;font-size:13px}
+#lb h4{margin:0 0 6px;font:900 11px Outfit;letter-spacing:.24em;color:var(--muted)}
+#lbList{list-style:none;margin:0;padding:0} #lbList li{display:flex;justify-content:space-between;padding:1px 0} #lbList li.me{color:var(--a);font-weight:700}
+#feed{position:absolute;left:50%;top:16px;transform:translateX(-50%);text-align:center;font:700 15px Outfit;text-shadow:0 1px 4px #000}
+.msg{margin-bottom:4px;animation:f 3.2s forwards} @keyframes f{0%{opacity:0}8%{opacity:1}80%{opacity:1}100%{opacity:0}}
+#hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);padding:8px 14px;font-size:12px;color:var(--muted);white-space:nowrap;transition:opacity .8s}
+#hint b{color:#ff8a3c}
+kbd{border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--text);background:rgba(255,255,255,.06);font-size:11px}
+#perf{position:fixed;left:12px;bottom:12px;z-index:9;display:none;padding:10px;pointer-events:none}
+#perf pre{margin:0 0 6px;font:12px ui-monospace,Menlo,monospace;color:#cfe}
+#touch{display:none}
+body.touch #touch{display:block}
+#touch button{position:fixed;pointer-events:auto;border-radius:50%;border:1px solid var(--line);background:rgba(14,18,40,.55);color:var(--text);font:900 13px Outfit;letter-spacing:.06em}
+#bSplit{right:18px;bottom:24px;width:96px;height:96px;font-size:18px!important;background:linear-gradient(135deg,rgba(57,243,255,.35),rgba(255,79,216,.35))!important}
+#bSpit{left:150px;bottom:24px;width:62px;height:62px} #bBrake{left:84px;bottom:24px;width:62px;height:62px} #bBack{left:18px;bottom:24px;width:62px;height:62px}
+body.touch #hint{bottom:auto;top:64px;white-space:normal;width:min(320px,86vw);text-align:center}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}
+.grid div{padding:10px;border-radius:12px;background:rgba(255,255,255,.05)} .grid b{display:block;font:900 24px Outfit} .grid span{font-size:11px;letter-spacing:.2em;color:var(--muted)}
+.link{background:none;border:0;color:var(--muted);margin-top:10px;cursor:pointer;font:600 14px Outfit;text-decoration:underline}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading"><div><h1>GALAXY ARENA 2</h1><div id="loadTxt">Loading…</div></div></div>
+<div id="nogpu" class="hidden"><div class="card"><h1>GALAXY ARENA 2</h1><p>This version runs on WebGPU, which this browser doesn't have.</p><p class="small">Use a current Chrome, Edge or Safari 26 (or newer). Galaxy Arena 1 works everywhere: <a href="../" style="color:#ff8a3c">play it here</a>.</p></div></div>
+<div id="home" class="hidden"><div class="card panel">
+  <div class="logo">GALAXY ARENA</div><div class="ver">2 · WEBGPU</div>
+  <input id="name" maxlength="16" placeholder="Enter your name" autocomplete="off" spellcheck="false">
+  <button class="big" id="play">PLAY</button>
+  <div class="small">Mouse or arrows steer · <kbd>W</kbd>/<kbd>S</kbd> zoom · <kbd>Space</kbd> split · <kbd>F</kbd> spit · <kbd>Shift</kbd> brake<br><kbd>C</kbd> look back · <kbd>V</kbd> lock view · <kbd>I</kbd> help · <kbd>F1</kbd> performance</div>
+  <div class="small">Offline preview with bots. <a href="../" style="color:#ff8a3c">Galaxy Arena 1</a> has multiplayer.</div>
+</div></div>
+<div id="hud" class="hidden">
+  <div id="mass" class="panel">0</div><div id="boosts"></div>
+  <div id="lb" class="panel"><h4>LEADERBOARD</h4><ol id="lbList"></ol></div>
+  <div id="feed"></div>
+  <div id="hint" class="panel"><b>ⓘ</b> <kbd>Mouse</kbd>/<kbd>Arrows</kbd> steer · <kbd>W</kbd>/<kbd>S</kbd> zoom · <kbd>Space</kbd> split · <kbd>F</kbd> spit · <kbd>Shift</kbd> brake · <kbd>C</kbd> look back · <kbd>V</kbd> lock view · <kbd>I</kbd> help</div>
+  <div id="touch"><button id="bBack">BACK</button><button id="bBrake">BRAKE</button><button id="bSpit">SPIT</button><button id="bSplit">SPLIT</button></div>
+</div>
+<div id="death" class="hidden"><div class="card panel">
+  <div class="logo" style="font-size:40px">DEVOURED</div><div class="small" id="dBy"></div>
+  <div class="grid"><div><b id="dPeak">0</b><span>PEAK MASS</span></div><div><b id="dEaten">0</b><span>PLANETS EATEN</span></div><div><b id="dOrbs">0</b><span>ORBS EATEN</span></div><div><b id="dTime">0s</b><span>SURVIVED</span></div></div>
+  <button class="big" id="again">PLAY AGAIN</button><button class="link" id="toHome">Home</button>
+</div></div>
+<div id="perf" class="panel"><pre></pre><canvas width="240" height="60" style="position:static;width:240px;height:60px"></canvas></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
